@@ -7,7 +7,7 @@ import inspect
 from .asynchronous import create_task
 from .asynchronous import Event
 from .asynchronous import Queue
-from ._compare import compare_once
+from ._compare import compare_once, compare_once_monitor
 from .executor import add_priority_task
 from .logger import warning
 
@@ -222,7 +222,7 @@ class Monitor(BaseAgent):
             dut_item = await self.compare_queue.get()
             for model_info in self.model_infos.values():
                 std_item = await model_info["monitor_port"].get()
-                compare_once(dut_item, std_item, self.compare_func, True)
+                compare_once_monitor(dut_item, std_item, self.compare_func, True)
 
     async def __monitor_forever(self):
         """Monitor the DUT forever."""

@@ -127,11 +127,6 @@ class Driver(BaseAgent):
                     f"The model result is {model_result}, but the DUT result is None."
                 )
 
-            elif model_result is None and dut_result is not None:
-                warning(
-                    f"The dut result is {dut_result}, but the model result is None."
-                )
-
             elif model_result is not None and dut_result is not None:
                 compare_once(
                     dut_result, model_result, self.compare_func, match_detail=True

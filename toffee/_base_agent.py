@@ -198,33 +198,39 @@ class Monitor(BaseAgent):
         self.agent = agent
 
         self.monitor_task = create_task(self.__monitor_forever())
-        self.compare_task = create_task(self.__compare_forever())
+        # self.compare_task = create_task(self.__compare_forever())
 
     def get_queue_size(self):
-        """
-        Get the size of the get queue.
-
-        Returns:
-            The size of the get queue.
-        """
-
         return self.get_queue.qsize()
 
-    async def __compare_forever(self):
-        """Compare the result forever."""
+    # async def __compare_forever(self):
+    #     """Compare the result forever."""
 
-        while True:
-            dut_item = await self.compare_queue.get()
-            for model_info in self.model_infos.values():
-                std_item = await model_info["monitor_port"].get()
-                compare_once_monitor(dut_item, std_item, self.compare_func, True)
+    #     while True:
+    #         dut_item = await self.compare_queue.get()
+    #         for model_info in self.model_infos.values():
+    #             std_item = await model_info["monitor_port"].get()
+    #             compare_once_monitor(dut_item, std_item, self.compare_func, True)
+
+    async def process_monitor_call(self, ret):
+        for model_info in self.model_infos.values():
+            if model_info["monitor_port"] is not None:
+                await model_info["monitor_port"].put(ret)
+
+            if model_info["monitor_hook"] is not None:
+                model_info["monitor_hook"](ret)
+
+            if model_info["agent_hook"] is not None:
+                model_info["agent_hook"](self.agent, ret)
+
+            if model_info["agent_port"] is not None:
+                await model_info["agent_port"].put((self.name, ret))
 
     async def __monitor_forever(self):
-        """Monitor the DUT forever."""
-
         while True:
+            await self.agent.monitor_step()
+
             ret = await self.func(self.agent)
             if ret is not None:
                 await self.get_queue.put(ret)
-                await self.compare_queue.put(ret)
-            await self.agent.monitor_step()
+                await self.process_monitor_call(ret)

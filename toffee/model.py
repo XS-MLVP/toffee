@@ -2,6 +2,7 @@ __all__ = [
     "Model",
     "agent_hook",
     "driver_hook",
+    "monitor_hook",
     "AgentPort",
     "DriverPort",
     "MonitorPort",
@@ -67,6 +68,44 @@ def driver_hook(driver_path: str = "", *, agent_name: str = "", driver_name: str
 
         func.__is_driver_hook__ = True
         func.__driver_path__ = driver_path
+        func.__matched__ = [False]
+
+        return func
+
+    return decorator
+
+def monitor_hook(monitor_path: str = "", agent_name: str = "", monitor_name: str = ""):
+    """
+    Decorator for monitor hook.
+
+    Args:
+        monitor_path: The path of the monitor.
+        agent_name:   The name of the agent to be hooked.
+        monitor_name: The name of the monitor to be hooked.
+    """
+
+    assert monitor_path == "" or (
+        agent_name == "" and monitor_name == ""
+    ), "agent_name and monitor_name must be empty when monitor_path is set"
+
+    assert (
+        agent_name != "" or monitor_name == ""
+    ), "agent_name must not be empty when monitor_name is set"
+
+    def decorator(func):
+        nonlocal monitor_path, agent_name, monitor_name
+
+        if monitor_path == "":
+            if agent_name != "":
+                if monitor_name != "":
+                    monitor_path = f"{agent_name}.{monitor_name}"
+                else:
+                    monitor_path = f"{agent_name}.{func.__name__}"
+            else:
+                monitor_path = func.__name__.replace("__", ".")
+
+        func.__is_monitor_hook__ = True
+        func.__monitor_path__ = monitor_path
         func.__matched__ = [False]
 
         return func
@@ -180,8 +219,10 @@ class Model(Component):
         self.all_agent_ports = []
         self.all_driver_ports = []
         self.all_monitor_ports = []
-        self.all_driver_hooks = []
+
         self.all_agent_hooks = []
+        self.all_driver_hooks = []
+        self.all_monitor_hooks = []
 
     def collect_all(self):
         """
@@ -191,8 +232,9 @@ class Model(Component):
         self.all_agent_ports.clear()
         self.all_driver_ports.clear()
         self.all_monitor_ports.clear()
-        self.all_driver_hooks.clear()
         self.all_agent_hooks.clear()
+        self.all_driver_hooks.clear()
+        self.all_monitor_hooks.clear()
 
         for attr in dir(self):
             attr_value = getattr(self, attr)
@@ -208,11 +250,13 @@ class Model(Component):
                 elif isinstance(attr_value, AgentPort):
                     self.all_agent_ports.append(attr_value)
 
-            elif callable(attr_value) and hasattr(attr_value, "__is_driver_hook__"):
-                self.all_driver_hooks.append(attr_value)
-
-            elif callable(attr_value) and hasattr(attr_value, "__is_agent_hook__"):
-                self.all_agent_hooks.append(attr_value)
+            elif callable(attr_value):
+                if hasattr(attr_value, "__is_driver_hook__"):
+                    self.all_driver_hooks.append(attr_value)
+                elif hasattr(attr_value, "__is_agent_hook__"):
+                    self.all_agent_hooks.append(attr_value)
+                elif hasattr(attr_value, "__is_monitor_hook__"):
+                    self.all_monitor_hooks.append(attr_value)
 
     def clear_matched(self):
         """
@@ -231,6 +275,9 @@ class Model(Component):
         for agent_hook in self.all_agent_hooks:
             agent_hook.__matched__[0] = False
 
+        for monitor_hook in self.all_monitor_hooks:
+            monitor_hook.__matched__[0] = False
+
     def is_attached(self):
         """
         Check if the model is attached to an agent.
@@ -243,21 +290,35 @@ class Model(Component):
         Ensure all driver ports, monitor ports, driver hooks, and agent hooks are matched.
         """
 
-        for driver_hook in self.all_driver_hooks:
-            if not driver_hook.__matched__[0]:
-                raise ValueError(
-                    f"Driver hook {driver_hook.__driver_path__} is not matched"
-                )
-
         for agent_hook in self.all_agent_hooks:
             if not agent_hook.__matched__[0]:
                 raise ValueError(
                     f"Agent hook {agent_hook.__agent_name__} is not matched"
                 )
 
+        for driver_hook in self.all_driver_hooks:
+            if not driver_hook.__matched__[0]:
+                raise ValueError(
+                    f"Driver hook {driver_hook.__driver_path__} is not matched"
+                )
+
+        for monitor_hook in self.all_monitor_hooks:
+            if not monitor_hook.__matched__[0]:
+                raise ValueError(
+                    f"Monitor hook {monitor_hook.__monitor_path__} is not matched"
+                )
+
+        for agent_port in self.all_agent_ports:
+            if not agent_port.matched:
+                raise ValueError(
+                    f"Agent port {agent_port.name} is not matched"
+                )
+
         for driver_port in self.all_driver_ports:
             if not driver_port.matched:
-                raise ValueError(f"Driver port {driver_port.get_path()} is not matched")
+                raise ValueError(
+                    f"Driver port {driver_port.get_path()} is not matched"
+                )
 
         for monitor_port in self.all_monitor_ports:
             if not monitor_port.matched:
@@ -319,5 +380,16 @@ class Model(Component):
                 if mark_matched:
                     agent_hook.__matched__[0] = True
                 return agent_hook
+
+    def get_monitor_hook(self, monitor_path: str, mark_matched: bool = False):
+        """
+        Get the monitor hook by name.
+        """
+
+        for monitor_hook in self.all_monitor_hooks:
+            if monitor_hook.__monitor_path__ == monitor_path:
+                if mark_matched:
+                    monitor_hook.__matched__[0] = True
+                return monitor_hook
 
     async def main(self): ...

@@ -140,6 +140,9 @@ class Env(MObject):
         monitor_path = f"{agent_name}.{monitor_method.__name__}"
 
         model_info = {
+            "agent_hook": model.get_agent_hook(agent_name, mark_matched=True),
+            "agent_port": model.get_agent_port(agent_name, mark_matched=True),
+            "monitor_hook": model.get_monitor_hook(monitor_path, mark_matched=True),
             "monitor_port": model.get_monitor_port(monitor_path, mark_matched=True)
         }
 

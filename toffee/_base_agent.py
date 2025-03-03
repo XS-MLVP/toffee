@@ -221,5 +221,6 @@ class Monitor(BaseAgent):
 
             ret = await self.func(self.agent)
             if ret is not None:
-                add_priority_task(self.process_monitor_call(ret), 0)
+                # monitor has the highest priority
+                add_priority_task(self.process_monitor_call(ret), -1)
                 await self.get_queue.put(ret)

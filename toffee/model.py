@@ -203,8 +203,8 @@ class MonitorPort(Port):
 
         return self.monitor_path
 
-    async def __call__(self, item):
-        return await self.put(item)
+    async def __call__(self):
+        return await self.get()
 
 
 class Model(Component):

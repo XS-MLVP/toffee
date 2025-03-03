@@ -263,7 +263,18 @@ class Component(MObject):
     """
 
     def __init__(self):
-        create_task(self.main())
+        create_task(self.__main_wrapper())
+
+    async def __main_wrapper(self):
+        """Make sure the main function is executed after test start"""
+        while True:
+            loop = asyncio.get_event_loop()
+            if hasattr(loop, "global_clock_event"):
+                await loop.global_clock_event.wait()
+                break
+            await asyncio.sleep(0)
+
+        await self.main()
 
     async def main(self):
         raise NotImplementedError("main function not implemented")

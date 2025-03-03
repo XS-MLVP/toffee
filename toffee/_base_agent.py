@@ -7,7 +7,7 @@ import inspect
 from .asynchronous import create_task
 from .asynchronous import Event
 from .asynchronous import Queue
-from ._compare import compare_once, compare_once_monitor
+from ._compare import compare_once
 from .executor import add_priority_task
 from .logger import warning
 
@@ -194,23 +194,12 @@ class Monitor(BaseAgent):
 
         self.compare_queue = Queue()
         self.get_queue = Queue()
-
         self.agent = agent
 
         self.monitor_task = create_task(self.__monitor_forever())
-        # self.compare_task = create_task(self.__compare_forever())
 
     def get_queue_size(self):
         return self.get_queue.qsize()
-
-    # async def __compare_forever(self):
-    #     """Compare the result forever."""
-
-    #     while True:
-    #         dut_item = await self.compare_queue.get()
-    #         for model_info in self.model_infos.values():
-    #             std_item = await model_info["monitor_port"].get()
-    #             compare_once_monitor(dut_item, std_item, self.compare_func, True)
 
     async def process_monitor_call(self, ret):
         for model_info in self.model_infos.values():
@@ -232,5 +221,5 @@ class Monitor(BaseAgent):
 
             ret = await self.func(self.agent)
             if ret is not None:
+                add_priority_task(self.process_monitor_call(ret), 0)
                 await self.get_queue.put(ret)
-                await self.process_monitor_call(ret)

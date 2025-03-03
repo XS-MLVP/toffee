@@ -14,7 +14,7 @@ Priority Task Execution
 __priority_tasks = []
 
 
-def add_priority_task(coro, priority, done_event):
+def add_priority_task(coro, priority, done_event = None):
     """
     Add a priority task to the priority task list.
     """
@@ -29,7 +29,8 @@ async def __execute_priority_tasks():
 
     for coro, _, done_event in sorted(__priority_tasks, key=lambda x: x[1]):
         await coro
-        done_event.set()
+        if done_event is not None:
+            done_event.set()
 
     __priority_tasks.clear()
 

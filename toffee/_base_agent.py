@@ -203,17 +203,17 @@ class Monitor(BaseAgent):
 
     async def process_monitor_call(self, ret):
         for model_info in self.model_infos.values():
+            if model_info["agent_port"] is not None:
+                await model_info["agent_port"].put((self.name, ret))
+
             if model_info["monitor_port"] is not None:
                 await model_info["monitor_port"].put(ret)
 
+            if model_info["agent_hook"] is not None:
+                model_info["agent_hook"](self.name, ret)
+
             if model_info["monitor_hook"] is not None:
                 model_info["monitor_hook"](ret)
-
-            if model_info["agent_hook"] is not None:
-                model_info["agent_hook"](self.agent, ret)
-
-            if model_info["agent_port"] is not None:
-                await model_info["agent_port"].put((self.name, ret))
 
     async def __monitor_forever(self):
         while True:

@@ -137,7 +137,7 @@ class Port(Queue):
 
 class DriverPort(Port):
     """
-    A The DriverPort is used to match the DriverPort of the agent, and it is used to accept requests from the agent.
+    The DriverPort is used to match driver_method in the agent and obtain call arguments.
     """
 
     def __init__(
@@ -182,8 +182,7 @@ class AgentPort(Port):
 
 class MonitorPort(Port):
     """
-    The MonitorPort is used to match the MonitorPort in the agent, and it is used for the Model to send the results
-    out and compare them with the results in the agent.
+    The MonitorPort is used to match the monitor_method in the agent, and obtain the results.
     """
 
     def __init__(

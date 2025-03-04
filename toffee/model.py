@@ -10,7 +10,7 @@ __all__ = [
 
 from .asynchronous import Component
 from .asynchronous import Queue
-from .logger import warning
+from .logger import warning, error
 
 
 def agent_hook(agent_name: str = ""):
@@ -114,12 +114,26 @@ def monitor_hook(monitor_path: str = "", agent_name: str = "", monitor_name: str
 
 
 class Port(Queue):
-    def __init__(self, name: str = ""):
+    def __init__(self, name: str = "", maxsize: int = 4):
+        """
+        Args:
+            name:    The name of the port.
+            maxsize: The maximum size of the port. if it is -1, the port is unbounded.
+        """
+
         super().__init__()
+        assert maxsize > 0 or maxsize == -1 , "maxsize must be greater than 0 or equal to -1"
 
         self.name = name
         self.matched = False
+        self.__maxsize = maxsize
 
+    async def put(self, value):
+        if self.qsize() >= self.__maxsize and self.__maxsize != -1:
+            error(f"Port attached to {self.name} is full, the value {value} is dropped")
+            return
+
+        await super().put(value)
 
 class DriverPort(Port):
     """
@@ -127,10 +141,8 @@ class DriverPort(Port):
     """
 
     def __init__(
-        self, driver_path: str = "", *, agent_name: str = "", driver_name: str = ""
+        self, driver_path: str = "", *, agent_name: str = "", driver_name: str = "", maxsize: int = 4
     ):
-        super().__init__()
-
         assert driver_path == "" or (
             agent_name == "" and driver_name == ""
         ), "agent_name and driver_name must be empty when driver_path is set"
@@ -142,6 +154,8 @@ class DriverPort(Port):
         self.driver_path = driver_path
         self.agent_name = agent_name
         self.driver_name = driver_name
+
+        super().__init__(name=self.get_path(), maxsize=maxsize)
 
     def get_path(self):
         """Get the driver path."""
@@ -173,10 +187,8 @@ class MonitorPort(Port):
     """
 
     def __init__(
-        self, monitor_path: str = "", *, agent_name: str = "", monitor_name: str = ""
+        self, monitor_path: str = "", *, agent_name: str = "", monitor_name: str = "", maxsize: int = 4
     ):
-        super().__init__()
-
         assert monitor_path == "" or (
             agent_name == "" and monitor_name == ""
         ), "agent_name and monitor_name must be empty when monitor_path is set"
@@ -188,6 +200,8 @@ class MonitorPort(Port):
         self.monitor_path = monitor_path
         self.agent_name = agent_name
         self.monitor_name = monitor_name
+
+        super().__init__(name=self.get_path(), maxsize=maxsize)
 
     def get_path(self):
         """Get the monitor path."""

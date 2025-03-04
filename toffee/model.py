@@ -130,7 +130,7 @@ class Port(Queue):
 
     async def put(self, value):
         if self.qsize() >= self.__maxsize and self.__maxsize != -1:
-            error(f"Port attached to {self.name} is full, the value {value} is dropped")
+            error(f"port attached to {self.name} is full, the value {value} is dropped")
             return
 
         await super().put(value)

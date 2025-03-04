@@ -9,7 +9,7 @@ from .asynchronous import Event
 from .asynchronous import Queue
 from ._compare import compare_once
 from .executor import add_priority_task
-from .logger import warning
+from .logger import error
 
 
 class BaseAgent:
@@ -185,14 +185,17 @@ class Monitor(BaseAgent):
     def __init__(self, agent, monitor_func):
         super().__init__(monitor_func, None)
 
-        self.compare_queue = Queue()
-        self.get_queue = Queue()
+        self.get_queue = None
         self.agent = agent
 
         self.monitor_task = create_task(self.__monitor_forever())
 
+    def enable_get_queue(self, maxsize):
+        self.get_queue = Queue()
+        self.get_queue_max_size = maxsize
+
     def get_queue_size(self):
-        return self.get_queue.qsize()
+        return self.get_queue.qsize() if self.get_queue is not None else 0
 
     async def process_monitor_call(self, ret):
         for model_info in self.model_infos.values():
@@ -216,4 +219,9 @@ class Monitor(BaseAgent):
             if ret is not None:
                 # monitor has the highest priority
                 add_priority_task(self.process_monitor_call(ret), -1)
-                await self.get_queue.put(ret)
+
+                if self.get_queue is not None:
+                    if self.get_queue.qsize() >= self.get_queue_max_size:
+                        error(f"the get_queue in {self.agent_name}.{self.name} is full, the value {ret} is dropped")
+                        return
+                    await self.get_queue.put(ret)

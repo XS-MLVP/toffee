@@ -62,7 +62,16 @@ class Agent:
         """
 
         monitor = self.monitors[monitor_name]
-        return monitor.get_queue.qsize()
+        return monitor.get_queue_size()
+
+    def start_monitor(self, monitor_name, maxsize=4):
+        """
+        After monitoring begins, monitor_method places the monitored data in a separate queue. Calling monitor_method
+        in a test case will get the monitored data.
+        """
+
+        monitor = self.monitors[monitor_name]
+        monitor.enable_get_queue(maxsize)
 
     def all_driver_method(self):
         """

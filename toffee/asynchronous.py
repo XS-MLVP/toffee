@@ -21,6 +21,27 @@ This section implements specific asynchronous event requirements to meet the clo
 Specifically, we need to complete all executable tasks before the next clock event arrives.
 """
 
+callback_list = []
+
+
+def add_callback(coro, *args, **kwargs):
+    """
+    Add a callback function to the callback list.
+    """
+
+    callback_list.append((coro, args, kwargs))
+
+
+async def __execute_callback():
+    """
+    Execute the callback function. The Callback will be executed between the next clock time after other_task_done.
+    """
+
+    need_rerun = False
+    for func, args, kwargs in callback_list:
+        need_rerun |= await func(*args, **kwargs)
+    return need_rerun
+
 
 def task_run():
     """
@@ -67,6 +88,12 @@ async def __other_tasks_done():
         await __run_once()
 
 
+async def execute_all_coros():
+    while True:
+        await __other_tasks_done()
+        if not (await __execute_callback()):
+            break
+
 class Event(asyncio.Event):
     """
     Change the function in the Event to meet the asynchronous requirements.
@@ -112,34 +139,13 @@ async def sleep(delay: float):
 Using the asynchronous event logic defined above, the external asynchronous interface in toffee library is implemented.
 """
 
-callback_list = []
-
-
-def add_callback(coro, *args, **kwargs):
-    """
-    Add a callback function to the callback list.
-    """
-
-    callback_list.append((coro, args, kwargs))
-
-
-async def __execute_callback():
-    """
-    Execute the callback function. The Callback will be executed between the next clock time after other_task_done.
-    """
-
-    for func, args, kwargs in callback_list:
-        await func(*args, **kwargs)
-
-
 async def __clock_loop(dut):
     """
     The clock loop function, which is the main loop of the asynchronous event.
     """
 
     while True:
-        await __other_tasks_done()
-        await __execute_callback()
+        await execute_all_coros()
         dut.Step(1)
         dut.event.set()
         dut.event.clear()

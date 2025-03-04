@@ -27,12 +27,16 @@ async def __execute_priority_tasks():
     Execute the priority tasks in the priority task list. It will be called every clock cycle.
     """
 
+    set_event = False
     for coro, _, done_event in sorted(__priority_tasks, key=lambda x: x[1]):
         await coro
         if done_event is not None:
+            set_event = True
             done_event.set()
 
     __priority_tasks.clear()
+    return set_event
+
 
 
 add_callback(__execute_priority_tasks)

@@ -72,7 +72,8 @@ class Driver(BaseAgent):
                 driver_hook,
                 driver_hook(*arg_list, **kwarg_list)))
         event = Event()
-        add_priority_task(driver_hook_wrapper(), driver_hook.__priority__, event)
+        priority = self.priority if self.priority is not None else driver_hook.__priority__
+        add_priority_task(driver_hook_wrapper(), priority, event)
 
         return event
 
@@ -86,7 +87,8 @@ class Driver(BaseAgent):
                 agent_hook(self.name, self.__get_args_dict(arg_list, kwarg_list))))
 
         event = Event()
-        add_priority_task(agent_hook_wrapper(), agent_hook.__priority__, event)
+        priority = self.priority if self.priority is not None else agent_hook.__priority__
+        add_priority_task(agent_hook_wrapper(), priority, event)
 
         return event
 
@@ -115,14 +117,14 @@ class Driver(BaseAgent):
                 self.__drive_single_model_ports(model_info, arg_list, kwarg_list)
             else:
                 if driver_hook := model_info["driver_hook"]:
-                    if driver_hook.__sche_order__ == "model_first":
+                    if driver_hook.__sche_order__ == "model_first" or self.sche_order == "model_first":
                         model_first_events.append(
                             self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
                     else:
                         dut_first_driver_hooks.append(driver_hook)
 
                 for agent_hook in model_info["agent_hook"]:
-                    if agent_hook.__sche_order__ == "model_first":
+                    if agent_hook.__sche_order__ == "model_first" or self.sche_order == "model_first":
                         model_first_events.append(
                             self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
                     else:

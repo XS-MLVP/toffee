@@ -228,14 +228,14 @@ class Executor(MObject):
             driver = Executor.get_driver(coro)
 
             if driver is not None:
-                if priority is None:
-                    priority = 99
+                driver.priority = None
+                driver.sche_order = None
 
-                if sche_order is None:
-                    sche_order = "model_first"
+                if priority is not None:
+                    driver.priority = priority
 
-                driver.priority = priority
-                driver.sche_order = sche_order
+                if sche_order is not None:
+                    driver.sche_order = sche_order
 
             results.append(await coro)
 

@@ -23,6 +23,8 @@ def agent_hook(agent_name: str = "", *,
 
     Args:
         agent_name: The name of the agent to be hooked. If it is empty, the name of the function will be used.
+        agents:     The list of agents to be hooked.
+        methods:    The list of paths of the methods to be hooked.
         priority:   The priority of the agent hook which should be an integer between 0 and 99. The smaller the number,
                     the higher the priority. It will determine the order of calls within the same cycle. The default
                     priority of agent hook is 99.
@@ -30,19 +32,17 @@ def agent_hook(agent_name: str = "", *,
                     called before the corresponding agent_method runs, and vice versa after it runs.
     """
 
-    # TODO assert ...
+    assert agent_name == "" or agents == [], "agent_name and agents cannot be set at the same time"
 
     def decorator(func):
         nonlocal agent_name
-
-        if agent_name == "":
-            agent_name = func.__name__
 
         func.__is_agent_hook__ = True
         func.__agent_name__ = agent_name
         func.__agents__ = agents
         func.__methods__ = methods
         func.__matched__ = [False]
+        func.__methods_matched__ = [False] * len(methods)
         func.__priority__ = priority
         func.__sche_order__ = sche_order
 
@@ -214,6 +214,7 @@ class AgentPort(Port):
         super().__init__(name=agent_name, maxsize=maxsize)
         self.agents = agents
         self.methods = methods
+        self.methods_matched = [False] * len(methods)
 
     async def __call__(self):
         return await self.get()
@@ -323,11 +324,16 @@ class Model(Component):
         for driver_hook in self.all_driver_hooks:
             driver_hook.__matched__[0] = False
 
-        for agent_hook in self.all_agent_hooks:
-            agent_hook.__matched__[0] = False
-
         for monitor_hook in self.all_monitor_hooks:
             monitor_hook.__matched__[0] = False
+
+        for agent_hook in self.all_agent_hooks:
+            agent_hook.__matched__[0] = False
+            agent_hook.__methods_matched__ = [False] * len(agent_hook.__methods__)
+
+        for agent_port in self.all_agent_ports:
+            agent_port.matched = False
+            agent_port.methods_matched = [False] * len(agent_port.methods)
 
     def is_attached(self):
         """
@@ -344,8 +350,14 @@ class Model(Component):
         for agent_hook in self.all_agent_hooks:
             if not agent_hook.__matched__[0]:
                 raise ValueError(
-                    f"Agent hook {agent_hook.__agent_name__} is not matched"
+                    f"Agent hook {agent_hook.__name__} is not matched to any method, please check it"
                 )
+            for method_matched in agent_hook.__methods_matched__:
+                if not method_matched:
+                    idx = agent_hook.__methods_matched__.index(method_matched)
+                    raise ValueError(
+                        f"Agent hook {agent_hook.__name__} is not matched to method {agent_hook.__methods__[idx]}"
+                    )
 
         for driver_hook in self.all_driver_hooks:
             if not driver_hook.__matched__[0]:
@@ -362,8 +374,14 @@ class Model(Component):
         for agent_port in self.all_agent_ports:
             if not agent_port.matched:
                 raise ValueError(
-                    f"Agent port {agent_port.name} is not matched"
+                    f"Agent port {agent_port.name} is not matched to any agent, please check it"
                 )
+            for method_matched in agent_port.methods_matched:
+                if not method_matched:
+                    idx = agent_port.methods_matched.index(method_matched)
+                    raise ValueError(
+                        f"Agent port {agent_port.name} is not matched to method {agent_port.methods[idx]}"
+                    )
 
         for driver_port in self.all_driver_ports:
             if not driver_port.matched:

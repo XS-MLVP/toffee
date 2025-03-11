@@ -13,13 +13,24 @@ from .asynchronous import Queue
 from .logger import warning, error
 
 
-def agent_hook(agent_name: str = ""):
+def agent_hook(agent_name: str = "", *,
+               agents: list = [],
+               methods: list = [],
+               priority: int = 99,
+               sche_order: str = "model_first"):
     """
     Decorator for agent hook.
 
     Args:
         agent_name: The name of the agent to be hooked. If it is empty, the name of the function will be used.
+        priority:   The priority of the agent hook which should be an integer between 0 and 99. The smaller the number,
+                    the higher the priority. It will determine the order of calls within the same cycle. The default
+                    priority of agent hook is 99.
+        sche_order: The order in which the hook is called relative to the dut. If it is "model_first", it will be
+                    called before the corresponding agent_method runs, and vice versa after it runs.
     """
+
+    # TODO assert ...
 
     def decorator(func):
         nonlocal agent_name
@@ -29,14 +40,22 @@ def agent_hook(agent_name: str = ""):
 
         func.__is_agent_hook__ = True
         func.__agent_name__ = agent_name
+        func.__agents__ = agents
+        func.__methods__ = methods
         func.__matched__ = [False]
+        func.__priority__ = priority
+        func.__sche_order__ = sche_order
 
         return func
 
     return decorator
 
 
-def driver_hook(driver_path: str = "", *, agent_name: str = "", driver_name: str = ""):
+def driver_hook(driver_path: str = "", *,
+                agent_name: str = "",
+                driver_name: str = "",
+                priority = 99,
+                sche_order = "model_first"):
     """
     Decorator for driver hook.
 
@@ -44,6 +63,11 @@ def driver_hook(driver_path: str = "", *, agent_name: str = "", driver_name: str
         driver_path: The path of the driver.
         agent_name:  The name of the agent to be hooked.
         driver_name: The name of the driver to be hooked.
+        priority:    The priority of the driver hook which should be an integer between 0 and 99. The smaller the number,
+                     the higher the priority. It will determine the order of calls within the same cycle. The default
+                     priority of driver hook is 99.
+        sche_order:  The order in which the hook is called relative to the dut. If it is "model_first", it will be
+                     called before the corresponding driver_method runs, and vice versa after it runs.
     """
 
     assert driver_path == "" or (
@@ -69,12 +93,14 @@ def driver_hook(driver_path: str = "", *, agent_name: str = "", driver_name: str
         func.__is_driver_hook__ = True
         func.__driver_path__ = driver_path
         func.__matched__ = [False]
+        func.__priority__ = priority
+        func.__sche_order__ = sche_order
 
         return func
 
     return decorator
 
-def monitor_hook(monitor_path: str = "", agent_name: str = "", monitor_name: str = ""):
+def monitor_hook(monitor_path: str = "", *, agent_name: str = "", monitor_name: str = "", priority: int = -1):
     """
     Decorator for monitor hook.
 
@@ -82,6 +108,10 @@ def monitor_hook(monitor_path: str = "", agent_name: str = "", monitor_name: str
         monitor_path: The path of the monitor.
         agent_name:   The name of the agent to be hooked.
         monitor_name: The name of the monitor to be hooked.
+        priority:     The priority of the monitor hook which should be an integer between 0 and 99. The smaller the
+                      number, the higher the priority.  It will use the same priority as driver_hook, determining the
+                      order of calls within the same cycle. The default priority of monitor hook is -1, which means the
+                      monitor hook will be executed before driver hook.
     """
 
     assert monitor_path == "" or (
@@ -105,6 +135,7 @@ def monitor_hook(monitor_path: str = "", agent_name: str = "", monitor_name: str
                 monitor_path = func.__name__.replace("__", ".")
 
         func.__is_monitor_hook__ = True
+        func.__priority__ = priority
         func.__monitor_path__ = monitor_path
         func.__matched__ = [False]
 
@@ -176,9 +207,16 @@ class DriverPort(Port):
 
 
 class AgentPort(Port):
+    async def __init__(self, agent_name: str = "", maxsize: int = 4, *,
+                       agents: list = [],
+                       methods: list = []):
+
+        super().__init__(name=agent_name, maxsize=maxsize)
+        self.agents = agents
+        self.methods = methods
+
     async def __call__(self):
         return await self.get()
-
 
 class MonitorPort(Port):
     """

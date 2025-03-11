@@ -7,6 +7,7 @@ import inspect
 from .asynchronous import create_task
 from .asynchronous import Event
 from .asynchronous import Queue
+from .asynchronous import gather
 from ._compare import compare_once
 from .executor import add_priority_task
 from .logger import error
@@ -52,84 +53,42 @@ class Driver(BaseAgent):
         del arguments["self"]
         return arguments
 
-    async def __drive_single_model(self, model_info, arg_list, kwarg_list):
-        """
-        Drive a single model.
-
-        Args:
-            model_info: The model information.
-            arg_list: The list of args.
-            kwarg_list: The list of kwargs.
-
-        Returns:
-            The result of the model.
-        """
-
+    async def __drive_single_model_ports(self, model_info, arg_list, kwarg_list):
         if model_info["agent_port"] is not None:
             args_dict = self.__get_args_dict(arg_list, kwarg_list)
-
             await model_info["agent_port"].put((self.name, args_dict))
 
         if model_info["driver_port"] is not None:
             args_dict = self.__get_args_dict(arg_list, kwarg_list)
             args = next(iter(args_dict.values())) if len(args_dict) == 1 else args_dict
-
             await model_info["driver_port"].put(args)
 
-        if model_info["agent_hook"] is not None:
-            target = model_info["agent_hook"]
-            args_dict = self.__get_args_dict(arg_list, kwarg_list)
-            if inspect.iscoroutinefunction(target):
-                result = await target(self.name, args_dict)
-            else:
-                result = target(self.name, args_dict)
+    def __drive_single_driver_hook(self, driver_hook, model_results, arg_list, kwarg_list):
+        if inspect.iscoroutinefunction(driver_hook):
+            assert False, "driver_hook should not be a coroutine function"
 
-            if model_info["driver_hook"] is None:
-                return result
+        async def driver_hook_wrapper():
+            model_results.append((
+                driver_hook,
+                driver_hook(*arg_list, **kwarg_list)))
+        event = Event()
+        add_priority_task(driver_hook_wrapper(), driver_hook.__priority__, event)
 
-        if model_info["driver_hook"] is not None:
-            target = model_info["driver_hook"]
-            if inspect.iscoroutinefunction(target):
-                result = await target(*arg_list, **kwarg_list)
-            else:
-                result = target(*arg_list, **kwarg_list)
-            return result
+        return event
 
-    async def forward_to_models(self, arg_list, kwarg_list):
-        """
-        Forward the item to the models.
+    def __drive_single_agent_hook(self, agent_hook, model_results, arg_list, kwarg_list):
+        if inspect.iscoroutinefunction(agent_hook):
+            assert False, "agent_hook should not be a coroutine function"
 
-        Args:
-            arg_list: The list of args.
-            kwarg_list: The list of kwargs.
-        """
+        async def agent_hook_wrapper():
+            model_results.append((
+                agent_hook,
+                agent_hook(self.name, self.__get_args_dict(arg_list, kwarg_list))))
 
-        results = []
-        for model_info in self.model_infos.values():
-            results.append(
-                await self.__drive_single_model(model_info, arg_list, kwarg_list)
-            )
+        event = Event()
+        add_priority_task(agent_hook_wrapper(), agent_hook.__priority__, event)
 
-        return results
-
-    def compare_results(self, dut_result, model_results):
-        """
-        Compare the result of the DUT and the models.
-
-        Args:
-            dut_result: The result of the DUT.
-            model_results: The results of the models.
-        """
-
-        for model_result in model_results:
-            if model_result is not None:
-                compare_once(dut_result, model_result, self.compare_func, match_detail=True)
-
-    async def model_exec_wrapper(self, model_coro, results, compare_func):
-        results["model_results"] = await model_coro
-
-        if results["dut_result"] is not None:
-            compare_func(results["dut_result"], results["model_results"])
+        return event
 
     async def process_driver_call(self, agent, arg_list, kwarg_list):
         """
@@ -143,39 +102,56 @@ class Driver(BaseAgent):
             The result of the DUT if imme_ret is False, otherwise None.
         """
 
-        results = {"dut_result": None, "model_results": None}
+        # Execute model_first driver hooks and agent hooks
 
-        model_coro = self.model_exec_wrapper(
-            self.forward_to_models(arg_list, kwarg_list), results, self.compare_results
-        )
+        model_results = []
+        model_first_events = []
 
-        if self.sche_order == "parallel":
-            model_done = Event()
-            add_priority_task(model_coro, self.priority, model_done)
+        dut_first_driver_hooks = []
+        dut_first_agent_hooks = []
 
-            results["dut_result"] = await self.func(agent, *arg_list, **kwarg_list)
-            if results["model_results"] is not None:
-                self.compare_results(results["dut_result"], results["model_results"])
-            await model_done.wait()
+        for _, model_info in self.model_infos.items():
+            if model_info["driver_port"] or model_info["agent_port"]:
+                self.__drive_single_model_ports(model_info, arg_list, kwarg_list)
+            else:
+                if driver_hook := model_info["driver_hook"]:
+                    if driver_hook.__sche_order__ == "model_first":
+                        model_first_events.append(
+                            self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
+                    else:
+                        dut_first_driver_hooks.append(driver_hook)
 
-        elif self.sche_order == "model_first":
-            model_done = Event()
-            add_priority_task(model_coro, self.priority, model_done)
-            await model_done.wait()
-            results["dut_result"] = await self.func(agent, *arg_list, **kwarg_list)
-            self.compare_results(results["dut_result"], results["model_results"])
+                for agent_hook in model_info["agent_hook"]:
+                    if agent_hook.__sche_order__ == "model_first":
+                        model_first_events.append(
+                            self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
+                    else:
+                        dut_first_agent_hooks.append(agent_hook)
 
-        elif self.sche_order == "dut_first":
-            model_done = Event()
-            results["dut_result"] = await self.func(agent, *arg_list, **kwarg_list)
-            add_priority_task(model_coro, self.priority, model_done)
-            await model_done.wait()
+        await gather(*model_first_events)
 
-        else:
-            raise ValueError(f"Invalid sche_order: {self.sche_order}")
+        # Execute driver method
 
-        return results["dut_result"]
+        dut_result = await self.func(agent, *arg_list, **kwarg_list)
 
+        # Execute dut_first driver hooks and agent hooks
+
+        dut_first_events = []
+        for driver_hook in dut_first_driver_hooks:
+            dut_first_events.append(
+                self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
+        for agent_hook in dut_first_agent_hooks:
+            dut_first_events.append(
+                self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
+        await gather(*dut_first_events)
+
+        # Compare the results
+
+        for model_result in model_results:
+            if model_result[1] is not None:
+                compare_once(dut_result, model_result[1], self.compare_func, match_detail=True)
+
+        return dut_result
 
 class Monitor(BaseAgent):
     """
@@ -199,14 +175,14 @@ class Monitor(BaseAgent):
 
     async def process_monitor_call(self, ret):
         for model_info in self.model_infos.values():
-            if model_info["agent_port"] is not None:
-                await model_info["agent_port"].put((self.name, ret))
+            for agent_port in model_info["agent_port"]:
+                await agent_port.put((self.name, ret))
 
             if model_info["monitor_port"] is not None:
                 await model_info["monitor_port"].put(ret)
 
-            if model_info["agent_hook"] is not None:
-                model_info["agent_hook"](self.name, ret)
+            for agent_hook in model_info["agent_hook"]:
+                agent_hook(self.name, ret)
 
             if model_info["monitor_hook"] is not None:
                 model_info["monitor_hook"](ret)

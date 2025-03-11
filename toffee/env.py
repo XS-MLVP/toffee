@@ -115,6 +115,37 @@ class Env(MObject):
                 monitor = self.__get_monitor(agent_name, monitor_method.__name__)
                 monitor.agent_name = agent_name
 
+
+    # Inject and uninject methods
+
+    @staticmethod
+    def __is_agent_hook_contain_method(agent_hook, agent_name_of_method: str, method_name: str) -> bool:
+        if agent_name_of_method == agent_hook.__agent_name__ \
+                or agent_name_of_method in agent_hook.__agents__ \
+                or f"{agent_name_of_method}.{method_name}" in agent_hook.__methods__:
+            return True
+        return False
+
+    @staticmethod
+    def __is_agent_port_contain_method(agent_port, agent_name_of_method: str, method_name: str) -> bool:
+        if agent_name_of_method == agent_port.__name__ \
+                or agent_name_of_method in agent_port.agents \
+                or f"{agent_name_of_method}.{method_name}" in agent_port.methods:
+            return True
+        return False
+
+    @staticmethod
+    def __all_agent_hooks_contain_method(model: Model, agent_name_of_method: str, method_name: str) -> list:
+        return [hook for hook in model.all_agent_hooks if \
+                Env.__is_agent_hook_contain_method(hook, agent_name_of_method, method_name)]
+                # TODO Mark Match
+
+    @staticmethod
+    def __all_agent_ports_contain_method(model: Model, agent_name_of_method: str, method_name: str) -> list:
+        return [port for port in model.all_agent_ports if \
+                Env.__is_agent_port_contain_method(port, agent_name_of_method, method_name)]
+                # TODO Mark Match
+
     def __inject_driver_method(self, model: Model, agent_name, driver_method):
         """
         Inject hook and port from model to matched driver method.
@@ -123,8 +154,8 @@ class Env(MObject):
         driver_path = f"{agent_name}.{driver_method.__name__}"
 
         model_info = {
-            "agent_hook": model.get_agent_hook(agent_name, mark_matched=True),
-            "agent_port": model.get_agent_port(agent_name, mark_matched=True),
+            "agent_hook": Env.__all_agent_hooks_contain_method(model, agent_name, driver_method.__name__),
+            "agent_port": Env.__all_agent_ports_contain_method(model, agent_name, driver_method.__name__),
             "driver_hook": model.get_driver_hook(driver_path, mark_matched=True),
             "driver_port": model.get_driver_port(driver_path, mark_matched=True),
         }
@@ -140,8 +171,8 @@ class Env(MObject):
         monitor_path = f"{agent_name}.{monitor_method.__name__}"
 
         model_info = {
-            "agent_hook": model.get_agent_hook(agent_name, mark_matched=True),
-            "agent_port": model.get_agent_port(agent_name, mark_matched=True),
+            "agent_hook": Env.__all_agent_hooks_contain_method(model, agent_name, monitor_method.__name__),
+            "agent_port": Env.__all_agent_ports_contain_method(model, agent_name, monitor_method.__name__),
             "monitor_hook": model.get_monitor_hook(monitor_path, mark_matched=True),
             "monitor_port": model.get_monitor_port(monitor_path, mark_matched=True)
         }
@@ -190,7 +221,9 @@ class Env(MObject):
             ValueError: If the model does not match the env.
         """
 
-        model.ensure_all_matched()
+        # TODO
+        # model.ensure_all_matched()
+        ...
 
     def __get_driver(self, agent_name, driver_name):
         """

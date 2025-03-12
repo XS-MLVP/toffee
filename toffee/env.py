@@ -133,7 +133,7 @@ class Env(MObject):
 
     @staticmethod
     def __is_agent_port_contain_method(agent_port, agent_name_of_method: str, method_name: str) -> bool:
-        if agent_name_of_method == agent_port.__name__ \
+        if agent_name_of_method == agent_port.get_path() \
                 or agent_name_of_method in agent_port.agents:
             agent_port.matched = True
             return True

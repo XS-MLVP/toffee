@@ -205,5 +205,5 @@ class Monitor(BaseAgent):
                 if self.get_queue is not None:
                     if self.get_queue.qsize() >= self.get_queue_max_size:
                         error(f"the get_queue in {self.agent_name}.{self.name} is full, the value {ret} is dropped")
-                        return
+                        continue
                     await self.get_queue.put(ret)

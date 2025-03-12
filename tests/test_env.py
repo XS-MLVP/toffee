@@ -19,7 +19,7 @@ class DUT:
 
 class MyAgent(Agent):
     def __init__(self):
-        super().__init__(lambda: None)
+        super().__init__(toffee.Bundle())
 
     @driver_method()
     async def driver1(): ...
@@ -81,7 +81,7 @@ def test_env1():
         env = MyEnv()
         env.attach(MyModel())
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -91,7 +91,7 @@ Case 2
 
 class MyAgent2(Agent):
     def __init__(self):
-        super().__init__(lambda: None)
+        super().__init__(toffee.Bundle())
 
     @driver_method()
     async def driver1(): ...
@@ -122,7 +122,7 @@ def test_env2():
         env = MyEnv2()
         env.attach(MyModel2())
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -142,7 +142,7 @@ def test_env3():
         env = MyEnv2()
         env.attach(MyModel3())
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -163,7 +163,7 @@ def test_env4():
         env = MyEnv2()
         env.attach(MyModel4())
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -218,7 +218,7 @@ def test_env5():
         env = MyEnv5()
         env.attach(MyModel5())
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -228,7 +228,7 @@ Case 6
 
 class MyAgent6(Agent):
     def __init__(self):
-        super().__init__(lambda: None)
+        super().__init__(toffee.Bundle())
 
     @driver_method()
     async def driver1(self, a, b, c=5): ...
@@ -264,7 +264,7 @@ def test_env6():
 
         await env.my_agent.driver1(1, b=2)
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -295,7 +295,7 @@ def test_env7():
 
         await env.my_agent.driver1(1, b=2)
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -316,7 +316,7 @@ class MyModel8(Model):
         assert c == 3
 
 
-def test_env7():
+def test_env8():
     async def my_test():
         dut = DUT()
         toffee.start_clock(dut)
@@ -326,7 +326,7 @@ def test_env7():
 
         await env.my_agent.driver1(1, b=2)
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 """
@@ -353,11 +353,9 @@ class MyEnv9(Env):
 
 
 def test_env9():
-    async def my_test():
-        dut = DUT()
-        toffee.start_clock(dut)
-
-        env = MyEnv9(dut)
+    async def my_test(env, dut):
+        env.my_agent.start_monitor("monitor_dut", 10)
+        env.my_agent2.start_monitor("monitor_dut", 10)
         await toffee.triggers.ClockCycles(dut, 10)
 
         assert env.my_agent.monitor_size("monitor_dut") == 10
@@ -367,7 +365,12 @@ def test_env9():
             assert await env.my_agent.monitor_dut() == i + 1
             assert await env.my_agent2.monitor_dut() == i + 1
 
-    toffee.run(my_test())
+    def env_handle():
+        dut = DUT()
+        toffee.start_clock(dut)
+        return MyEnv9(dut), dut
+
+    toffee.run(my_test, env_handle)
 
 
 """
@@ -384,17 +387,18 @@ class MyModel10(Model):
 
     async def main(self):
         for i in range(10):
-            await self.monitor1(i + 1)
-            await self.monitor2(i + 1)
+            assert await self.monitor1() == i + 1
+            assert await self.monitor2() == i + 1
 
 
 def test_env10():
-    async def my_test():
-        dut = DUT()
-        toffee.start_clock(dut)
-
-        env = MyEnv9(dut)
+    async def my_test(env, dut):
         env.attach(MyModel10())
         await toffee.triggers.ClockCycles(dut, 10)
 
-    toffee.run(my_test())
+    def env_handle():
+        dut = DUT()
+        toffee.start_clock(dut)
+        return MyEnv9(dut), dut
+
+    toffee.run(my_test, env_handle)

@@ -191,7 +191,7 @@ def handle_exception(loop, context):
     loop.stop()
 
 
-async def main_coro(coro):
+async def main_coro(test_func, env_handle):
     """
     Run the main coroutine.
     """
@@ -201,7 +201,13 @@ async def main_coro(coro):
     loop.new_task_run = False
     loop.delayer_list = []
 
-    ret = await coro
+    if env_handle:
+        args = env_handle()
+        if not isinstance(args, tuple):
+            args = (args,)
+        ret = await create_task(test_func(*args))
+    else:
+        ret = await test_func()
 
     # Wait for the last clock event to complete all outstanding tasks during the period
     loop = asyncio.get_event_loop()
@@ -213,19 +219,21 @@ async def main_coro(coro):
     return ret
 
 
-def run(coro, dut=None):
+def run(test_func, env_handle=None, dut=None):
     """
     Start the asynchronous event loop and run the coroutine.
 
     Args:
-        coro: The coroutine to be run.
+        test_func: The test function to be run.
+        env_handle: A handle to create the environment. make sure the env is created before the test starts. if the
+                env_handle is provided, the test_func will be called with the env_handle's return value.
         dut: The DUT object.
 
     Returns:
         The result of the coroutine.
     """
 
-    coro = main_coro(coro)
+    coro = main_coro(test_func, env_handle)
 
     if sys.version_info >= (3, 10, 1):
         return asyncio.run(coro)

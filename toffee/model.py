@@ -189,11 +189,11 @@ class DriverPort(Port):
             agent_name != "" or driver_name == ""
         ), "agent_name must not be empty when driver_name is set"
 
+        super().__init__(maxsize=maxsize)
+
         self.driver_path = driver_path
         self.agent_name = agent_name
         self.driver_name = driver_name
-
-        super().__init__(name=self.get_path(), maxsize=maxsize)
 
     def get_path(self):
         """Get the driver path."""
@@ -214,14 +214,19 @@ class DriverPort(Port):
 
 
 class AgentPort(Port):
-    async def __init__(self, agent_name: str = "", maxsize: int = 4, *,
+    def __init__(self, agent_name: str = "", maxsize: int = 4, *,
                        agents: list = [],
                        methods: list = []):
 
-        super().__init__(name=agent_name, maxsize=maxsize)
+        super().__init__(maxsize=maxsize)
+
+        self.agent_name = agent_name
         self.agents = agents
         self.methods = methods
         self.methods_matched = [False] * len(methods)
+
+    def get_path(self):
+        return self.agent_name if self.agent_name != "" else self.name
 
     async def __call__(self):
         return await self.get()
@@ -242,11 +247,11 @@ class MonitorPort(Port):
             agent_name != "" or monitor_name == ""
         ), "agent_name must not be empty when monitor_name is set"
 
+        super().__init__(maxsize=maxsize)
+
         self.monitor_path = monitor_path
         self.agent_name = agent_name
         self.monitor_name = monitor_name
-
-        super().__init__(name=self.get_path(), maxsize=maxsize)
 
     def get_path(self):
         """Get the monitor path."""
@@ -369,13 +374,13 @@ class Model(Component):
         for driver_hook in self.all_driver_hooks:
             if not driver_hook.__matched__[0]:
                 raise ValueError(
-                    f"Driver hook {driver_hook.__driver_path__} is not matched"
+                    f"Driver hook {driver_hook.__name__} is not matched"
                 )
 
         for monitor_hook in self.all_monitor_hooks:
             if not monitor_hook.__matched__[0]:
                 raise ValueError(
-                    f"Monitor hook {monitor_hook.__monitor_path__} is not matched"
+                    f"Monitor hook {monitor_hook.__name__} is not matched"
                 )
 
         for agent_port in self.all_agent_ports:
@@ -434,28 +439,6 @@ class Model(Component):
                 if mark_matched:
                     driver_hook.__matched__[0] = True
                 return driver_hook
-
-    def get_agent_port(self, name: str, mark_matched: bool = False):
-        """
-        Get the agent port by name.
-        """
-
-        for agent_port in self.all_agent_ports:
-            if agent_port.name == name:
-                if mark_matched:
-                    agent_port.matched = True
-                return agent_port
-
-    def get_agent_hook(self, name: str, mark_matched: bool = False):
-        """
-        Get the agent hook by name.
-        """
-
-        for agent_hook in self.all_agent_hooks:
-            if agent_hook.__agent_name__ == name:
-                if mark_matched:
-                    agent_hook.__matched__[0] = True
-                return agent_hook
 
     def get_monitor_hook(self, monitor_path: str, mark_matched: bool = False):
         """

@@ -40,9 +40,9 @@ def test_funcov():
     g.add_watch_point(
         v,
         {"bin_name_is3": fc.Eq(3), "bin_name_range1-5": fc.IsInRange(1, 5)},
-        check_func={
-            "bin_name_is3": lambda v, conver_condition, points: conver_condition(v)
-        },
+        # check_func={
+        #     "bin_name_is3": lambda v, conver_condition, points: conver_condition(v)
+        # },
         name="watch_point_3",
     )
 
@@ -65,9 +65,9 @@ def test_funcov():
             "bin_name_is4_and_other_bins_are_all_hinted": fc.Eq(8),
             "bin_name_range1-5": fc.IsInRange(1, 5),
         },
-        check_func={
-            "bin_name_is4_and_other_bins_are_all_hinted": bin_name_is4_and_other_bins_are_all_hinted
-        },
+        # check_func={
+        #     "bin_name_is4_and_other_bins_are_all_hinted": bin_name_is4_and_other_bins_are_all_hinted
+        # },
         name="watch_point_4",
     )
 

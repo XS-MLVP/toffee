@@ -361,9 +361,7 @@ class Model(Component):
 
         for agent_hook in self.all_agent_hooks:
             if not agent_hook.__matched__[0]:
-                raise ValueError(
-                    f"Agent hook {agent_hook.__name__} is not matched to any method, please check it"
-                )
+                warning(f"Agent hook {agent_hook.__name__} is not matched to any method, please check it")
             for method_matched in agent_hook.__methods_matched__:
                 if not method_matched:
                     idx = agent_hook.__methods_matched__.index(method_matched)

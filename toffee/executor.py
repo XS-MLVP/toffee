@@ -205,6 +205,8 @@ class Executor(MObject):
             ), f"{coro_name} is not a driver function, cannot set priority"
 
         if sche_order is not None:
+            if sche_order == "parallel":
+                sche_order = "model_first"
             driver = Executor.get_driver(coro)
             coro_name = coro.__name__
             assert (

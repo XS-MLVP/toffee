@@ -10,6 +10,7 @@ __all__ = [
 ]
 
 import asyncio
+import inspect
 import sys
 
 from .bundle import Bundle
@@ -191,7 +192,7 @@ def handle_exception(loop, context):
     loop.stop()
 
 
-async def main_coro(test_func, env_handle):
+async def main_coro(test, env_handle=None):
     """
     Run the main coroutine.
     """
@@ -205,9 +206,12 @@ async def main_coro(test_func, env_handle):
         args = env_handle()
         if not isinstance(args, tuple):
             args = (args,)
-        ret = await create_task(test_func(*args))
+        ret = await create_task(test(*args))
     else:
-        ret = await test_func()
+        if inspect.iscoroutine(test):
+            ret = await test
+        else:
+            ret = await test()
 
     # Wait for the last clock event to complete all outstanding tasks during the period
     loop = asyncio.get_event_loop()
@@ -219,21 +223,23 @@ async def main_coro(test_func, env_handle):
     return ret
 
 
-def run(test_func, env_handle=None, dut=None):
+def run(test, env_handle=None, dut=None):
     """
     Start the asynchronous event loop and run the coroutine.
 
     Args:
-        test_func: The test function to be run.
+        test: The test to be run, it can be a coroutine or a function.
         env_handle: A handle to create the environment. make sure the env is created before the test starts. if the
-                env_handle is provided, the test_func will be called with the env_handle's return value.
+                env_handle is provided, the test will be called with the env_handle's return value. when the env_handle
+                is set, make sure the test is a function and has the same number of arguments as the env_handle's
+                return.
         dut: The DUT object.
 
     Returns:
         The result of the coroutine.
     """
 
-    coro = main_coro(test_func, env_handle)
+    coro = main_coro(test, env_handle)
 
     if sys.version_info >= (3, 10, 1):
         return asyncio.run(coro)

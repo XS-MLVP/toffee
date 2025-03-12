@@ -75,7 +75,7 @@ def test_executor():
 
         async with Executor() as exec:
             exec(env.my_agent.driver1(), sche_order="parallel")
-        assert infos == ["driver1", "model1"]
+        assert infos == ["model1", "driver1"]
         infos.clear()
 
         async with Executor() as exec:
@@ -96,7 +96,7 @@ def test_executor():
         assert infos == ["model2", "model1", "driver2", "driver1"]
         infos.clear()
 
-    toffee.run(my_test())
+    toffee.run(my_test)
 
 
 class MyEnv2(Env):
@@ -128,4 +128,4 @@ def test_executor_sche_group():
 
         assert len(exec.get_results()) == 2
 
-    toffee.run(my_test())
+    toffee.run(my_test)

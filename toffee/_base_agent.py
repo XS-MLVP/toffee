@@ -178,18 +178,21 @@ class Monitor(BaseAgent):
         return self.get_queue.qsize() if self.get_queue is not None else 0
 
     async def process_monitor_call(self, ret):
+        async def async_wrapper(func, *args, **kwargs):
+            return func(*args, **kwargs)
+
         for model_info in self.model_infos.values():
             for agent_port in model_info["agent_port"]:
                 await agent_port.put((self.name, ret))
 
-            if model_info["monitor_port"] is not None:
+            if model_info["monitor_port"]:
                 await model_info["monitor_port"].put(ret)
 
             for agent_hook in model_info["agent_hook"]:
-                agent_hook(self.name, ret)
+                add_priority_task(async_wrapper(agent_hook, self.name, ret), agent_hook.__priority__)
 
-            if model_info["monitor_hook"] is not None:
-                model_info["monitor_hook"](ret)
+            if monitor_hook := model_info["monitor_hook"]:
+                add_priority_task(async_wrapper(monitor_hook, ret), monitor_hook.__priority__)
 
     async def __monitor_forever(self):
         while True:
@@ -197,8 +200,7 @@ class Monitor(BaseAgent):
 
             ret = await self.func(self.agent)
             if ret is not None:
-                # monitor has the highest priority
-                add_priority_task(self.process_monitor_call(ret), -1)
+                await self.process_monitor_call(ret)
 
                 if self.get_queue is not None:
                     if self.get_queue.qsize() >= self.get_queue_max_size:

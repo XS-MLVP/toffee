@@ -33,6 +33,7 @@ def agent_hook(agent_name: str = "", *,
     """
 
     assert agent_name == "" or agents == [], "agent_name and agents cannot be set at the same time"
+    assert priority in range(0, 100), "priority should be between 0 and 99"
     assert sche_order in ["model_first", "dut_first"], "sche_order must be 'model_first' or 'dut_first'"
 
     def decorator(func):
@@ -79,6 +80,7 @@ def driver_hook(driver_path: str = "", *,
         agent_name != "" or driver_name == ""
     ), "agent_name must not be empty when driver_name is set"
 
+    assert priority in range(0, 100), "priority should be between 0 and 99"
     assert sche_order in ["model_first", "dut_first"], "sche_order must be 'model_first' or 'dut_first'"
 
     def decorator(func):
@@ -103,7 +105,7 @@ def driver_hook(driver_path: str = "", *,
 
     return decorator
 
-def monitor_hook(monitor_path: str = "", *, agent_name: str = "", monitor_name: str = "", priority: int = -1):
+def monitor_hook(monitor_path: str = "", *, agent_name: str = "", monitor_name: str = "", priority: int = 0):
     """
     Decorator for monitor hook.
 
@@ -124,6 +126,8 @@ def monitor_hook(monitor_path: str = "", *, agent_name: str = "", monitor_name: 
     assert (
         agent_name != "" or monitor_name == ""
     ), "agent_name must not be empty when monitor_name is set"
+
+    assert priority in range(0, 100), "priority should be between 0 and 99"
 
     def decorator(func):
         nonlocal monitor_path, agent_name, monitor_name

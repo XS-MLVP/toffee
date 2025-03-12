@@ -31,8 +31,8 @@ class Driver(BaseAgent):
     def __init__(self, drive_func):
         super().__init__(drive_func, None)
 
-        self.sche_order = "parallel"
-        self.priority = 99
+        self.sche_order = None
+        self.priority = None
 
     def __get_args_dict(self, arg_list, kwarg_list):
         """
@@ -106,6 +106,8 @@ class Driver(BaseAgent):
 
         # Execute model_first driver hooks and agent hooks
 
+        print(self.sche_order, self.priority)
+
         model_results = []
         model_first_events = []
 
@@ -117,14 +119,16 @@ class Driver(BaseAgent):
                 self.__drive_single_model_ports(model_info, arg_list, kwarg_list)
             else:
                 if driver_hook := model_info["driver_hook"]:
-                    if driver_hook.__sche_order__ == "model_first" or self.sche_order == "model_first":
+                    if (driver_hook.__sche_order__ == "model_first" and self.sche_order != "dut_first") \
+                            or self.sche_order == "model_first":
                         model_first_events.append(
                             self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
                     else:
                         dut_first_driver_hooks.append(driver_hook)
 
                 for agent_hook in model_info["agent_hook"]:
-                    if agent_hook.__sche_order__ == "model_first" or self.sche_order == "model_first":
+                    if (agent_hook.__sche_order__ == "model_first" and self.sche_order != "dut_first") \
+                            or self.sche_order == "model_first":
                         model_first_events.append(
                             self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
                     else:

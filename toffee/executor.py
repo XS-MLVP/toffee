@@ -239,6 +239,9 @@ class Executor(MObject):
 
             results.append(await coro)
 
+            driver.priority = None
+            driver.sche_order = None
+
         if complete_event is not None and not complete_event.is_set():
             complete_event.set()
 

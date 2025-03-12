@@ -33,6 +33,7 @@ def agent_hook(agent_name: str = "", *,
     """
 
     assert agent_name == "" or agents == [], "agent_name and agents cannot be set at the same time"
+    assert sche_order in ["model_first", "dut_first"], "sche_order must be 'model_first' or 'dut_first'"
 
     def decorator(func):
         nonlocal agent_name
@@ -77,6 +78,8 @@ def driver_hook(driver_path: str = "", *,
     assert (
         agent_name != "" or driver_name == ""
     ), "agent_name must not be empty when driver_name is set"
+
+    assert sche_order in ["model_first", "dut_first"], "sche_order must be 'model_first' or 'dut_first'"
 
     def decorator(func):
         nonlocal driver_path, agent_name, driver_name

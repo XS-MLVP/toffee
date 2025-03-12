@@ -54,9 +54,9 @@ class Driver(BaseAgent):
         return arguments
 
     async def __drive_single_model_ports(self, model_info, arg_list, kwarg_list):
-        if model_info["agent_port"] is not None:
+        for agent_port in model_info["agent_port"]:
             args_dict = self.__get_args_dict(arg_list, kwarg_list)
-            await model_info["agent_port"].put((self.name, args_dict))
+            await agent_port.put((self.name, args_dict))
 
         if model_info["driver_port"] is not None:
             args_dict = self.__get_args_dict(arg_list, kwarg_list)
@@ -106,8 +106,6 @@ class Driver(BaseAgent):
 
         # Execute model_first driver hooks and agent hooks
 
-        print(self.sche_order, self.priority)
-
         model_results = []
         model_first_events = []
 
@@ -116,7 +114,7 @@ class Driver(BaseAgent):
 
         for _, model_info in self.model_infos.items():
             if model_info["driver_port"] or model_info["agent_port"]:
-                self.__drive_single_model_ports(model_info, arg_list, kwarg_list)
+                await self.__drive_single_model_ports(model_info, arg_list, kwarg_list)
             else:
                 if driver_hook := model_info["driver_hook"]:
                     if (driver_hook.__sche_order__ == "model_first" and self.sche_order != "dut_first") \

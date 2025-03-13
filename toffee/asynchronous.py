@@ -191,6 +191,11 @@ def handle_exception(loop, context):
     loop.default_exception_handler(context)
     loop.stop()
 
+async def cancel_all_tasks():
+    tasks = {t for t in asyncio.all_tasks() if t is not asyncio.current_task()}
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 async def main_coro(test, env_handle=None):
     """
@@ -219,6 +224,8 @@ async def main_coro(test, env_handle=None):
         await loop.global_clock_event.wait()
 
     summary()
+
+    await cancel_all_tasks()
 
     return ret
 

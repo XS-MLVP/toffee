@@ -89,7 +89,7 @@ async def __other_tasks_done():
         await __run_once()
 
 async def cancel_all_tasks():
-    tasks = {t for t in asyncio.all_tasks() if t is not asyncio.current_task()}
+    tasks = {t for t in asyncio.all_tasks() if t is not asyncio.current_task() and not t.get_name() == "main_coro"}
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
@@ -213,6 +213,8 @@ async def main_coro(test, env_handle=None):
     loop.test_done = False
     loop.delayer_list = []
 
+    asyncio.current_task().set_name("main_coro")
+
     if env_handle:
         args = env_handle()
         if not isinstance(args, tuple):
@@ -227,9 +229,9 @@ async def main_coro(test, env_handle=None):
     loop.test_done = True
 
     # Wait for the last clock event to complete all outstanding tasks during the period
-    # loop = asyncio.get_event_loop()
-    # if hasattr(loop, "global_clock_event"):
-    #     await loop.global_clock_event.wait()
+    loop = asyncio.get_event_loop()
+    if hasattr(loop, "global_clock_event"):
+        await loop.global_clock_event.wait()
 
     summary()
 

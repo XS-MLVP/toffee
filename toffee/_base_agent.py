@@ -150,10 +150,12 @@ class Driver(BaseAgent):
             await gather(*dut_first_events)
 
             # Compare the results
-
             for model_result in model_results:
                 if model_result[1] is not None:
                     compare_once(dut_result, model_result[1], self.compare_func, match_detail=True)
+
+            self.priority = None
+            self.sche_order = None
 
         create_task(background_exec())
 

@@ -39,6 +39,9 @@ def agent_hook(agent_name: str = "", *,
     def decorator(func):
         nonlocal agent_name
 
+        if agent_name == "" and agents == [] and methods == []:
+            agent_name = func.__name__
+
         func.__is_agent_hook__ = True
         func.__agent_name__ = agent_name
         func.__agents__ = agents

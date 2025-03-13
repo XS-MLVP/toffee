@@ -88,12 +88,22 @@ async def __other_tasks_done():
     while __has_unwait_task() or asyncio.get_event_loop().new_task_run:
         await __run_once()
 
+async def cancel_all_tasks():
+    tasks = {t for t in asyncio.all_tasks() if t is not asyncio.current_task()}
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
 
 async def execute_all_coros():
     while True:
         await __other_tasks_done()
         if not (await __execute_callback()):
             break
+
+    if asyncio.get_event_loop().test_done:
+        await cancel_all_tasks()
+        await asyncio.sleep(0)
+        return
 
 class Event(asyncio.Event):
     """
@@ -191,11 +201,6 @@ def handle_exception(loop, context):
     loop.default_exception_handler(context)
     loop.stop()
 
-async def cancel_all_tasks():
-    tasks = {t for t in asyncio.all_tasks() if t is not asyncio.current_task()}
-    for task in tasks:
-        task.cancel()
-    await asyncio.gather(*tasks, return_exceptions=True)
 
 async def main_coro(test, env_handle=None):
     """
@@ -205,6 +210,7 @@ async def main_coro(test, env_handle=None):
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(handle_exception)
     loop.new_task_run = False
+    loop.test_done = False
     loop.delayer_list = []
 
     if env_handle:
@@ -218,14 +224,15 @@ async def main_coro(test, env_handle=None):
         else:
             ret = await test()
 
+    loop.test_done = True
+
     # Wait for the last clock event to complete all outstanding tasks during the period
-    loop = asyncio.get_event_loop()
-    if hasattr(loop, "global_clock_event"):
-        await loop.global_clock_event.wait()
+    # loop = asyncio.get_event_loop()
+    # if hasattr(loop, "global_clock_event"):
+    #     await loop.global_clock_event.wait()
 
     summary()
 
-    await cancel_all_tasks()
 
     return ret
 

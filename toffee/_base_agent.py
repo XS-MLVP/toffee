@@ -139,21 +139,23 @@ class Driver(BaseAgent):
         dut_result = await self.func(agent, *arg_list, **kwarg_list)
 
         # Execute dut_first driver hooks and agent hooks
+        async def background_exec():
+            dut_first_events = []
+            for driver_hook in dut_first_driver_hooks:
+                dut_first_events.append(
+                    self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
+            for agent_hook in dut_first_agent_hooks:
+                dut_first_events.append(
+                    self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
+            await gather(*dut_first_events)
 
-        dut_first_events = []
-        for driver_hook in dut_first_driver_hooks:
-            dut_first_events.append(
-                self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
-        for agent_hook in dut_first_agent_hooks:
-            dut_first_events.append(
-                self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
-        await gather(*dut_first_events)
+            # Compare the results
 
-        # Compare the results
+            for model_result in model_results:
+                if model_result[1] is not None:
+                    compare_once(dut_result, model_result[1], self.compare_func, match_detail=True)
 
-        for model_result in model_results:
-            if model_result[1] is not None:
-                compare_once(dut_result, model_result[1], self.compare_func, match_detail=True)
+        create_task(background_exec())
 
         return dut_result
 

@@ -1,7 +1,8 @@
 import asyncio
 
-import toffee
 import toffee_test
+
+import toffee
 from toffee.agent import *
 from toffee.env import *
 from toffee.model import *

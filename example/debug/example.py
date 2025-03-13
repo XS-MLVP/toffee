@@ -1,6 +1,6 @@
+from mem import *
 
 from toffee.debug import get
-from mem import *
 
 
 def custom_F1(self):

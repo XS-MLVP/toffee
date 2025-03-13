@@ -1,24 +1,25 @@
 repos:
   - repo: https://github.com/psf/black
-    rev: 24.1.1
+    rev: 25.1.0
     hooks:
       - id: black
         args: [--line-length=88]
 
   - repo: https://github.com/asottile/blacken-docs
-    rev: 1.16.0
+    rev: 1.19.1
     hooks:
       - id: blacken-docs
         additional_dependencies: [black==24.1.1]
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.5.0
+    rev: v5.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
       - id: check-yaml
       - id: debug-statements
         language_version: python3
+        exclude: "toffee/debug.py"
       - id: check-merge-conflict
       - id: fix-encoding-pragma
         args: ["--remove"]
@@ -27,7 +28,7 @@ repos:
       - id: check-case-conflict
 
   - repo: https://github.com/asottile/reorder-python-imports
-    rev: v3.12.0
+    rev: v3.14.0
     hooks:
       - id: reorder-python-imports
         args: ["--application-directories=.:src:tests", "--py3-plus"]

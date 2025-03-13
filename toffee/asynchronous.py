@@ -88,11 +88,17 @@ async def __other_tasks_done():
     while __has_unwait_task() or asyncio.get_event_loop().new_task_run:
         await __run_once()
 
+
 async def cancel_all_tasks():
-    tasks = {t for t in asyncio.all_tasks() if t is not asyncio.current_task() and not t.get_name() == "main_coro"}
+    tasks = {
+        t
+        for t in asyncio.all_tasks()
+        if t is not asyncio.current_task() and not t.get_name() == "main_coro"
+    }
     for task in tasks:
         task.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
+
 
 async def execute_all_coros():
     while True:
@@ -104,6 +110,7 @@ async def execute_all_coros():
         await cancel_all_tasks()
         await asyncio.sleep(0)
         return
+
 
 class Event(asyncio.Event):
     """
@@ -149,6 +156,7 @@ async def sleep(delay: float):
 
 Using the asynchronous event logic defined above, the external asynchronous interface in toffee library is implemented.
 """
+
 
 async def __clock_loop(dut):
     """
@@ -234,7 +242,6 @@ async def main_coro(test, env_handle=None):
         await loop.global_clock_event.wait()
 
     summary()
-
 
     return ret
 

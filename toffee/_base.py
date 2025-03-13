@@ -1,4 +1,5 @@
-__all__ = ['MObject']
+__all__ = ["MObject"]
+
 
 class MObject(object):
     pass

@@ -9,6 +9,7 @@ class FakePin:
     def __init__(self):
         self.xdata, self.event, self.value, self.mIOType = FakeXData(), None, None, 0
 
+
 class FakeDUT:
     def __init__(self):
         self.io_a = FakePin()
@@ -140,12 +141,19 @@ def test_bundle():
 
 # Signal List Test
 
+
 def test_signal_list():
     toffee.setup_logging(INFO)
+
     class MyDUT(FakeDUT):
         def __init__(self):
             self.io_a, self.io_b = FakePin(), FakePin()
-            self.io_vec_0, self.io_vec_1, self.io_vec_2 = FakePin(), FakePin(), FakePin()
+            self.io_vec_0, self.io_vec_1, self.io_vec_2 = (
+                FakePin(),
+                FakePin(),
+                FakePin(),
+            )
+
     class BundleWithSignalList(Bundle):
         a, b = Signals(2)
         vec = SignalList("vec_#", 3)
@@ -159,14 +167,23 @@ def test_signal_list():
     bundle.assign({"a": 1, "b": 2, "vec": [3, 4, 5]}, multilevel=True)
     bundle.assign({"a": 1, "b": 2, "vec": [3, 4, 5]}, multilevel=False)
 
+
 def test_bundle_list():
     toffee.setup_logging(INFO)
+
     class MyDUT(FakeDUT):
         def __init__(self):
             self.io_a, self.io_b = FakePin(), FakePin()
-            self.io_vec_0_a, self.io_vec_0_b, self.io_vec_1_a, self.io_vec_1_b = FakePin(), FakePin(), FakePin() ,FakePin()
+            self.io_vec_0_a, self.io_vec_0_b, self.io_vec_1_a, self.io_vec_1_b = (
+                FakePin(),
+                FakePin(),
+                FakePin(),
+                FakePin(),
+            )
+
     class SubBundle(Bundle):
         a, b = Signals(2)
+
     class BundleWithBundleList(Bundle):
         c, d = Signals(2)
         vec = BundleList(SubBundle, "vec_#_", 2)
@@ -180,5 +197,9 @@ def test_bundle_list():
     print(bundle.as_dict(multilevel=False))
     print(bundle.all_signals_rule())
 
-    bundle.assign({"c": 1, "d": 2, "vec": [{"a": 3, "b": 4}, {"a": 5, "b": 6}]}, multilevel=True)
-    bundle.assign({"c": 1, "d": 2, "vec": [{"a": 3, "b": 4}, {"a": 5, "b": 6}]}, multilevel=False)
+    bundle.assign(
+        {"c": 1, "d": 2, "vec": [{"a": 3, "b": 4}, {"a": 5, "b": 6}]}, multilevel=True
+    )
+    bundle.assign(
+        {"c": 1, "d": 2, "vec": [{"a": 3, "b": 4}, {"a": 5, "b": 6}]}, multilevel=False
+    )

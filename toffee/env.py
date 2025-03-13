@@ -114,13 +114,16 @@ class Env(MObject):
                 monitor = self.__get_monitor(agent_name, monitor_method.__name__)
                 monitor.agent_name = agent_name
 
-
     # Inject and uninject methods
 
     @staticmethod
-    def __is_agent_hook_contain_method(agent_hook, agent_name_of_method: str, method_name: str) -> bool:
-        if agent_name_of_method == agent_hook.__agent_name__ \
-                or agent_name_of_method in agent_hook.__agents__:
+    def __is_agent_hook_contain_method(
+        agent_hook, agent_name_of_method: str, method_name: str
+    ) -> bool:
+        if (
+            agent_name_of_method == agent_hook.__agent_name__
+            or agent_name_of_method in agent_hook.__agents__
+        ):
             agent_hook.__matched__[0] = True
             return True
         elif f"{agent_name_of_method}.{method_name}" in agent_hook.__methods__:
@@ -132,9 +135,13 @@ class Env(MObject):
         return False
 
     @staticmethod
-    def __is_agent_port_contain_method(agent_port, agent_name_of_method: str, method_name: str) -> bool:
-        if agent_name_of_method == agent_port.get_path() \
-                or agent_name_of_method in agent_port.agents:
+    def __is_agent_port_contain_method(
+        agent_port, agent_name_of_method: str, method_name: str
+    ) -> bool:
+        if (
+            agent_name_of_method == agent_port.get_path()
+            or agent_name_of_method in agent_port.agents
+        ):
             agent_port.matched = True
             return True
         elif f"{agent_name_of_method}.{method_name}" in agent_port.methods:
@@ -146,14 +153,28 @@ class Env(MObject):
         return False
 
     @staticmethod
-    def __all_agent_hooks_contain_method(model: Model, agent_name_of_method: str, method_name: str) -> list:
-        return [hook for hook in model.all_agent_hooks if \
-                Env.__is_agent_hook_contain_method(hook, agent_name_of_method, method_name)]
+    def __all_agent_hooks_contain_method(
+        model: Model, agent_name_of_method: str, method_name: str
+    ) -> list:
+        return [
+            hook
+            for hook in model.all_agent_hooks
+            if Env.__is_agent_hook_contain_method(
+                hook, agent_name_of_method, method_name
+            )
+        ]
 
     @staticmethod
-    def __all_agent_ports_contain_method(model: Model, agent_name_of_method: str, method_name: str) -> list:
-        return [port for port in model.all_agent_ports if \
-                Env.__is_agent_port_contain_method(port, agent_name_of_method, method_name)]
+    def __all_agent_ports_contain_method(
+        model: Model, agent_name_of_method: str, method_name: str
+    ) -> list:
+        return [
+            port
+            for port in model.all_agent_ports
+            if Env.__is_agent_port_contain_method(
+                port, agent_name_of_method, method_name
+            )
+        ]
 
     def __inject_driver_method(self, model: Model, agent_name, driver_method):
         """
@@ -163,8 +184,12 @@ class Env(MObject):
         driver_path = f"{agent_name}.{driver_method.__name__}"
 
         model_info = {
-            "agent_hook": Env.__all_agent_hooks_contain_method(model, agent_name, driver_method.__name__),
-            "agent_port": Env.__all_agent_ports_contain_method(model, agent_name, driver_method.__name__),
+            "agent_hook": Env.__all_agent_hooks_contain_method(
+                model, agent_name, driver_method.__name__
+            ),
+            "agent_port": Env.__all_agent_ports_contain_method(
+                model, agent_name, driver_method.__name__
+            ),
             "driver_hook": model.get_driver_hook(driver_path, mark_matched=True),
             "driver_port": model.get_driver_port(driver_path, mark_matched=True),
         }
@@ -180,10 +205,14 @@ class Env(MObject):
         monitor_path = f"{agent_name}.{monitor_method.__name__}"
 
         model_info = {
-            "agent_hook": Env.__all_agent_hooks_contain_method(model, agent_name, monitor_method.__name__),
-            "agent_port": Env.__all_agent_ports_contain_method(model, agent_name, monitor_method.__name__),
+            "agent_hook": Env.__all_agent_hooks_contain_method(
+                model, agent_name, monitor_method.__name__
+            ),
+            "agent_port": Env.__all_agent_ports_contain_method(
+                model, agent_name, monitor_method.__name__
+            ),
             "monitor_hook": model.get_monitor_hook(monitor_path, mark_matched=True),
-            "monitor_port": model.get_monitor_port(monitor_path, mark_matched=True)
+            "monitor_port": model.get_monitor_port(monitor_path, mark_matched=True),
         }
 
         monitor = self.__get_monitor(agent_name, monitor_method.__name__)
@@ -235,16 +264,26 @@ class Env(MObject):
         for agent_hook in model.all_agent_hooks:
             for agent in agent_hook.__agents__:
                 if not hasattr(self, agent):
-                    raise ValueError(f"Agent hook {agent_hook.__name__} is not matched to agent {agent}")
-            if not agent_hook.__agent_name__ == "" and not hasattr(self, agent_hook.__agent_name__):
-                raise ValueError(f"Agent hook {agent_hook.__name__} is not matched to agent {agent_hook.__agent_name__}")
+                    raise ValueError(
+                        f"Agent hook {agent_hook.__name__} is not matched to agent {agent}"
+                    )
+            if not agent_hook.__agent_name__ == "" and not hasattr(
+                self, agent_hook.__agent_name__
+            ):
+                raise ValueError(
+                    f"Agent hook {agent_hook.__name__} is not matched to agent {agent_hook.__agent_name__}"
+                )
 
         for agent_port in model.all_agent_ports:
             for agent in agent_port.agents:
                 if not hasattr(self, agent):
-                    raise ValueError(f"Agent port {agent_port.__name__} is not matched to agent {agent}")
+                    raise ValueError(
+                        f"Agent port {agent_port.__name__} is not matched to agent {agent}"
+                    )
             if not agent_port.name == "" and not hasattr(self, agent_port.name):
-                raise ValueError(f"Agent port {agent_port.name} is not matched to agent {agent_port.name}")
+                raise ValueError(
+                    f"Agent port {agent_port.name} is not matched to agent {agent_port.name}"
+                )
 
     def __get_driver(self, agent_name, driver_name):
         """

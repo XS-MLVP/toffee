@@ -13,11 +13,14 @@ from .asynchronous import Queue
 from .logger import warning, error
 
 
-def agent_hook(agent_name: str = "", *,
-               agents: list = [],
-               methods: list = [],
-               priority: int = 99,
-               sche_order: str = "model_first"):
+def agent_hook(
+    agent_name: str = "",
+    *,
+    agents: list = [],
+    methods: list = [],
+    priority: int = 99,
+    sche_order: str = "model_first",
+):
     """
     Decorator for agent hook.
 
@@ -32,9 +35,14 @@ def agent_hook(agent_name: str = "", *,
                     called before the corresponding agent_method runs, and vice versa after it runs.
     """
 
-    assert agent_name == "" or agents == [], "agent_name and agents cannot be set at the same time"
+    assert (
+        agent_name == "" or agents == []
+    ), "agent_name and agents cannot be set at the same time"
     assert priority in range(0, 100), "priority should be between 0 and 99"
-    assert sche_order in ["model_first", "dut_first"], "sche_order must be 'model_first' or 'dut_first'"
+    assert sche_order in [
+        "model_first",
+        "dut_first",
+    ], "sche_order must be 'model_first' or 'dut_first'"
 
     def decorator(func):
         nonlocal agent_name
@@ -56,11 +64,14 @@ def agent_hook(agent_name: str = "", *,
     return decorator
 
 
-def driver_hook(driver_path: str = "", *,
-                agent_name: str = "",
-                driver_name: str = "",
-                priority = 99,
-                sche_order = "model_first"):
+def driver_hook(
+    driver_path: str = "",
+    *,
+    agent_name: str = "",
+    driver_name: str = "",
+    priority=99,
+    sche_order="model_first",
+):
     """
     Decorator for driver hook.
 
@@ -84,7 +95,10 @@ def driver_hook(driver_path: str = "", *,
     ), "agent_name must not be empty when driver_name is set"
 
     assert priority in range(0, 100), "priority should be between 0 and 99"
-    assert sche_order in ["model_first", "dut_first"], "sche_order must be 'model_first' or 'dut_first'"
+    assert sche_order in [
+        "model_first",
+        "dut_first",
+    ], "sche_order must be 'model_first' or 'dut_first'"
 
     def decorator(func):
         nonlocal driver_path, agent_name, driver_name
@@ -108,7 +122,14 @@ def driver_hook(driver_path: str = "", *,
 
     return decorator
 
-def monitor_hook(monitor_path: str = "", *, agent_name: str = "", monitor_name: str = "", priority: int = 0):
+
+def monitor_hook(
+    monitor_path: str = "",
+    *,
+    agent_name: str = "",
+    monitor_name: str = "",
+    priority: int = 0,
+):
     """
     Decorator for monitor hook.
 
@@ -163,7 +184,9 @@ class Port(Queue):
         """
 
         super().__init__()
-        assert maxsize > 0 or maxsize == -1 , "maxsize must be greater than 0 or equal to -1"
+        assert (
+            maxsize > 0 or maxsize == -1
+        ), "maxsize must be greater than 0 or equal to -1"
 
         self.name = name
         self.matched = False
@@ -176,13 +199,19 @@ class Port(Queue):
 
         await super().put(value)
 
+
 class DriverPort(Port):
     """
     The DriverPort is used to match driver_method in the agent and obtain call arguments.
     """
 
     def __init__(
-        self, driver_path: str = "", *, agent_name: str = "", driver_name: str = "", maxsize: int = 4
+        self,
+        driver_path: str = "",
+        *,
+        agent_name: str = "",
+        driver_name: str = "",
+        maxsize: int = 4,
     ):
         assert driver_path == "" or (
             agent_name == "" and driver_name == ""
@@ -217,9 +246,14 @@ class DriverPort(Port):
 
 
 class AgentPort(Port):
-    def __init__(self, agent_name: str = "", maxsize: int = 4, *,
-                       agents: list = [],
-                       methods: list = []):
+    def __init__(
+        self,
+        agent_name: str = "",
+        maxsize: int = 4,
+        *,
+        agents: list = [],
+        methods: list = [],
+    ):
 
         super().__init__(maxsize=maxsize)
 
@@ -234,13 +268,19 @@ class AgentPort(Port):
     async def __call__(self):
         return await self.get()
 
+
 class MonitorPort(Port):
     """
     The MonitorPort is used to match the monitor_method in the agent, and obtain the results.
     """
 
     def __init__(
-        self, monitor_path: str = "", *, agent_name: str = "", monitor_name: str = "", maxsize: int = 4
+        self,
+        monitor_path: str = "",
+        *,
+        agent_name: str = "",
+        monitor_name: str = "",
+        maxsize: int = 4,
     ):
         assert monitor_path == "" or (
             agent_name == "" and monitor_name == ""
@@ -364,7 +404,9 @@ class Model(Component):
 
         for agent_hook in self.all_agent_hooks:
             if not agent_hook.__matched__[0]:
-                warning(f"Agent hook {agent_hook.__name__} is not matched to any method, please check it")
+                warning(
+                    f"Agent hook {agent_hook.__name__} is not matched to any method, please check it"
+                )
             for method_matched in agent_hook.__methods_matched__:
                 if not method_matched:
                     idx = agent_hook.__methods_matched__.index(method_matched)
@@ -374,15 +416,11 @@ class Model(Component):
 
         for driver_hook in self.all_driver_hooks:
             if not driver_hook.__matched__[0]:
-                raise ValueError(
-                    f"Driver hook {driver_hook.__name__} is not matched"
-                )
+                raise ValueError(f"Driver hook {driver_hook.__name__} is not matched")
 
         for monitor_hook in self.all_monitor_hooks:
             if not monitor_hook.__matched__[0]:
-                raise ValueError(
-                    f"Monitor hook {monitor_hook.__name__} is not matched"
-                )
+                raise ValueError(f"Monitor hook {monitor_hook.__name__} is not matched")
 
         for agent_port in self.all_agent_ports:
             if not agent_port.matched:
@@ -398,9 +436,7 @@ class Model(Component):
 
         for driver_port in self.all_driver_ports:
             if not driver_port.matched:
-                raise ValueError(
-                    f"Driver port {driver_port.get_path()} is not matched"
-                )
+                raise ValueError(f"Driver port {driver_port.get_path()} is not matched")
 
         for monitor_port in self.all_monitor_ports:
             if not monitor_port.matched:

@@ -1,34 +1,41 @@
-from base import FDUT
 import toffee
+from base import FDUT
 from toffee import *
+
 
 class MyAgent(Agent):
     def __init__(self, dut, infos):
         self.infos = infos
         self.dut = dut
         super().__init__(Bundle())
+
     @driver_method()
     async def driver1(self):
         self.infos.append("driver1")
         await self.dut.event.wait()
         await self.dut.event.wait()
+
     @driver_method()
     async def driver2(self):
         self.infos.append("driver2")
         await self.dut.event.wait()
         await self.dut.event.wait()
 
+
 def test_executor():
     class MyModel(Model):
         def __init__(self, infos):
             super().__init__()
             self.infos = infos
+
         @driver_hook(agent_name="my_agent")
         def driver1(self):
             self.infos.append("model1")
+
         @driver_hook(agent_name="my_agent")
         def driver2(self):
             self.infos.append("model2")
+
     class MyEnv(Env):
         def __init__(self, dut, infos):
             super().__init__()
@@ -91,6 +98,7 @@ def test_executor_sche_group():
             super().__init__()
             self.my_agent = MyAgent(dut, [])
             self.my_agent2 = MyAgent(dut, [])
+
     class MyModel2(Model):
         @agent_hook()
         def my_agent(self, name, args): ...

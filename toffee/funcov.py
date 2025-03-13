@@ -198,7 +198,7 @@ class CovGroup(object):
         bins: Union[dict, CovCondition, Callable[[object, object], bool]],
         name: str = "",
         once=None,
-        dynamic_bin=False
+        dynamic_bin=False,
     ):
         """
         Add a watch point to the group
@@ -261,7 +261,13 @@ class CovGroup(object):
         self.hinted = False
         return self
 
-    def mark_function(self, name: str, func: Union[Callable,str, list], bin_name: Union[str, list] = None, raise_error=True):
+    def mark_function(
+        self,
+        name: str,
+        func: Union[Callable, str, list],
+        bin_name: Union[str, list] = None,
+        raise_error=True,
+    ):
         """Mark one or more functions for a point
 
         Description:
@@ -308,7 +314,7 @@ class CovGroup(object):
                     point["functions"][b_name].add(f)
                 else:
                     assert isinstance(f, Callable)
-                    point["functions"][b_name].add("%s.%s"%(f.__module__, f.__name__))
+                    point["functions"][b_name].add("%s.%s" % (f.__module__, f.__name__))
         return self
 
     def clear(self):

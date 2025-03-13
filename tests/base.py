@@ -5,11 +5,14 @@ from toffee import *
 
 """Fake classes for testing"""
 
+
 class FXData: ...
+
 
 class FXPin:
     def __init__(self):
         self.xdata, self.event, self.value, self.mIOType = FXData(), None, 0, 0
+
 
 class FDUT:
     def __init__(self):
@@ -24,10 +27,13 @@ class FDUT:
 
     def Step(self, cycles): ...
 
+
 """Adder class for testing"""
+
 
 class AdderBundle(Bundle):
     a, b, sum = Signals(3)
+
 
 class Adder(FDUT):
     def __init__(self):

@@ -1,6 +1,7 @@
-import json
 import argparse
+import json
 import os
+
 
 # calculate hash of a number set, so as to distinct between two sets
 def set_hash(set_in):
@@ -9,12 +10,13 @@ def set_hash(set_in):
         str_res = f"{str_res}_{num}"
     return hash(str_res)
 
-class MProxy():
-    stored = ''
+
+class MProxy:
+    stored = ""
     leaf = None
 
-    def print(self, str_in=''):
-        self.stored += str_in + '\n'
+    def print(self, str_in=""):
+        self.stored += str_in + "\n"
 
     def get(self):
         return self.stored
@@ -22,7 +24,8 @@ class MProxy():
     def get_leave_hash(self, ob):
         if self.leaf is None:
             self.leaf = hash(ob)
-        return self.leaf 
+        return self.leaf
+
 
 # dfs function
 # node: the current node to be visit
@@ -30,15 +33,22 @@ class MProxy():
 # insides: stores all the nodes' full name of the same kind. For bundles, also stores the index of the unique bundle
 # prefix: prefix str of current node
 # bundle_names_counter: store the bundle name, which might be useful in the future
-def visit(node, logs, insides, prefix, bundle_names_counter, rp:MProxy):
+def visit(node, logs, insides, prefix, bundle_names_counter, rp: MProxy):
     leaf = 0
     sons = set()
     for son_name in node:
-        
+
         if type(node[son_name]) == dict:
-            leaf |= 2 # node type
+            leaf |= 2  # node type
             whole_name = f"{prefix}{son_name}"
-            grandsons, son_leaf = visit(node[son_name], logs, insides, f"{whole_name}_", bundle_names_counter, rp)
+            grandsons, son_leaf = visit(
+                node[son_name],
+                logs,
+                insides,
+                f"{whole_name}_",
+                bundle_names_counter,
+                rp,
+            )
             inside_hash = set_hash(grandsons)
             cur_hashes = set()
             cur_hashes.add(son_name)
@@ -48,17 +58,26 @@ def visit(node, logs, insides, prefix, bundle_names_counter, rp:MProxy):
             son_hash = set_hash(cur_hashes)
             if son_hash not in logs.keys():
                 # if son_leaf & 1:
-                    # son hash as outsiders with name added to hash
-                logs[son_hash] = (son_leaf, inside_hash, son_name, whole_name, grandsons, [])
+                # son hash as outsiders with name added to hash
+                logs[son_hash] = (
+                    son_leaf,
+                    inside_hash,
+                    son_name,
+                    whole_name,
+                    grandsons,
+                    [],
+                )
                 # else:
-                    # logs[son_hash] = (False, inside_hash, son_name, whole_name, grandsons)  
+                # logs[son_hash] = (False, inside_hash, son_name, whole_name, grandsons)
             if inside_hash not in insides.keys():
                 insides[inside_hash] = [son_leaf, [], "", []]
                 if son_leaf & 2:
                     # new bundle appears
                     insides[inside_hash][2] = bundle_names_counter[0]
                     bundle_names_counter[1].append(f"_{bundle_names_counter[0]}Bundle")
-                    rp.print(f"class {bundle_names_counter[1][bundle_names_counter[0]]}(Bundle):")
+                    rp.print(
+                        f"class {bundle_names_counter[1][bundle_names_counter[0]]}(Bundle):"
+                    )
 
                     son_bundles = {}
                     boths = {}
@@ -72,7 +91,7 @@ def visit(node, logs, insides, prefix, bundle_names_counter, rp:MProxy):
                             if grandson_inside not in son_bundles:
                                 son_bundles[grandson_inside] = []
                             son_bundles[grandson_inside].append(name)
-                        
+
                         if leaf_res & 1:
                             # out of the frustrating compilation optimization, we have to take a look at the "same name" of leaf and node
                             if leaf_res & 2:
@@ -93,11 +112,17 @@ def visit(node, logs, insides, prefix, bundle_names_counter, rp:MProxy):
                                     leaf_name = f"{tprefix_name}{_son_leaf}"
                                     insides[inside_hash][3].append(leaf_name)
                             else:
-                                rp.print(f"\t{tprefix_name} = {bundle_cls}.from_prefix(\"{tprefix_name}\")")
+                                rp.print(
+                                    f'\t{tprefix_name} = {bundle_cls}.from_prefix("{tprefix_name}")'
+                                )
 
                     if len(insides[inside_hash][3]) > 0:
-                        leaves_str = ', '.join(insides[inside_hash][3])
-                        after_str = f"Signals({len(insides[inside_hash][3])})" if len(insides[inside_hash][3]) > 1 else "Signal()"
+                        leaves_str = ", ".join(insides[inside_hash][3])
+                        after_str = (
+                            f"Signals({len(insides[inside_hash][3])})"
+                            if len(insides[inside_hash][3]) > 1
+                            else "Signal()"
+                        )
                         rp.print(f"\t{leaves_str} = {after_str}")
 
                     rp.print()
@@ -107,11 +132,12 @@ def visit(node, logs, insides, prefix, bundle_names_counter, rp:MProxy):
             insides[inside_hash][1].append(whole_name)
             sons.add(son_hash)
         else:
-            
-            leaf |= 1 # leaf
+
+            leaf |= 1  # leaf
             # son_hash = rp.get_leave_hash(node[son_name]) # for all leaves, ways to deal in toffee are same, they are all signals, so get a staic value equal to
 
     return sons, leaf
+
 
 def main(signals_path, target_path):
     with open(signals_path, "r", encoding="utf-8") as sig_file:
@@ -131,7 +157,7 @@ def main(signals_path, target_path):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('signal', type=str, default='')
-    parser.add_argument('target', type=str, default='')
+    parser.add_argument("signal", type=str, default="")
+    parser.add_argument("target", type=str, default="")
     args = parser.parse_args()
     main(args.signal, args.target)

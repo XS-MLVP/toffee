@@ -122,6 +122,7 @@ async def test_random(adder_env):
         cin = random.randint(0, 1)
         await adder_env.add_agent.exec_add(a, b, cin)
 
+
 @toffee_test.testcase
 async def test_boundary(adder_env):
     for cin in [0, 1]:

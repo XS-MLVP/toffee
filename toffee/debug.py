@@ -1,15 +1,15 @@
-#coding: utf-8
-
-
 import pdb
+
 
 def info(*args, **kwargs):
     print("***", end=" ")
     print(*args, **kwargs)
 
+
 def debug(*args, **kwargs):
     print("Debug:", end=" ")
     print(*args, **kwargs)
+
 
 def error(*args, **kwargs):
     print("Error:", end=" ")

@@ -63,31 +63,41 @@ class Driver(BaseAgent):
             args = next(iter(args_dict.values())) if len(args_dict) == 1 else args_dict
             await model_info["driver_port"].put(args)
 
-    def __drive_single_driver_hook(self, driver_hook, model_results, arg_list, kwarg_list):
+    def __drive_single_driver_hook(
+        self, driver_hook, model_results, arg_list, kwarg_list
+    ):
         if inspect.iscoroutinefunction(driver_hook):
             assert False, "driver_hook should not be a coroutine function"
 
         async def driver_hook_wrapper():
-            model_results.append((
-                driver_hook,
-                driver_hook(*arg_list, **kwarg_list)))
+            model_results.append((driver_hook, driver_hook(*arg_list, **kwarg_list)))
+
         event = Event()
-        priority = self.priority if self.priority is not None else driver_hook.__priority__
+        priority = (
+            self.priority if self.priority is not None else driver_hook.__priority__
+        )
         add_priority_task(driver_hook_wrapper(), priority, event)
 
         return event
 
-    def __drive_single_agent_hook(self, agent_hook, model_results, arg_list, kwarg_list):
+    def __drive_single_agent_hook(
+        self, agent_hook, model_results, arg_list, kwarg_list
+    ):
         if inspect.iscoroutinefunction(agent_hook):
             assert False, "agent_hook should not be a coroutine function"
 
         async def agent_hook_wrapper():
-            model_results.append((
-                agent_hook,
-                agent_hook(self.name, self.__get_args_dict(arg_list, kwarg_list))))
+            model_results.append(
+                (
+                    agent_hook,
+                    agent_hook(self.name, self.__get_args_dict(arg_list, kwarg_list)),
+                )
+            )
 
         event = Event()
-        priority = self.priority if self.priority is not None else agent_hook.__priority__
+        priority = (
+            self.priority if self.priority is not None else agent_hook.__priority__
+        )
         add_priority_task(agent_hook_wrapper(), priority, event)
 
         return event
@@ -117,18 +127,28 @@ class Driver(BaseAgent):
                 await self.__drive_single_model_ports(model_info, arg_list, kwarg_list)
             else:
                 if driver_hook := model_info["driver_hook"]:
-                    if (driver_hook.__sche_order__ == "model_first" and self.sche_order != "dut_first") \
-                            or self.sche_order == "model_first":
+                    if (
+                        driver_hook.__sche_order__ == "model_first"
+                        and self.sche_order != "dut_first"
+                    ) or self.sche_order == "model_first":
                         model_first_events.append(
-                            self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
+                            self.__drive_single_driver_hook(
+                                driver_hook, model_results, arg_list, kwarg_list
+                            ).wait()
+                        )
                     else:
                         dut_first_driver_hooks.append(driver_hook)
 
                 for agent_hook in model_info["agent_hook"]:
-                    if (agent_hook.__sche_order__ == "model_first" and self.sche_order != "dut_first") \
-                            or self.sche_order == "model_first":
+                    if (
+                        agent_hook.__sche_order__ == "model_first"
+                        and self.sche_order != "dut_first"
+                    ) or self.sche_order == "model_first":
                         model_first_events.append(
-                            self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
+                            self.__drive_single_agent_hook(
+                                agent_hook, model_results, arg_list, kwarg_list
+                            ).wait()
+                        )
                     else:
                         dut_first_agent_hooks.append(agent_hook)
 
@@ -143,16 +163,27 @@ class Driver(BaseAgent):
             dut_first_events = []
             for driver_hook in dut_first_driver_hooks:
                 dut_first_events.append(
-                    self.__drive_single_driver_hook(driver_hook, model_results, arg_list, kwarg_list).wait())
+                    self.__drive_single_driver_hook(
+                        driver_hook, model_results, arg_list, kwarg_list
+                    ).wait()
+                )
             for agent_hook in dut_first_agent_hooks:
                 dut_first_events.append(
-                    self.__drive_single_agent_hook(agent_hook, model_results, arg_list, kwarg_list).wait())
+                    self.__drive_single_agent_hook(
+                        agent_hook, model_results, arg_list, kwarg_list
+                    ).wait()
+                )
             await gather(*dut_first_events)
 
             # Compare the results
             for model_result in model_results:
                 if model_result[1] is not None:
-                    compare_once(dut_result, model_result[1], self.compare_func, match_detail=True)
+                    compare_once(
+                        dut_result,
+                        model_result[1],
+                        self.compare_func,
+                        match_detail=True,
+                    )
 
             self.priority = None
             self.sche_order = None
@@ -160,6 +191,7 @@ class Driver(BaseAgent):
         create_task(background_exec())
 
         return dut_result
+
 
 class Monitor(BaseAgent):
     """
@@ -193,10 +225,14 @@ class Monitor(BaseAgent):
                 await model_info["monitor_port"].put(ret)
 
             for agent_hook in model_info["agent_hook"]:
-                add_priority_task(async_wrapper(agent_hook, self.name, ret), agent_hook.__priority__)
+                add_priority_task(
+                    async_wrapper(agent_hook, self.name, ret), agent_hook.__priority__
+                )
 
             if monitor_hook := model_info["monitor_hook"]:
-                add_priority_task(async_wrapper(monitor_hook, ret), monitor_hook.__priority__)
+                add_priority_task(
+                    async_wrapper(monitor_hook, ret), monitor_hook.__priority__
+                )
 
     async def __monitor_forever(self):
         while True:
@@ -208,6 +244,8 @@ class Monitor(BaseAgent):
 
                 if self.get_queue is not None:
                     if self.get_queue.qsize() >= self.get_queue_max_size:
-                        error(f"the get_queue in {self.agent_name}.{self.name} is full, the value {ret} is dropped")
+                        error(
+                            f"the get_queue in {self.agent_name}.{self.name} is full, the value {ret} is dropped"
+                        )
                         continue
                     await self.get_queue.put(ret)

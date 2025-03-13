@@ -1,6 +1,10 @@
+from .agent import AdderAgent
+from .agent import AdderBundle
+from .refmodel import AdderModelWithDriverHook
+from .refmodel import AdderModelWithMonitorHook
+from .refmodel import AdderModelWithPort
 from toffee import *
-from .agent import AdderAgent, AdderBundle
-from .refmodel import AdderModelWithDriverHook, AdderModelWithMonitorHook, AdderModelWithPort
+
 
 class AdderEnv(Env):
     def __init__(self, adder_bundle):

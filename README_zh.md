@@ -4,19 +4,17 @@
 
 [English Version](README.md) | [中文版本](README_zh.md)
 
-> mlvp 已更名为 Toffee
-
-Toffee 是一款基于 Python 的硬件验证框架，旨在帮助用户更加便捷、规范地使用 Python 构建硬件验证环境。它依托于多语言转换工具 [picker](https://github.com/XS-MLVP/picker)，该工具能够将硬件设计的 Verilog 代码转换为 Python Package，使得用户可以使用 Python 来驱动并验证硬件设计。
+Toffee 是一款基于 Python 的硬件验证框架，旨在帮助用户更加便捷、规范地使用 Python 构建硬件验证环境。它依托于多语言转换工具 [Picker](https://github.com/XS-MLVP/picker)，该工具能够将硬件设计的 Verilog 代码转换为 Python Package，使得用户可以使用 Python 来驱动并验证硬件设计。
 
 Toffee 吸收了部分 UVM 验证方法学，确保验证环境的规范性与可复用性。此外，toffee 对验证环境的构建方式进行了重新设计，使其更符合软件开发者的使用习惯，从而让软件开发者能够轻松上手硬件验证工作。
 
-更多关于 Toffee 的介绍，请参阅 [Toffee 文档](https://open-verify.cc/mlvp/docs/mlvp)。
+更多关于 Toffee 的介绍，请参阅 [Toffee 文档](https://pytoffee.readthedocs.io/zh-cn/latest/)。
 
 ## 安装
 
 Toffee 需要的依赖有：
 
-- Python 3.6.8+
+- Python 3.8.0+
 - Picker 0.9.0+
 
 当安装好上述依赖后，可通过 pip 安装 toffee：
@@ -139,7 +137,7 @@ make run
 
 运行结束后报告将自动在`reports`目录下生成。
 
-更加详细的使用方法，请参考 [Toffee 文档](https://open-verify.cc/mlvp/docs/mlvp)。
+更加详细的使用方法，请参考 [Toffee 文档](https://pytoffee.readthedocs.io/zh-cn/latest/)。
 
 ## 其他信息
 

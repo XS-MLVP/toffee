@@ -4,19 +4,17 @@
 
 [English Version](README.md) | [中文版本](README_zh.md)
 
-> mlvp has been renamed to Toffee
-
-Toffee is a Python-based hardware verification framework designed to help users build hardware verification environments more conveniently and systematically using Python. It leverages the multi-language conversion tool [picker](https://github.com/XS-MLVP/picker), which converts Verilog code of hardware designs into Python Packages, enabling users to drive and verify hardware designs in Python.
+Toffee is a Python-based hardware verification framework designed to help users build hardware verification environments more conveniently and systematically using Python. It leverages the multi-language conversion tool [Picker](https://github.com/XS-MLVP/picker), which converts Verilog code of hardware designs into Python Packages, enabling users to drive and verify hardware designs in Python.
 
 Toffee incorporates elements of UVM methodology to ensure the verification environment's standardization and reusability. Moreover, Toffee redesigns the verification environment setup to better align with software developers' workflows, making it easier for software developers to engage in hardware verification tasks.
 
-For more information about Toffee, please refer to the [Toffee Documentation](https://open-verify.cc/mlvp/docs/mlvp).
+For more information about Toffee, please refer to the [Toffee Documentation](https://pytoffee.readthedocs.io/zh-cn/latest/).
 
 ## Installation
 
 Toffee requires the following dependencies:
 
-- Python 3.6.8+
+- Python 3.8.0+
 - Picker 0.9.0+
 
 Once these dependencies are installed, you can install Toffee via pip:
@@ -139,7 +137,7 @@ make run
 
 A report will be automatically generated in the `reports` directory upon completion.
 
-For more detailed usage, please refer to the [Toffee Documentation](https://open-verify.cc/mlvp/docs/mlvp).
+For more detailed usage, please refer to the [Toffee Documentation](https://pytoffee.readthedocs.io/zh-cn/latest/).
 
 ## Additional Information
 

@@ -6,7 +6,7 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = 'toffee'
+project = 'Toffee'
 copyright = '2025, UnityChip'
 author = 'Miical'
 release = 'v0.2.3'

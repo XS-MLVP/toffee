@@ -20,6 +20,14 @@ requires-python = ">=3.8"
 dependencies = []
 dynamic = ["version"]
 
+[project.optional-dependencies]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints",
+    "myst-parser"
+]
+
 [project.urls]
 Homepage = "https://github.com/XS-MLVP/toffee"
 Source = "https://github.com/XS-MLVP/toffee"

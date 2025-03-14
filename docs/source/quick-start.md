@@ -191,7 +191,7 @@ def adder_cover_point(adder):
 async def adder_env(toffee_request: toffee_test.ToffeeRequest):
     dut = toffee_request.create_dut(DUTAdder)
     toffee_request.add_cov_groups(adder_cover_point(dut))  # 添加测试组
-    toffee.start_clock(dut)
+    start_clock(dut)
     return AdderEnv(AdderBundle.from_prefix("io_").bind(dut))
 ```
 
@@ -199,4 +199,4 @@ async def adder_env(toffee_request: toffee_test.ToffeeRequest):
 
 ---
 
-本节介绍了如何使用 Toffee 框架完成一个简单的验证任务的流程。继续阅读后续章节以了解更多 Toffee 的功能和用法。
+本节介绍了使用 Toffee 框架完成一个简单的验证任务的流程。继续阅读后续章节以了解更多 Toffee 的功能和用法。

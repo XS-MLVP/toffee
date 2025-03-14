@@ -8,5 +8,14 @@ build:
   tools:
     python: "3.12"
 
+
+python:
+  install:
+    - method: pip
+      path: .
+    - method: pip
+      extra_requirements:
+        - docs
+
 sphinx:
   configuration: docs/source/conf.py

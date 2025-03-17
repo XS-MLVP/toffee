@@ -212,7 +212,17 @@ def handle_exception(loop, context):
 
 async def main_coro(test, env_handle=None):
     """
-    Run the main coroutine.
+    Wrapper for a coroutine to meet the rules for toffee.
+
+    Args:
+        test: The test to be run, it can be a coroutine or a function.
+        env_handle: A handle to create the environment. make sure the env is created before the test starts. if the
+                env_handle is provided, the test will be called with the env_handle's return value. when the env_handle
+                is set, make sure the test is a function and has the same number of arguments as the env_handle's
+                return.
+
+    Returns:
+        The result of the coroutine (or function).
     """
 
     loop = asyncio.get_event_loop()
@@ -259,7 +269,7 @@ def run(test, env_handle=None, dut=None):
         dut: The DUT object.
 
     Returns:
-        The result of the coroutine.
+        The result of the coroutine (or function).
     """
 
     coro = main_coro(test, env_handle)

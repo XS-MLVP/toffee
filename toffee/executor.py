@@ -69,9 +69,9 @@ class Executor(MObject):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.execute()
+        await self.__execute()
 
-    async def execute(self):
+    async def __execute(self):
         """
         Execute the coroutines and wait for them to complete.
         """
@@ -109,7 +109,7 @@ class Executor(MObject):
 
         sche_groups = []
         for tasks in self.__coros.items():
-            sche_groups.append(self.sequential_execution_all(*tasks[1]))
+            sche_groups.append(self.__sequential_execution_all(*tasks[1]))
         return sche_groups
 
     async def __exit_all(self):
@@ -140,7 +140,7 @@ class Executor(MObject):
         for tasks in self.__coros.items():
             self.__uncompleted.append(
                 create_task(
-                    self.sequential_execution_all(
+                    self.__sequential_execution_all(
                         *tasks[1], complete_event=self.__exit_any_event
                     )
                 )
@@ -187,7 +187,7 @@ class Executor(MObject):
         if sche_group is None:
             sche_group = coro.__name__
 
-            driver = Executor.get_driver(coro)
+            driver = Executor.__get_driver(coro)
             if driver is not None:
                 sche_group = f"{driver.agent_name}.{sche_group}"
 
@@ -197,7 +197,7 @@ class Executor(MObject):
         if priority is not None:
             assert 0 <= priority <= 99, "Priority should be between 0 and 99"
 
-            driver = Executor.get_driver(coro)
+            driver = Executor.__get_driver(coro)
             coro_name = coro.__name__
             assert (
                 driver is not None
@@ -206,7 +206,7 @@ class Executor(MObject):
         if sche_order is not None:
             if sche_order == "parallel":
                 sche_order = "model_first"
-            driver = Executor.get_driver(coro)
+            driver = Executor.__get_driver(coro)
             coro_name = coro.__name__
             assert (
                 driver is not None
@@ -215,7 +215,7 @@ class Executor(MObject):
         self.__coros[sche_group].append((coro, sche_order, priority))
 
     @staticmethod
-    async def sequential_execution_all(*tasks, complete_event=None):
+    async def __sequential_execution_all(*tasks, complete_event=None):
         """
         Sequentially execute all tasks.
 
@@ -226,7 +226,7 @@ class Executor(MObject):
 
         results = []
         for coro, sche_order, priority in tasks:
-            driver = Executor.get_driver(coro)
+            driver = Executor.__get_driver(coro)
 
             if driver is not None:
                 driver.priority = None
@@ -246,7 +246,7 @@ class Executor(MObject):
         return results
 
     @staticmethod
-    def get_driver(coro):
+    def __get_driver(coro):
         """
         Get the driver object of the coroutine.
 

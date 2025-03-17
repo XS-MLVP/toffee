@@ -68,6 +68,10 @@ class Agent:
         """
         After monitoring begins, monitor_method places the monitored data in a separate queue. Calling monitor_method
         in a test case will get the monitored data.
+
+        Args:
+            monitor_name: The name of the monitor.
+            maxsize: The maximum size of the queue.
         """
 
         monitor = self.monitors[monitor_name]

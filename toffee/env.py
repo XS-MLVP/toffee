@@ -76,15 +76,6 @@ class Env(MObject):
 
         return self
 
-    def get_agent(self, agent_name):
-        """Get the agent by name."""
-
-        if hasattr(self, agent_name):
-            agent = getattr(self, agent_name)
-
-            if isinstance(agent, Agent):
-                return agent
-
     def all_agent_names(self):
         """
         Yields all agent names in the env.

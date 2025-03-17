@@ -375,7 +375,7 @@ class AdderBundle(Bundle):
 
 当调用`add_list()`后，返回的结果为:
 
-```pthon
+```python
 [
   {"data": {"a":5, "b":6, "cin": 0, "sum":11, "cout": 0}, "cycle":3},
   {"data": {"a":7, "b":8, "cin": 0, "sum":15, "cout": 0}, "cycle":4}

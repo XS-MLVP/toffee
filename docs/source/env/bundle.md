@@ -33,7 +33,7 @@ print(adder_bundle.cout.value)
 
 使用 `bind` 方法，可以将一个 DUT 绑定到 bundle 上。例如我们有一个简单的加法器 DUT，其接口名称与 Bundle 中定义的名称相同。
 
-```
+```python
 adder = DUTAdder()
 
 adder_bundle = AdderBundle()
@@ -157,6 +157,105 @@ arithmetic_bundle.multiplier.b.value = 4
 需要注意的是，子 Bundle 的创建方法去匹配的信号名称，是经过上一次 Bundle 的创建方法进行处理过后的名称。例如在上面的代码中，我们将顶层 Bundle 的匹配方式设置为 `from_prefix('io_')`，那么在 `AdderBundle` 中去匹配的信号，是去除了 `io_` 前缀后的名称。
 
 同时，字典匹配方法会将信号名称转换为字典映射后的名称传递给子 Bundle 进行匹配，正则表达式匹配方法会将正则表达式捕获到的名称传递给子 Bundle 进行匹配。
+
+## 创建 SignalList
+
+在某些情况下，会存在有一组信号的名称相似，且数量较多，例如以下情况：
+
+```
+io_vec_0
+io_vec_1
+io_vec_2
+...
+io_vec_9
+```
+
+如果使用 `Signal` 一个一个定义，会显得非常繁琐。为了解决这个问题，toffee 提供了 `SignalList` 类，用于定义一组信号。按照如下方式使用：
+
+```python
+from toffee import Bundle, SignalList
+
+class VectorBundle(Bundle):
+    vec = SignalList("vec_#", 10)
+```
+
+上面的代码定义了一个 `VectorBundle`，它包含了一个 `vec` 信号列表，该信号列表包含了 10 个信号，信号名称分别为 `vec_0`, `vec_1`, `vec_2`, ..., `vec_9`。这取决于 `SignalList` 定义时传入的名称字符串`vec_#` ，其中的 `#` 根据第二个参数 10 被替换为 0 到 9。
+
+在实例化 `VectorBundle` 后，我们可以通过 `vec` 来访问这一组信号：
+
+```python
+vector_bundle = VectorBundle()
+
+vector_bundle.vec[0].value = 1
+vector_bundle.vec[1].value = 2
+...
+vector_bundle.vec[9].value = 10
+```
+
+如果想要自定义从数字到信号名称的映射，可以通过传入一个函数来实现，例如：
+
+```python
+def custom_name_func(i):
+    return f"vec_{i + 1}"
+
+class VectorBundle(Bundle):
+    vec = SignalList("vec_#", 10, custom_name_func)
+```
+
+## 创建 BundleList
+
+类似的，还有可能会存在有一组 Bundle 的情况，例如以下情况：
+
+```
+io_vec0_a
+io_vec0_b
+io_vec0_c
+io_vec1_a
+io_vec1_b
+io_vec1_c
+...
+io_vec9_a
+io_vec9_b
+io_vec9_c
+```
+
+如果使用多个 SubBundle 一个一个定义，也会非常繁琐。为此，Toffee 还提供了 `BundleList` 类，用于定义一组 Bundle。按照如下方式使用：
+
+```python
+
+from toffee import Bundle, BundleList
+
+class SubBundle(Bundle):
+    a, b, c = Signals(3)
+
+class VectorBundle(Bundle):
+    vec = BundleList(SubBundle, "vec#_", 10)
+```
+
+上面的代码定义了一个 `VectorBundle`，它包含了一个 `vec` Bundle 列表，该 Bundle 列表包含了 10 个 SubBundle，每个 SubBundle 的匹配方法都被指定为**前缀匹配**，待匹配前缀分别为 `vec0_`, `vec1_`, `vec2_`, ..., `vec9_`。如果要访问这一组 Bundle，可以通过 `vec` 来访问：
+
+```python
+vector_bundle = VectorBundle()
+
+vector_bundle.vec[0].a.value = 1
+vector_bundle.vec[0].b.value = 2
+vector_bundle.vec[0].c.value = 3
+...
+
+vector_bundle.vec[9].a.value = 28
+vector_bundle.vec[9].b.value = 29
+vector_bundle.vec[9].c.value = 30
+```
+
+与 `SignalList` 类似，如果想要自定义从数字到 Bundle 名称的映射，可以通过传入一个函数来实现，例如：
+
+```python
+def custom_name_func(i):
+    return f"vec{i + 1}_"
+
+class VectorBundle(Bundle):
+    vec = BundleList(SubBundle, "vec#_", 10, custom_name_func)
+```
 
 ## Bundle 中的实用操作
 

@@ -14,11 +14,3 @@
 
 本章将会分别介绍每个步骤中如何使用 toffee和toffee-test 中的工具来完成环境搭建需求。
 
-.. toctree::
-   :maxdepth: 1
-
-   start_test
-   bundle
-   agent
-   build_env
-   ref_model

@@ -10,10 +10,3 @@
 1. 如何使用测试环境接口进行驱动
 2. 如何使用 pytest 管理测试用例
 3. 如何添加功能测试点
-
-.. toctree::
-   :maxdepth: 1
-
-   executor
-   pytest
-   cov

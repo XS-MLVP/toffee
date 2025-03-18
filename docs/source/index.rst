@@ -11,12 +11,46 @@ Toffee documentation
 其吸收了部分 UVM 验证方法学，以保证验证环境的规范性和可复用性，并重新设计了整套验证环境的搭建方式，使其更符合软件领域开发者的使用习惯，从而使软件开发者可以轻易地上手硬件验证工作。
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
+   :caption: 快速开始
 
    quick-start
+
+
+.. toctree::
+   :maxdepth: 1
+   :caption: 环境规范
+
    canonical_env
+
+.. toctree::
+   :maxdepth: 1
+   :caption: 验证环境
+
    env/index
+   env/start_test
+   env/bundle
+   env/agent
+   env/build_env
+   env/ref_model
+
+.. toctree::
+   :maxdepth: 1
+   :caption: 测试用例
+
    cases/index
+   cases/executor
+   cases/pytest
+   cases/cov
+
+.. toctree::
+   :maxdepth: 1
+   :caption: 验证任务
+
    verification
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API 文档
+
    api/toffee

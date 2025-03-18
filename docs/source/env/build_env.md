@@ -40,7 +40,7 @@ print(await env.port2_agent.pop())
 
 定义好 Env 后，整个验证环境的接口也就随之确定，例如：
 
-```
+```plaintext
 DualPortStackEnv
   - port1_agent
     - @driver_method push
@@ -52,13 +52,12 @@ DualPortStackEnv
     - @monitor_method some_monitor
 ```
 
-按照此规范编写的参考模型都可以直接附加到 Env 上，由 Env 来完成参考模型的自动同步，方式如下：
+
+参考模型也可以通过这些接口来进行编写，编写好的参考模型都可以使用 `attach` 操作直接附加到 Env 上，由 Env 来完成参考模型的自动同步，方式如下：
 
 ```python
 env = DualPortStackEnv(port1_bundle, port2_bundle)
 env.attach(StackRefModel())
 ```
 
-一个 Env 可以附加多个参考模型，这些参考模型都将会被 Env 自动同步。
-
-参考模型的具体编写方式将在编写参考模型一节中详细介绍。
+一个 Env 可以附加多个参考模型，这些参考模型都将会被 Env 自动同步。参考模型的具体编写方式将在[如何编写参考模型](/env/ref_model.md)一节中详细介绍。

@@ -12,5 +12,5 @@ class AdderEnv(Env):
         self.add_agent = AdderAgent(adder_bundle)
 
         self.attach(AdderModelWithDriverHook())
-        # self.attach(AdderModelWithMonitorHook())
-        # self.attach(AdderModelWithPort())
+        self.attach(AdderModelWithMonitorHook())
+        self.attach(AdderModelWithPort())

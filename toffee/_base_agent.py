@@ -18,6 +18,7 @@ class BaseAgent:
         self.func = func
         self.name = func.__name__
         self.agent_name = ""
+        self.path_name = ""
         self.compare_func = compare_func
         self.model_infos = {}
 
@@ -56,7 +57,7 @@ class Driver(BaseAgent):
     async def __drive_single_model_ports(self, model_info, arg_list, kwarg_list):
         for agent_port in model_info["agent_port"]:
             args_dict = self.__get_args_dict(arg_list, kwarg_list)
-            await agent_port.put((self.name, args_dict))
+            await agent_port.put((self.path, args_dict))
 
         if model_info["driver_port"] is not None:
             args_dict = self.__get_args_dict(arg_list, kwarg_list)
@@ -90,7 +91,7 @@ class Driver(BaseAgent):
             model_results.append(
                 (
                     agent_hook,
-                    agent_hook(self.name, self.__get_args_dict(arg_list, kwarg_list)),
+                    agent_hook(self.path, self.__get_args_dict(arg_list, kwarg_list)),
                 )
             )
 
@@ -219,14 +220,14 @@ class Monitor(BaseAgent):
 
         for model_info in self.model_infos.values():
             for agent_port in model_info["agent_port"]:
-                await agent_port.put((self.name, ret))
+                await agent_port.put((self.path, ret))
 
             if model_info["monitor_port"]:
                 await model_info["monitor_port"].put(ret)
 
             for agent_hook in model_info["agent_hook"]:
                 add_priority_task(
-                    async_wrapper(agent_hook, self.name, ret), agent_hook.__priority__
+                    async_wrapper(agent_hook, self.path, ret), agent_hook.__priority__
                 )
 
             if monitor_hook := model_info["monitor_hook"]:
@@ -245,7 +246,7 @@ class Monitor(BaseAgent):
                 if self.get_queue is not None:
                     if self.get_queue.qsize() >= self.get_queue_max_size:
                         error(
-                            f"the get_queue in {self.agent_name}.{self.name} is full, the value {ret} is dropped"
+                            f"the get_queue in {self.path} is full, the value {ret} is dropped"
                         )
                         continue
                     await self.get_queue.put(ret)

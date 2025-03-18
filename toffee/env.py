@@ -100,10 +100,12 @@ class Env(MObject):
             for driver_method in agent.all_driver_method():
                 driver = self.__get_driver(agent_name, driver_method.__name__)
                 driver.agent_name = agent_name
+                driver.path = f"{agent_name}.{driver.name}"
 
             for monitor_method in agent.all_monitor_method():
                 monitor = self.__get_monitor(agent_name, monitor_method.__name__)
                 monitor.agent_name = agent_name
+                monitor.path = f"{agent_name}.{monitor.name}"
 
     # Inject and uninject methods
 

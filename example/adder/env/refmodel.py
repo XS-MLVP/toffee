@@ -9,6 +9,10 @@ class AdderModelWithDriverHook(Model):
         cout = result >> 64
         return sum, cout
 
+    @agent_hook(agent_name="add_agent")
+    def agent_add(self, name, item):
+        print(name, item)
+
 
 class AdderModelWithMonitorHook(Model):
     @monitor_hook(agent_name="add_agent")

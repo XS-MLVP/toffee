@@ -46,6 +46,14 @@ def adder_cover_point(adder):
     g.add_cover_point(adder.io_a, {"a > 0": fc.Gt(0)}, name="signal a set")
     g.add_cover_point(adder.io_b, {"b > 0": fc.Gt(0)}, name="signal b set")
     g.add_cover_point(adder.io_sum, {"sum > 0": fc.Gt(0)}, name="signal sum set")
+    g.add_cover_point(
+        (toffee.Delayer(adder.io_cout, 1), adder.io_cout),
+        {
+            "io_cout 1 -> 0": lambda signal: signal[0].value == 1
+            and signal[1].value == 0
+        },
+        name="Cout 1 -> 0",
+    )
 
     return g
 

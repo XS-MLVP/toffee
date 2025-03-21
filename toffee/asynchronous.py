@@ -163,6 +163,10 @@ async def __clock_loop(dut):
     The clock loop function, which is the main loop of the asynchronous event.
     """
 
+    # Make sure main_coro executes first
+    while not hasattr(asyncio.get_event_loop(), "test_done"):
+        await asyncio.sleep(0)
+
     while True:
         await execute_all_coros()
         dut.Step(1)
@@ -229,7 +233,8 @@ async def main_coro(test, env_handle=None):
     loop.set_exception_handler(handle_exception)
     loop.new_task_run = False
     loop.test_done = False
-    loop.delayer_list = []
+    if not hasattr(loop, "delayer_list"):
+        loop.delayer_list = []
 
     asyncio.current_task().set_name("main_coro")
 

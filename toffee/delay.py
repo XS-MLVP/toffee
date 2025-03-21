@@ -28,6 +28,9 @@ class Delayer(MObject):
         self.delay = delay
         self.value_list = []
 
+        loop = asyncio.get_event_loop()
+        if not hasattr(loop, "delayer_list"):
+            loop.delayer_list = []
         asyncio.get_event_loop().delayer_list.append(self)
 
     def sample(self):

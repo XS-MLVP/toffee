@@ -47,7 +47,7 @@ g.add_watch_point(adder.io_cout,
                     "io_cout is 0": lambda x: x.value == 0,
                     "io_cout is 1": lambda x: x.value == 1,
                     "io_cout is x": fc.Eq(0),
-                    注：zx态，vcs后端支持，verilator不支持
+                    # 注：zx态，vcs后端支持，verilator不支持
                   },
                   name="cover_point_1")
 ```

@@ -14,19 +14,19 @@ Toffee documentation
 
    本次更新有几处 API 发生变动，可能会导致之前的代码无法正常运行，如果需要从旧版本更新至新版本，需要针对以下几处进行修改：
 
-   - 修复了 Executor 可能会导致延迟一周期的问题。如果使用了 Executor，需要检查是否时序受到影响
-   - `MonitorPort` 取消了自动比较机制。调用 `MonitorPort` 从输出改为了获取 `monitor_method` 的监测值。
+   - **修复了** `Executor` **可能会导致延迟一周期的问题。如果使用了** `Executor` **，需要检查是否时序受到影响**
+   - `MonitorPort` **取消了自动比较机制。调用** `MonitorPort` **从输出改为了获取** `monitor_method` **的监测值。**
 
-      因此原来的代码需要从
+      因此原来的代码需要从::
 
-      await self.monitor_port(item)
+         await self.monitor_port(item)
 
-      修改为
+      修改为::
 
-      assert await self.monitor_method() == item
+         assert await self.monitor_port() == item
 
-   - `agent_hook` 目前可以独立于 `driver_hook` 使用。因此如果有两者同时使用的情况，需要修改其优先级。
-   - 如果使用了 toffee.run，需要参照当前文档，提前初始化验证环境
+   - `agent_hook` **目前可以独立于** `driver_hook` **使用。因此如果有两者同时使用的情况，需要修改其优先级。**
+   - **如果使用了** `toffee.run` **，需要参照当前文档，提前初始化验证环境。**
 
 
 .. toctree::

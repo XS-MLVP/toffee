@@ -44,8 +44,8 @@ import toffee_test
 async def test_adder(adder_env):
     pass
 
-@toffee.fixture
-def adder_env(toffee_request: ToffeeRequest):
+@toffee_test.fixture
+async def adder_env(toffee_request: ToffeeRequest):
     dut = toffee_request.create_dut(DUTAdder) # 如果有时钟引脚，需要额外传入时钟引脚名称，例如 "clk"
     toffee_request.add_cov_groups(CovGroup("Adder"))
     toffee.start_clock(dut)

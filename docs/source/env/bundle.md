@@ -76,7 +76,7 @@ adder_bundle.bind(adder)
 
 ### 通过前缀进行绑定
 
-假设 DUT 中的接口名称与 Bundle 中的接口名称拥有如下对应关系：
+假设 Bundle 中的接口名称与 DUT 中的接口名称拥有如下对应关系：
 
 ```
 a    -> io_a

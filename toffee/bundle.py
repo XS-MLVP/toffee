@@ -699,7 +699,7 @@ class Bundle(MObject):
                 sub_bundle.set_name(sub_bundle_name)
 
         self.__bind_from_signal_list(
-            list(self.__dut_all_signals(dut)),
+            list(self.dut_all_signals(dut)),
             self.name,
             [],
             unconnected_signal_access,
@@ -890,7 +890,9 @@ class Bundle(MObject):
                         getattr(self, sub_bundle_name).assign(
                             {sub_bundle_signal: value},
                             multilevel,
-                            Bundle.__appended_level_string(level_string, sub_bundle_name),
+                            Bundle.__appended_level_string(
+                                level_string, sub_bundle_name
+                            ),
                         )
                     elif any(
                         bundle_list[0] == signal
@@ -1438,7 +1440,7 @@ class Bundle(MObject):
         """
 
         unconnected_signals = []
-        for signal_info in Bundle.__dut_all_signals(dut):
+        for signal_info in Bundle.dut_all_signals(dut):
             signal = signal_info["signal"]
             if (
                 not hasattr(signal, "number_of_bundles_connected_to")
@@ -1461,7 +1463,7 @@ class Bundle(MObject):
         """
 
         multiple_connections = []
-        for signal_info in Bundle.__dut_all_signals(dut):
+        for signal_info in Bundle.dut_all_signals(dut):
             signal = signal_info["signal"]
             if (
                 hasattr(signal, "number_of_bundles_connected_to")
@@ -1527,7 +1529,7 @@ class Bundle(MObject):
         )
 
     @staticmethod
-    def __dut_all_signals(dut):
+    def dut_all_signals(dut):
         """
         Yield all signals of the dut.
 

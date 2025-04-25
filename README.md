@@ -1,6 +1,7 @@
 # Toffee
 
 [![PyPI version](https://badge.fury.io/py/pytoffee.svg)](https://badge.fury.io/py/pytoffee)
+[![PyPI Downloads](https://static.pepy.tech/badge/pytoffee)](https://pepy.tech/projects/pytoffee)
 
 [English Version](README.md) | [中文版本](README_zh.md)
 

@@ -29,6 +29,34 @@ from collections import OrderedDict
 from typing import Callable
 from typing import Union
 from ._base import MObject
+import inspect
+import os
+
+
+def get_func_full_name(func: Callable) -> str:
+    """
+    Get the full name of a function
+    @param func: the function to get the full name
+    @return: the full name of the function (include: filename, lineno, class, name)
+    eg: toffee/funcov.py:199-206::CovGroup::init
+    """
+    if not callable(func):
+        raise ValueError("func must be a callable object")
+    abs_file = os.path.abspath(inspect.getsourcefile(func))
+    lin_start = inspect.getsourcelines(func)[1]
+    lin_end = lin_start + len(inspect.getsourcelines(func)[0]) - 1
+    if hasattr(func, "__self__") and func.__self__ is not None:
+        class_name = func.__self__.__class__.__name__
+        return "%s:%d-%d::%s::%s" % (
+            abs_file,
+            lin_start,
+            lin_end,
+            class_name,
+            func.__name__,
+        )
+    return "%s:%d-%d::%s" % (
+        abs_file, lin_start, lin_end, func.__name__
+    )  # type: ignore[return-value]
 
 
 class CovCondition(MObject):
@@ -314,7 +342,7 @@ class CovGroup(object):
                     point["functions"][b_name].add(f)
                 else:
                     assert isinstance(f, Callable)
-                    point["functions"][b_name].add("%s.%s" % (f.__module__, f.__name__))
+                    point["functions"][b_name].add(get_func_full_name(f))
         return self
 
     def clear(self):

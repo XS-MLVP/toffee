@@ -31,6 +31,8 @@ from typing import Union
 from ._base import MObject
 import inspect
 import os
+import fnmatch
+import re
 
 
 def get_func_full_name(func: Callable) -> str:
@@ -293,7 +295,7 @@ class CovGroup(object):
         self,
         name: str,
         func: Union[Callable, str, list],
-        bin_name: Union[str, list] = None,
+        bin_name: Union[str, list] = "*",
         raise_error=True,
     ):
         """Mark one or more functions for a point
@@ -306,7 +308,7 @@ class CovGroup(object):
         Args:
             name (str): checkpoint name
             func (Union[Callable,str, list]): function or function list to be marked
-            bin_name (Union[str, list]): bin name. Defaults to None.
+            bin_name (Union[str, list]): bin name, support wildcard and regex. Default to '*' all bins.
 
         Returns:
             CovGroup: this covgroup object
@@ -318,21 +320,26 @@ class CovGroup(object):
                 raise e
             return self
         bin_names = bin_name
-        if isinstance(bin_name, str) or bin_name is None:
+        if isinstance(bin_name, str):
             bin_names = [bin_name]
         else:
-            assert isinstance(bin_name, (list, tuple))
+            assert isinstance(bin_name, (list, tuple)), "bin_name must be a string or a list/tuple of strings"
+        # Get all available bin names
+        available_bins = list(point["bins"].keys())
+        matched_bins = []
         for b_name in bin_names:
-            if b_name:
-                if b_name not in point["bins"]:
-                    # No wildcard checks are performed here; data statistics handle it themselves.
-                    if "*" not in b_name and "?" not in b_name:
-                        if raise_error:
-                            raise Exception("Invalid bin name %s" % b_name)
-                        else:
-                            b_name = b_name + "(not fond)"
+            bins = []
+            b_name = b_name.strip()
+            if b_name in available_bins:
+                bins = [b_name]
+            elif "*" in b_name or "?" in b_name:
+                bins = [b for b in available_bins if fnmatch.fnmatch(b, b_name)]
             else:
-                b_name = "anonymous"
+                pattern = re.compile(b_name)
+                bins = [bin_key for bin_key in available_bins if pattern.match(bin_key)]
+            assert len(bins) > 0, "No bin matched for pattern: %s" % b_name
+            matched_bins.extend(bins)
+        for b_name in list(set(matched_bins)):
             if b_name not in point["functions"]:
                 point["functions"][b_name] = set()
             if not isinstance(func, (list, tuple)):

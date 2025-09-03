@@ -47,8 +47,44 @@ def get_func_full_name(func: Callable) -> str:
     abs_file = os.path.abspath(inspect.getsourcefile(func))
     lin_start = inspect.getsourcelines(func)[1]
     lin_end = lin_start + len(inspect.getsourcelines(func)[0]) - 1
+    # Check for bound methods (instance methods called on an object)
     if hasattr(func, "__self__") and func.__self__ is not None:
-        class_name = func.__self__.__class__.__name__
+        # For instance methods, __self__ is the instance
+        if not isinstance(func.__self__, type):
+            class_name = func.__self__.__class__.__name__
+            return "%s:%d-%d::%s::%s" % (
+                abs_file,
+                lin_start,
+                lin_end,
+                class_name,
+                func.__name__,
+            )
+        # For class methods, __self__ is the class itself
+        else:
+            class_name = func.__self__.__name__
+            return "%s:%d-%d::%s::%s" % (
+                abs_file,
+                lin_start,
+                lin_end,
+                class_name,
+                func.__name__,
+            )
+    # Check for unbound methods using __qualname__ (Python 3+)
+    if hasattr(func, "__qualname__") and "." in func.__qualname__:
+        # Extract class name from qualified name (e.g., "MyClass.my_method" -> "MyClass")
+        parts = func.__qualname__.split(".")
+        if len(parts) > 1:
+            class_name = ".".join(parts[:-1])  # Handle nested classes
+            return "%s:%d-%d::%s::%s" % (
+                abs_file,
+                lin_start,
+                lin_end,
+                class_name,
+                func.__name__,
+            )
+    # Fallback for older Python versions or other cases
+    if hasattr(func, "im_class"):
+        class_name = func.im_class.__name__
         return "%s:%d-%d::%s::%s" % (
             abs_file,
             lin_start,
@@ -56,9 +92,10 @@ def get_func_full_name(func: Callable) -> str:
             class_name,
             func.__name__,
         )
+    # Regular function (not a method)
     return "%s:%d-%d::%s" % (
         abs_file, lin_start, lin_end, func.__name__
-    )  # type: ignore[return-value]
+    )
 
 
 class CovCondition(MObject):

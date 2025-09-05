@@ -361,6 +361,7 @@ class CovGroup(object):
             bin_names = [bin_name]
         else:
             assert isinstance(bin_name, (list, tuple)), "bin_name must be a string or a list/tuple of strings"
+        assert len(bin_names) > 0, "bin_name must not be empty"
         # Get all available bin names
         available_bins = list(point["bins"].keys())
         matched_bins = []

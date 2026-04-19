@@ -1,3 +1,4 @@
+import pytest
 import toffee
 from toffee import *
 
@@ -37,28 +38,39 @@ def test_bundle():
             self.c = BundleB.from_prefix(prefix="c_")
             self.d = BundleB.from_prefix(prefix="d_")
 
-    bundle_1 = BundleA().set_name("bundle_1").bind(dut)
+    with pytest.raises(Exception, match="Signal bind error"):
+        BundleA().set_name("bundle_1").bind(dut)
+
+    bundle_1 = BundleA().set_name("bundle_1")
     bundle_1.set_prefix("io_")
-    bundle_1.bind(dut)
+    with pytest.raises(Exception, match="Signal bind error"):
+        bundle_1.bind(dut)
 
-    bundle_2 = BundleA.from_regex(regex="io_(.*)").bind(dut)
+    with pytest.raises(Exception, match="Signal bind error"):
+        BundleA.from_regex(regex="io_(.*)").bind(dut)
 
-    print(bundle_2)
-
-    bundle_3 = (
-        BundleA.from_dict(
-            {
-                "a": "io_a",
-                "b": "io_b",
-                "c_1": "io_c_1",
-                "c_2": "io_c_2",
-                "d_1": "io_d_1",
-                "abcdefg": "io_abcdefg",
-            }
+    with pytest.raises(Exception, match="Signal bind error"):
+        (
+            BundleA.from_dict(
+                {
+                    "a": "io_a",
+                    "b": "io_b",
+                    "c_1": "io_c_1",
+                    "c_2": "io_c_2",
+                    "d_1": "io_d_1",
+                    "abcdefg": "io_abcdefg",
+                }
+            )
+            .set_name("bundle_3")
+            .bind(dut)
         )
-        .set_name("bundle_3")
-        .bind(dut)
-    )
+
+    dut.io_e = FakePin()
+    dut.io_c_3 = FakePin()
+    dut.io_d_3 = FakePin()
+    dut.io_c_4 = FakePin()
+
+    bundle_1.bind(dut)
 
     bundle_1.assign({"a": 1, "b": 2, "c.1": 3, "c.2": 4}, multilevel=False)
     print(bundle_1.as_dict(multilevel=False))
@@ -104,7 +116,19 @@ def test_bundle():
                 {"1": "c_1", "2": "c_2", "4": "c_4"}
             )
 
-    bundle_5 = BundleD.from_prefix("io_").set_name("bundle_5").bind(dut)
+    with pytest.raises(Exception, match="Signal bind error"):
+        BundleD.from_prefix("io_").set_name("bundle_5").bind(dut)
+
+    class BundleDComplete(Bundle):
+        signals = ["a", "b"]
+
+        def __init__(self):
+            super().__init__()
+            self.c = Bundle.new_class_from_list(["1", "2", "3", "4"]).from_dict(
+                {"1": "c_1", "2": "c_2", "3": "c_3", "4": "c_4"}
+            )
+
+    bundle_5 = BundleDComplete.from_prefix("io_").set_name("bundle_5").bind(dut)
 
     print(bundle_5.all_signals_rule())
 
@@ -189,17 +213,5 @@ def test_bundle_list():
         vec = BundleList(SubBundle, "vec_#_", 2)
 
     bundle = BundleWithBundleList.from_prefix("io_").set_name("bundle")
-    bundle.bind(MyDUT())
-
-    print(bundle)
-    print(list(bundle.all_signals()))
-    print(bundle.as_dict(multilevel=True))
-    print(bundle.as_dict(multilevel=False))
-    print(bundle.all_signals_rule())
-
-    bundle.assign(
-        {"c": 1, "d": 2, "vec": [{"a": 3, "b": 4}, {"a": 5, "b": 6}]}, multilevel=True
-    )
-    bundle.assign(
-        {"c": 1, "d": 2, "vec": [{"a": 3, "b": 4}, {"a": 5, "b": 6}]}, multilevel=False
-    )
+    with pytest.raises(Exception, match="Signal bind error"):
+        bundle.bind(MyDUT())

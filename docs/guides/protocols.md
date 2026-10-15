@@ -52,5 +52,11 @@ Rise-mode valid 也由 helper 提交和撤销，testcase 不接触 picker 写入
 具体是否适用由项目协议决定。
 框架没有 ReadyValidDriver，也不会向通用 Driver 注入该时序。
 
+可选的 `admit=lambda: bool(...)` 在实际驱动时隙、编码之前判断是否允许启动。
+返回 False 时不编码、不写 payload/valid，下个驱动时隙重试；返回 True 后与 drive
+连续执行，中间没有 await。回调必须同步并返回 bool，异常正常传给发送任务。
+这是启动条件，不是 ready：启动后不再判断 admit，仍按协议保持 payload 等待接受。
+等待预算与取消由调用方负责；测试用例无需接触底层边沿。
+
 `Decoupled` 是 ReadyValid 的别名；`flipped()` 创建相反角色视图，不复制信号或改变 DUT
 连接。接口角色和信号方向不一致会在绑定/取得驱动所有权时失败。

@@ -38,6 +38,76 @@ class RiseSignal:
 
 
 class ProtocolHelperTests(unittest.IsolatedAsyncioTestCase):
+    async def test_admission_defers_without_writes_and_encodes_atomically(self):
+        clock, valid, ready, payload = object(), RiseSignal(), Signal(0), RiseSignal()
+        checks, drives, rising = [], [], []
+
+        def on_phase(phase, tick):
+            if phase is XPhase.FALLING_STABLE and tick == 9:
+                ready.value = 1
+            if phase is XPhase.RISING_STABLE:
+                rising.append((tick, valid.value, payload.value))
+
+        backend = MemoryBackend(clock, on_phase=on_phase)
+        def admit():
+            self.assertIs(backend.phase, XPhase.FALLING_STABLE)
+            self.assertEqual((valid.value, valid.pending, payload.value, payload.pending), (0, 0, 0, 0))
+            checks.append(backend.tick)
+            return len(checks) == 3
+        def drive():
+            self.assertEqual(checks, [1, 3, 5])
+            self.assertEqual(backend.tick, checks[-1])
+            drives.append(backend.tick)
+            payload.Set(42)
+
+        async with Execution(backend):
+            accepted = await drive_ready_valid(clock, valid, ready, drive,
+                bits=Bundle(data=payload), admit=admit)
+        self.assertEqual(accepted.tick, 10)
+        self.assertEqual(drives, [5])
+        self.assertEqual(rising, [(2, 0, 0), (4, 0, 0), (6, 1, 42), (8, 1, 42), (10, 1, 42)])
+        self.assertEqual(valid.value, 0)
+
+    async def test_admission_error_has_no_drive_and_execution_remains_usable(self):
+        clock, valid, payload = object(), RiseSignal(), RiseSignal()
+        backend = MemoryBackend(clock)
+        error = ValueError('allocation rejected')
+        def reject():
+            raise error
+        async with Execution(backend):
+            with self.assertRaises(ValueError) as caught:
+                await drive_ready_valid(clock, valid, Signal(1), lambda: payload.Set(42), admit=reject)
+            self.assertIs(caught.exception, error)
+            self.assertEqual((valid.value, payload.pending), (0, 0))
+            await ClockCycles(clock, 2)
+
+    async def test_admission_requires_exact_bool_and_synchronous_callback(self):
+        async def asynchronous():
+            return True
+        for callback in (lambda: 1, lambda: None, asynchronous):
+            with self.subTest(callback=callback):
+                clock, valid, calls = object(), Signal(), []
+                async with Execution(MemoryBackend(clock)):
+                    with self.assertRaisesRegex(TypeError, 'admit callback'):
+                        await drive_ready_valid(clock, valid, Signal(1), lambda: calls.append('drive'), admit=callback)
+                self.assertEqual(calls, [])
+                self.assertEqual(valid.value, 0)
+
+    async def test_cancel_before_admission_leaves_signals_idle(self):
+        clock, valid, payload, calls = object(), RiseSignal(), RiseSignal(), []
+        async with Execution(MemoryBackend(clock)):
+            task = asyncio.create_task(drive_ready_valid(clock, valid, Signal(1),
+                lambda: payload.Set(42), admit=lambda: calls.append('admit') is None and False))
+            await ClockCycles(clock, 2)
+            self.assertTrue(calls)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            count = len(calls)
+            await ClockCycles(clock, 2)
+            self.assertEqual(len(calls), count)
+            self.assertEqual((valid.value, valid.pending, payload.pending), (0, 0, 0))
+
     async def test_rise_write_valid_is_committed_and_withdrawn_at_acceptance(self):
         clock = object()
         valid = RiseSignal()

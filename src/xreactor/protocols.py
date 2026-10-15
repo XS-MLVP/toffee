@@ -33,6 +33,7 @@ async def drive_ready_valid(
     drive: Callable[[], None],
     *,
     bits: Any | None = None,
+    admit: Callable[[], bool] | None = None,
 ) -> XEvent:
     """Drive one ready/valid transaction and return its accepting rising edge.
 
@@ -45,11 +46,31 @@ async def drive_ready_valid(
 
     ``drive`` must be synchronous: allowing it to await would lose the stable
     drive phase and make transaction ownership ambiguous.
+
+    Optional ``admit`` is evaluated in each available drive phase, before any
+    encoding or writes. False defers this transaction by a cycle; true admits
+    it atomically with ``drive`` (no intervening await). It must synchronously
+    return a bool. This gates launch, not acceptance: after launch, normal
+    ready/valid backpressure applies and admission is not re-evaluated.
     """
 
     reactor = current_reactor()
     if getattr(reactor.backend, "phase", None) is not XPhase.FALLING_STABLE:
         await FallingEdge(clock)
+
+    if admit is not None:
+        while True:
+            admitted = admit()
+            if inspect.isawaitable(admitted):
+                close = getattr(admitted, "close", None)
+                if close is not None:
+                    close()
+                raise TypeError("admit callback must be synchronous and return bool")
+            if type(admitted) is not bool:
+                raise TypeError("admit callback must return bool")
+            if admitted:
+                break
+            await FallingEdge(clock)
 
     drive_result = drive()
     if inspect.isawaitable(drive_result):

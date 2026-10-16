@@ -68,6 +68,10 @@ DUT, an agent exposing `dut`, or a factory retaining `_instances`. Discovery run
 after fixture setup and before teardown, so factories may construct instances
 in the test body. The fixture continues to own DUT initialization and `Finish()`.
 The runner does not take ownership of the simulation backend or close it.
+Factories that may finish and release a DUT in the test body should receive
+the public `xreactor_register_dut` fixture and call that callback when constructing
+the DUT. This routes its export immediately, before it disappears from fixture
+discovery; the callback neither steps nor closes the DUT. Tests stay unchanged.
 
 Coverage-enabled DUTs receive private export paths. Their complete native tables
 are merged in bounded batches inside each worker and again across workers. Each

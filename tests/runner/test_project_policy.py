@@ -87,3 +87,27 @@ def test_functional_exclusion_does_not_disable_native_dut_collection(tmp_path):
     native, = [row for row in manifest['artifacts'] if row['kind']=='native']
     assert native['input_files']==40 and manifest['functional_groups']==0
     assert manifest['cleanup_complete'] and not (output/'_workers').exists()
+
+
+@pytest.mark.skipif(TOOL is None, reason='requires Verilator coverage processor')
+def test_factory_registers_exports_before_early_finish_and_release(tmp_path):
+    (tmp_path/'test_user.sv').write_text('module DUT;\nwire toggle;\nendmodule\n')
+    text=NATIVE.split('@pytest.fixture')[0]+'''
+@pytest.fixture
+def factory(xreactor_register_dut):
+    def create():
+        dut=DUT()
+        xreactor_register_dut(dut)
+        return dut
+    return create
+def test_early_close(factory):
+    dut=factory()
+    dut.count=7
+    dut.Finish()
+    del dut
+'''
+    output,_=run_cli(tmp_path,text,workers=2,options=('--native-coverage-tool',TOOL))
+    manifest=json.loads((output/'manifest.json').read_text())
+    native,=[row for row in manifest['artifacts'] if row['kind']=='native']
+    assert native['input_files']==1 and manifest['cleanup_complete']
+    assert 'DA:1,7' in next(output.glob('native/*/coverage.info')).read_text()

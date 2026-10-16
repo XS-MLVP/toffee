@@ -57,6 +57,15 @@ def pytest_unconfigure(config):
         plugin.close()
 
 
+@pytest.fixture
+def xreactor_register_dut(request):
+    """Register factory-owned DUTs before an early Finish(), without ownership transfer."""
+    plugin = getattr(request.config, '_xreactor_managed_coverage', None)
+    if plugin is None or plugin.coverage is None:
+        raise pytest.UsageError('xreactor_register_dut requires managed worker execution')
+    return plugin.coverage.native.discover
+
+
 class _WorkerCoverage:
     def __init__(self, root: Path, *, keep: bool, tool: str | None):
         self.root = root

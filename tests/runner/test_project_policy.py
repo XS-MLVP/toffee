@@ -62,6 +62,22 @@ def pytest_xreactor_coverage(config, functional, native, pytest_exitstatus):
     assert (output/'_workers').is_dir()
 
 
+def test_auxiliary_group_is_not_a_second_measurement_or_schema_conflict(tmp_path):
+    text = '''
+from xreactor import Bin, CoverGroupDef, CoverPointDef
+def test_groups():
+    measured=CoverGroupDef('full', (CoverPointDef('v', {'zero': Bin.values(0), 'one': Bin.values(1)}),)).instantiate('dut')
+    measured.sample({'v':0})
+    helper=CoverGroupDef('local', (CoverPointDef('v', {'one': Bin.values(1)}),)).instantiate('dut', capture=False)
+    helper.sample({'v':1})
+    helper.assert_coverage(100)
+'''
+    output,_=run_cli(tmp_path,text,workers=2,options=('--export-coverage-json',))
+    group,=json.loads((output/'functional-coverage.json').read_text())['groups']
+    assert group['samples']==1 and group['coverage']==50
+    assert group['schema']['name']=='full'
+
+
 @pytest.mark.skipif(TOOL is None, reason='requires Verilator coverage processor')
 def test_functional_exclusion_does_not_disable_native_dut_collection(tmp_path):
     (tmp_path/'test_user.sv').write_text('module DUT;\nwire toggle;\nendmodule\n')

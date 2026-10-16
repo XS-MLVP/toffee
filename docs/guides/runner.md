@@ -49,6 +49,11 @@ automatic functional measurement. This covers setup, call and teardown;
 native fixture discovery remains enabled. Do not put synthetic groups in shared
 collection/session scope alongside measured DUT groups.
 
+For an auxiliary assertion-only group inside a measured scenario, use
+`definition.instantiate('helper', capture=False)`. It retains ordinary sampling,
+assertion and explicit-export behavior but is not an automatic measurement.
+Do not merge incompatible schemas or rename helpers to inflate measured groups.
+
 A project plugin can implement the public `pytest_xreactor_coverage(config,
 functional, native, pytest_exitstatus)` hook to validate the in-memory merged
 database or emit a small domain summary without exporting coverage JSON.

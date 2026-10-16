@@ -826,7 +826,15 @@ class CoverGroupDef:
         run_id: str | None = None,
         run_metadata: Mapping[str, Any] | None = None,
         contract: str | None = None,
+        capture: bool = True,
     ) -> "CoverGroup":
+        if type(capture) is not bool:
+            raise TypeError('capture must be a boolean')
+        if not capture:
+            from ._coverage_capture import suspended
+            with suspended():
+                return CoverGroup(self, instance, illegal_policy=illegal_policy,
+                                  run_id=run_id, run_metadata=run_metadata, contract=contract)
         return CoverGroup(self, instance, illegal_policy=illegal_policy,
                           run_id=run_id, run_metadata=run_metadata, contract=contract)
 

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from contextlib import nullcontext
 from datetime import datetime, timezone
 import json
 from pathlib import Path
@@ -18,6 +19,22 @@ from .coverage import CoverageDatabase
 from .coverage_report import build_unified_coverage_model, parse_lcov, render_unified_coverage_html
 
 
+class CoverageHooks:
+    @pytest.hookspec
+    def pytest_xreactor_coverage(self, config, functional, native, pytest_exitstatus):
+        """Inspect merged coverage before commit, without exporting a database.
+
+        ``functional`` is the merged report or None; ``native`` contains final
+        native artifact identities. Treat both as read-only. An exception
+        rejects the coverage transaction and preserves available worker inputs.
+        Test failure and coverage completion remain independent.
+        """
+
+
+def pytest_addhooks(pluginmanager):
+    pluginmanager.add_hookspecs(CoverageHooks)
+
+
 def pytest_addoption(parser):
     group = parser.getgroup("XReactor managed execution")
     group.addoption("--xreactor-output")
@@ -27,6 +44,7 @@ def pytest_addoption(parser):
 
 
 def pytest_configure(config):
+    config.addinivalue_line("markers", "xreactor_functional_coverage(enabled): exclude synthetic/unit-test groups from automatic measurement; native DUT collection is unaffected")
     if config.getoption("xreactor_output") and not config.option.collectonly:
         plugin = _ExecutionCoverage(config)
         config._xreactor_managed_coverage = plugin
@@ -158,10 +176,15 @@ class _ExecutionCoverage:
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_protocol(self, item):
+        marker = item.get_closest_marker("xreactor_functional_coverage")
+        if marker is not None and (len(marker.args) != 1 or type(marker.args[0]) is not bool or marker.kwargs):
+            raise pytest.UsageError("xreactor_functional_coverage requires one boolean argument")
+        enabled = marker is None or marker.args[0]
         if self.coverage:
             self.coverage.scope = "case"
         try:
-            yield
+            with nullcontext() if enabled else suspended():
+                yield
         finally:
             if self.coverage:
                 self.coverage.scope = "session"
@@ -296,7 +319,8 @@ class _ExecutionCoverage:
             target = self.root / "native" / key / "coverage.dat"
             merge([Path(row["artifact"]["path"]) for row in rows], target, build, points)
             info = target.with_suffix(".info")
-            artifacts.append(dict(kind="native", build=build, **fingerprint(target)))
+            artifacts.append(dict(kind="native", build=build,
+                input_files=sum(row["input_files"] for row in rows), **fingerprint(target)))
             if export_lcov(target, info, build):
                 lines.append(parse_lcov(info, name=build["name"]))
                 artifacts.append(dict(kind="lcov", **fingerprint(info)))
@@ -312,6 +336,9 @@ class _ExecutionCoverage:
                          for states in self.reports.values())
         if self.collection is None or set(self.reports) != set(self.collection):
             raise ValueError("reported tests differ from collected tests")
+        self.config.hook.pytest_xreactor_coverage(config=self.config, functional=functional,
+            native=[row for row in artifacts if row["kind"] == "native"],
+            pytest_exitstatus=int(session.exitstatus))
         manifest = dict(format="xreactor-execution", version=1, state="committed",
             finished_at=datetime.now(timezone.utc).isoformat(), pytest_exitstatus=int(session.exitstatus),
             tests=dict(counts), workers=worker_metadata, coverage_complete=True,

@@ -151,6 +151,7 @@ class NativeCollector:
         self.seen: set[int] = set()
         self.registered: dict[int, Any] = {}
         self.inputs = 0
+        self.inputs_by_build: dict[str, int] = defaultdict(int)
 
     def discover(self, value: Any, depth: int = 0) -> None:
         if depth == 0:
@@ -197,6 +198,7 @@ class NativeCollector:
             row["input_identity"] = fingerprint(Path(row["path"]))
             self.pending[row["build"]["build_id"]].append(row)
             self.inputs += 1
+            self.inputs_by_build[row['build']['build_id']] += 1
         self.active = waiting
         self.seen.clear()
         if sum(map(len, self.pending.values())) >= self.batch:
@@ -233,4 +235,4 @@ class NativeCollector:
         if self.active:
             raise ValueError("DUT fixtures must call Finish() before worker shutdown; native coverage was not exported")
         self.flush()
-        return list(self.aggregates.values())
+        return [dict(row, input_files=self.inputs_by_build[key]) for key, row in self.aggregates.items()]

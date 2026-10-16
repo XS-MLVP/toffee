@@ -43,6 +43,18 @@ explicit exports remain additional user-requested artifacts. Objects declared in
 function scope should have that lifetime; use a module/session fixture for a
 group intentionally shared across cases.
 
+Mark a synthetic model/schema test with
+`@pytest.mark.xreactor_functional_coverage(False)` to exclude its groups from
+automatic functional measurement. This covers setup, call and teardown;
+native fixture discovery remains enabled. Do not put synthetic groups in shared
+collection/session scope alongside measured DUT groups.
+
+A project plugin can implement the public `pytest_xreactor_coverage(config,
+functional, native, pytest_exitstatus)` hook to validate the in-memory merged
+database or emit a small domain summary without exporting coverage JSON.
+It runs on the controller once, before commit. Its arguments are read-only;
+raising rejects the coverage transaction and retains available worker inputs.
+
 ## Native DUT coverage
 
 The built-in Picker/Verilator adapter discovers fixture-owned DUT objects exposing

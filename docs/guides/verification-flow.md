@@ -80,6 +80,6 @@ seed 由用例的局部 `random.Random(seed)` 使用，不修改全局随机状�
 检查失败、外部取消和清理失败都会执行产物保存。导出失败与已有验证异常一起保留，
 不会把失败改成成功。对无法写入的目录，不能保证有产物，异常会明确指出保存失败。
 
-MemoryBackend 和 native XClock 的回归覆盖正常、比较失败、测试体异常、外部取消、
+MemoryBackend 和原生 XClock 的回归覆盖正常、比较失败、测试体异常、外部取消、
 启动失败及清理失败，并检查 watcher、backend lease、信号空闲状态和任务释放。
 HTML 导出失败也有独立回归。此配方不承担 pytest-xdist/rerun 汇总或仿真器进程管理。

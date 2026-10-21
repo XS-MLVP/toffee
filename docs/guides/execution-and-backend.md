@@ -112,7 +112,7 @@ Execution(
 | `default_sample` | `Value` 和编译条件的默认采样 Trigger |
 | `max_batch_ticks` | 单次 Backend 调用最多推进的 half ticks |
 | `quantum_ms` | 单次连续推进的 wall-clock 时间上限 |
-| `budget_check_interval` | native 执行器检查时间预算的间隔 |
+| `budget_check_interval` | 原生执行器检查时间预算的间隔 |
 | `max_settle_rounds` | 单次阶段收敛检查允许交回 asyncio 的最大轮数；必须为正整数 |
 
 同一 Backend 同一时间只能属于一个 active `Execution`。

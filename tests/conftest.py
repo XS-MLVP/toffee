@@ -48,7 +48,7 @@ def _native_api_error() -> str | None:
         return "xspcomm.XTriggerEngine is unavailable"
     for method in ("AcquireClock", "ReleaseClock", "CollectExpressions", "ExprNewBits", "ExprNewBool", "ExprEvalBits"):
         if not hasattr(xspcomm.XTriggerEngine, method):
-            return f"xspcomm.XTriggerEngine.{method} is unavailable; use the matching native draft"
+            return f"xspcomm.XTriggerEngine.{method} is unavailable; use the backend pinned in .github/native-dependencies.json"
     return None
 
 

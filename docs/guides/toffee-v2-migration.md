@@ -16,8 +16,8 @@ Toffee v2 采用 xreactor 的实现与接口，继续提供 Python 硬件验证�
 
 | 方面 | Toffee v1 | Toffee v2 的 xreactor 实现 |
 | --- | --- | --- |
-| 仿真推进 | Python 时钟任务逐次调用 `dut.Step(1)`，扫描宿主 loop 中的任务，等待可运行协程处理完 | `Execution` 观察本次仿真的即时回调；native backend 批量推进，在事件或阶段屏障处返回 |
-| 条件等待 | `Value`、`Condition` 等在 Python 中随周期唤醒并检查 | 可编译的条件、Sequence 和 FSM 在 C++ 求值；Python predicate 显式使用 `@pytrigger` |
+| 仿真推进 | Python 时钟任务逐次调用 `dut.Step(1)`，扫描宿主 loop 中的任务，等待可运行协程处理完 | `Execution` 观察本次仿真的即时回调；原生后端 批量推进，在事件或阶段屏障处返回 |
+| 条件等待 | `Value`、`Condition` 等在 Python 中随周期唤醒并检查 | 可编译的条件、Sequence 和 FSM 在 C++ 求值；Python 条件函数 显式使用 `@pytrigger` |
 | 采样时刻 | 主要跟随 DUT、Bundle 或 pin 的周期 event | 显式指定上升沿、下降沿或驱动稳定阶段；条件使用 `sample` 或 `default_sample` |
 | 等待结果 | Trigger 是 coroutine，多数等待只表示完成 | Trigger 是可复用规格，每次 await 独立注册，并返回包含 tick、phase 等信息的 `XEvent` |
 | 信号组织 | `Bundle` 子类声明 `Signal`、`Signals`，按前缀、正则或字典绑定 | `Bundle` 组合 live signal，支持显式字段、signal tree 和 packed 视图；`sample` 返回不可变快照 |
@@ -34,10 +34,11 @@ v1 的调度和条件实现见
 [triggers.py](https://github.com/XS-MLVP/toffee/blob/f57dd6ffc295b9b8bad3e3b3ce040b8a849f5c91/toffee/triggers.py)。
 v2 的职责划分见[Execution](execution-and-backend.md)和[Agent 与参考模型](agents-and-reference-models.md)。
 
-native 批量等待减少了未命中周期中的 Python 调度和跨语言调用。如果 Driver、Monitor
-或 Python predicate 仍需每周期执行 Python，收益会受到这些工作的限制。
-仓库现有[性能基线](https://github.com/Makiras/xreactor/blob/2ad3021e0ea7b81571203666957d3874d56b0181/design/delivery/baseline.md)使用 no-op XClock，不能据此给出
-真实 DUT 从 v1 迁移到 v2 的加速倍数。
+原生批量等待减少了未命中周期中的 Python 调度和跨语言调用。如果 Driver、Monitor
+或 Python 条件函数 仍需每周期执行 Python，收益会受到这些工作的限制。
+比较迁移前后的性能时，应保持输入、采样范围和仿真选项一致，直接测量真实项目。
+[性能测试说明](https://github.com/Makiras/xreactor/blob/main/benchmarks/README.md)中的空时钟测试只能比较框架开销，
+不能直接换算成真实 DUT 的加速倍数。
 
 ## 安装与运行作用域
 
@@ -49,8 +50,8 @@ python3 -m pip install -e '.[test]'
 ```
 
 真实 DUT 需要带 `XTriggerEngine`、half-step 和 stable sampling 能力的 xcomm/xspcomm
-binding。已有 Picker DUT 是否可以继续使用，取决于它暴露的 XClock、XData 和底层
-binding 能力；仅安装 Python 包不能补齐旧 native binding。接入方法见
+绑定。已有 Picker DUT 是否可以继续使用，取决于它暴露的 XClock、XData 和底层
+绑定 能力；仅安装 Python 包不能补齐旧原生绑定。接入方法见
 [native 与项目 DUT](../getting-started/native-and-next.md)。
 
 v1 的 `start_clock(dut)` 加 `toffee.run(...)` 改为在已有 asyncio loop 内进入
@@ -102,9 +103,9 @@ finally:
 ### 显式选择时钟与阶段
 
 v1 的 `RisingEdge(pin)` 和 `FallingEdge(pin)` 比较逐周期读取的 pin 值。
-v2 的同名 Trigger 表示 XClock 的稳定半周期屏障，native backend 要求来源是自己的
+v2 的同名 Trigger 表示 XClock 的稳定半周期屏障，原生后端 要求来源是自己的
 XClock 或已注册时钟 pin。旧代码中的 `RisingEdge(dut.irq)` 不能直接沿用；若要识别
-按时钟采样的单 bit irq 从 0 到 1，可以使用记录前值的 Python predicate 或时序模式。
+按时钟采样的单 bit irq 从 0 到 1，可以使用记录前值的 Python 条件函数 或时序模式。
 它们识别指定采样点之间的变化，不能捕获任意采样间隔内的毛刺。
 
 普通用例用 `ClockCycles` 表达周期等待；在上升沿接受输入的协议可以由 Driver
@@ -183,7 +184,7 @@ assert snapshot.data.as_int() == 3
 
 快照叶子为保存位宽和 X/Z 的 `LogicValue`，`as_int()` 遇到未知位会报错。
 模型中的整数算法可以保留，边界处需要显式转换，并定义未知输入如何处理。
-native 条件当前使用无符号语义，负常量、隐式截断和 signed cast 不能直接沿用。
+原生条件当前使用无符号语义，负常量、隐式截断和 signed cast 不能直接沿用。
 packed 数组和结构的迁移见[数据指南](data.md)。
 
 ## Driver Monitor 与参考模型迁移
@@ -269,7 +270,7 @@ async def test_accumulator(accumulator):
 python3 -m pytest -q test_toffee_v2_example.py
 ```
 
-此例使用 Python predicate 判断教学 DUT 的 Python 输出；真实 XData 条件可以使用
+此例使用 Python 条件函数 判断教学 DUT 的 Python 输出；真实 XData 条件可以使用
 编译 Trigger。环境中不需要 `Model` 基类、Hook 装饰器或 `Env.attach`。
 
 v1 的 Monitor 接收队列满时会记录错误并丢弃新记录；v2 的 Monitor 和订阅默认使用
@@ -338,7 +339,7 @@ v1 的 CovGroup 将 live 对象和 Python 条件放在一起；v2 将静态覆�
 | `Eq(value)`、`In(values)` | `Bin.values(...)` |
 | `IsInRange(low, high)` | `Bin.range(low, high)` |
 | `add_watch_point(target, bins, name)` | `CoverPointDef(name, bins)`，采样时提供字段或绑定 XData |
-| Python predicate bin、dynamic bin | 将计算结果作为事务字段，定义稳定 bins；没有任意 callable bin 的同名替代 |
+| Python 条件函数 bin、dynamic bin | 将计算结果作为事务字段，定义稳定 bins；没有任意 callable bin 的同名替代 |
 | `is_all_covered()` | 按目标使用 `covered` 或 `assert_coverage(...)`，重新核对分母与阈值 |
 | `mark_function(...)` | 功能点描述和实际命中来源；旧函数标签不转换为已命中计数 |
 | `as_dict()` 与旧报告 | 当前 schema 的 `report()` 和 `CoverageDatabase`，旧 JSON 不能直接当作 v2 数据库合并 |
@@ -367,8 +368,8 @@ coverage.assert_coverage(100.0)
 
 v1 的 CovGroup 默认在全组覆盖达标后停止继续采样；v2 持续累计计数，用 `at_least`
 表示达标次数。
-因此旧计数与新计数不保证相等。跨运行合并时需要相同 schema 和采样契约，运行来源
-由 run id 和 metadata 保存。cross、illegal、ignore、转移和 native 策略见
+因此旧计数与新计数不保证相等。跨运行合并时需要相同 schema 和采样规则，运行来源
+由 run id 和 metadata 保存。cross、illegal、ignore、转移和原生策略见
 [覆盖率指南](coverage.md)。
 
 [`toffee-test`](https://github.com/XS-MLVP/toffee-test) 的 DUT 创建、周期采样和
@@ -380,9 +381,9 @@ v2 的统一报告可以组合 functional coverage 与 LCOV；它不等同于旧
 
 ## 当前迁移边界
 
-- 一个 native Backend 对应一个 XClock 调度域。多个独立 Execution 可以共享宿主 loop，
+- 一个原生 Backend 对应一个 XClock 调度域。多个独立 Execution 可以共享宿主 loop，
   但不提供跨时钟域共同时间轴；旧多时钟用例须单独核对。
-- native Expr 当前支持任意位宽无符号条件，不提供完整 signed 或算术表达式 IR。
+- 原生 Expr 当前支持任意位宽无符号条件，不提供完整 signed 或算术表达式 IR。
 - 普通 Sequence 和 FSM 等待采用非重叠匹配。coverage 的有界重叠模式不等于所有
   Trigger 都支持重叠，也不等于完整的时序断言系统。
 - Backend、XClock 与 DUT 信号由 Execution 所在线程访问，同一 Backend 不能同时
@@ -392,17 +393,17 @@ v2 的统一报告可以组合 functional coverage 与 LCOV；它不等同于旧
 - 原生调度观察器当前适配 asyncio BaseEventLoop；其他 loop 实现需要独立适配和验证。
 - SystemRDL 寄存器支持尚未实现，不能作为本次迁移可使用的 API。
 
-完整行为边界见[语义与限制](../reference/semantics-and-limitations.md)。
+完整使用限制见[语义与限制](../reference/semantics-and-limitations.md)。
 
 ## 按验证环境逐步迁移
 
 1. 固定现有环境的输入序列、seed、DUT 配置和预期结果，并记录关键接受与响应周期。
-2. 更新 Python 与 native binding，在单个 Execution 内跑通信号读取、写入和周期等待。
+2. 更新 Python 与原生绑定，在单个 Execution 内跑通信号读取、写入和周期等待。
 3. 迁移 Bundle 绑定，核对字段、位宽、结构、部分更新和未知值的处理。
 4. 将驱动和监视行为拆成 Driver 与 Monitor，明确接受条件和响应采样快照。
 5. 保留参考模型的功能计算，改写接线与更新时机，再选择 FIFO、key 或固定延迟关联。
 6. 替换测试入口与 fixture，增加有预算的 finish，明确组件、DUT 和外部任务的清理归属。
-7. 重建覆盖定义和采样契约，最后核对报告与跨运行合并。
+7. 重建覆盖定义和采样规则，最后核对报告与跨运行合并。
 
 迁移验收应比较相同输入下的接受次数、响应次数、关联 key、结果和协议允许的延迟，
 不能只比较最终值或通过数量。背压、连续 valid、乱序、漏响应、额外响应、取消和 reset
@@ -415,7 +416,7 @@ python3 -m pytest -q examples/getting_started/test_accumulator.py
 python3 -m examples.transactions.reference_model
 ```
 
-具备 native binding 后，再运行原生回归：
+具备原生绑定 后，再运行原生回归：
 
 ```bash
 python3 -m pytest -q --require-xspcomm

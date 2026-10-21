@@ -1,8 +1,11 @@
 # Monitor：采样与观察
 
-Monitor 将明确的采样事件变为 `Transfer(event=event, value=snapshot)`。它不生成输入、不预测期望，
-也不自行判断项目协议。一般用 SamplingMonitor，具体协议的接受时刻由项目 Monitor 定义。
-`Transfer` 是观察记录；Driver.submit 的 `XTransfer` 则是可等待的请求句柄。
+Monitor 负责在指定时刻读信号，保存结果，再交给检查器处理。
+这样即使处理任务稍后才运行，也不会漏掉只出现一拍的输出。
+一般从 `SamplingMonitor` 开始，采样条件由设计的有效信号和时序决定。
+
+每条记录是 `Transfer(event=event, value=snapshot)`，包含采样事件和快照。
+它与 `Driver.submit()` 返回的 `XTransfer` 不同：前者是观察到的数据，后者用于等待一笔请求完成。
 
 ## 采样模板与关闭
 

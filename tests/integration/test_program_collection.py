@@ -19,7 +19,7 @@ def expected(dut, *, value):
 def native():
     x = pytest.importorskip("xspcomm")
     if not hasattr(x.XTriggerEngine, "CollectExpressions"):
-        pytest.skip("requires draft xcomm expression collection")
+        pytest.skip("requires xcomm expression collection")
     return x
 
 

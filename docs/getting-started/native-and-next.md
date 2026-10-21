@@ -1,12 +1,14 @@
-# 选读：native 时钟与自己的项目
+# 选读：原生时钟与项目 DUT
 
-前置：完成主线，并准备好 xcomm/xspcomm Python binding。
-主线只学习测试组织；这一步确认同一套测试代码可以随 native XClock 推进。
+前置：完成主线，并准备好 xcomm/xspcomm Python 绑定。
+主线只学习测试组织；这一步确认同一套测试代码可以随原生 XClock 推进。
 
-## 先确认加载的是哪个 binding
+## 先确认加载的是哪个 绑定
 
-XReactor 不附带 xspcomm。使用支持 `XClock.StepHalf`、`GetHalfTick`、`GetPhase`、
-`XData` 和 `XTriggerEngine` 的 binding。若它已经安装到当前 Python 环境，可直接运行：
+XReactor 不附带 xspcomm。原生后端需要 `XClock.StepHalf`、`GetHalfTick`、`GetPhase`、
+`XData` 和 `XTriggerEngine` 等接口。开发使用的提交、包版本、ABI 和协议版本以
+[依赖清单](https://github.com/Makiras/xreactor/blob/main/.github/native-dependencies.json)为准，
+不要只按包名判断版本是否匹配。安装到当前 Python 环境后，先运行：
 
 ```bash
 python3 examples/getting_started/check_native.py
@@ -20,7 +22,7 @@ export PYTHONPATH="/实际路径/xcomm/python${PYTHONPATH:+:$PYTHONPATH}"
 python3 examples/getting_started/check_native.py
 ```
 
-脚本会打印实际加载的 binding 文件路径，最后应是：
+脚本会打印实际加载的 绑定 文件路径，最后应是：
 
 ```text
 native clock: tick=2, phase=RISING_STABLE
@@ -29,13 +31,13 @@ native clock: tick=2, phase=RISING_STABLE
 | 现象 | 下一步 |
 | --- | --- |
 | `No module named xspcomm` | 检查当前环境的安装或上述 PYTHONPATH |
-| 加载路径是旧构建 | 修正环境，选中需要的 binding |
+| 加载路径是旧构建 | 修正环境，选中需要的 绑定 |
 | 缺少 half-step API / XTriggerEngine | 更新或重建包含这些接口的 xcomm |
 
 仓库完整回归会尝试发现同级 Picker 构建；普通脚本和仅运行 `examples/` 不使用
 `tests/conftest.py` 中的发现逻辑，因此这里仍需让当前 Python 能直接导入 xspcomm。
 
-## 相同的 Agent，在 native 时钟上验证溢出
+## 相同的 Agent，在原生时钟上验证溢出
 
 文件：`examples/getting_started/native_lab.py`
 
@@ -71,9 +73,9 @@ python3 -m pytest -q examples/getting_started/native_lab.py
 ```
 
 预期 `1 passed`。这里唯一与主线不同的环境选择是 `TutorialDut(backend="native")`；
-它用 native XClock 和 XData，但累加行为仍由 Python 替身实现。
-所以它验证的是测试链路能在 native 后端运行，**不是某个 RTL 累加器已通过验证**。
-这个文件也是显式运行的选读练习，普通入门测试不要求安装 native binding。
+它用原生 XClock 和 XData，但累加行为仍由 Python 替身实现。
+所以它验证的是测试链路能在原生后端运行，**不是某个 RTL 累加器已通过验证**。
+这个文件也是显式运行的选读练习，普通入门测试不要求安装原生绑定。
 
 ## 接入真实 RTL，要替换哪些地方
 
@@ -115,7 +117,7 @@ python3 -m pip install -e '.[docs]'
 mkdocs build --strict
 ```
 
-`--require-xspcomm` 会在 native binding 不可用时直接报错，避免把未运行的 native 回归
+`--require-xspcomm` 会在原生绑定 不可用时直接报错，避免把未运行的原生回归
 当成通过。它是仓库 `tests/` 的检查选项，不需要加在前面的入门命令里。
 
 [返回教程路线](index.md) · [查看全部功能指南](../reference/feature-map.md)。

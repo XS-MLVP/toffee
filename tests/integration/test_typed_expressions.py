@@ -17,7 +17,7 @@ from xreactor.ir import BoolType, expression_type, program_from_dict, program_to
 def native():
     x = pytest.importorskip("xspcomm")
     if not hasattr(x.XTriggerEngine, "ExprNewBits"):
-        pytest.skip("requires draft xcomm typed expressions")
+        pytest.skip("requires xcomm typed expressions")
     return x
 
 

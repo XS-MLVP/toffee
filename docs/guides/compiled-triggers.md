@@ -2,8 +2,8 @@
 
 ## `@xtrigger`
 
-`@xtrigger` 把受支持的表达式转换为 IR，并由 `XCommClockBackend` 降低到 C++ trigger
-engine：
+`@xtrigger` 把条件编译成引擎可执行的表达式。使用 `XCommClockBackend` 时，
+这些条件由 C++ 引擎判断，不需要 Python 每拍轮询：
 
 ```python
 from xreactor import RisingEdge, xtrigger
@@ -18,10 +18,10 @@ event = await handshake(dut)
 ```
 
 布尔组合必须使用 `&`、`|`、`~`，不能使用 Python `and`、`or`、`not`。支持信号、
-无符号常量和比较表达式；位宽检查发生在 arm/lowering 阶段。
+无符号常量和比较表达式；位宽检查发生在 arm/编译 阶段。
 
-配套 coverage v2 原生草稿另外支持 `as_signed()`、`as_unsigned()`、`resize()` 和
-固定宽度数据运算，详见[两态表达式规则](coverage-v2-engine-audit.md)。
+需要有符号数和数据运算时，使用 `as_signed()`、`as_unsigned()`、`resize()` 等接口，
+详见[位宽与表达式规则](expressions-and-resources.md)。
 逻辑 `&`、`|`、`~` 保持原含义，位运算使用 `bit_and/or/xor/not()`。
 
 装饰器只声明规格，调用 `handshake(dut)` 才生成绑定 DUT 的 Trigger。`sample` 可以写
@@ -29,7 +29,7 @@ event = await handshake(dut)
 
 ## `@pytrigger`
 
-`@pytrigger` 用于调用 Python predicate：
+`@pytrigger` 用于调用 Python 条件函数：
 
 ```python
 from xreactor import pytrigger
@@ -41,7 +41,7 @@ def model_accepts(dut):
     return dut.data.U() in allowed_values
 ```
 
-predicate 是同步函数，并在指定的 sample phase 执行。异步数据源使用
+条件函数 是同步函数，并在指定的 sample phase 执行。异步数据源使用
 `QueueTrigger`、`AsyncioEventTrigger` 或 `TaskComplete`。
 
 ## 非重叠 Sequence
@@ -100,7 +100,7 @@ Within 的最小/最大值均包含边界，进入该步骤后的下一个 sampl
 python3 -m pytest -q tests/integration/test_compiled_patterns.py --require-xspcomm
 ```
 
-同样的采样表在 MemoryBackend 与 native 引擎上都检查命中 tick。
+同样的采样表在 MemoryBackend 与原生引擎上都检查命中 tick。
 
 同一份编译条件也可绑定到 CoverGroup，匹配后在 C++ 内持续累计覆盖，详见
 [绑定覆盖采集](coverage.md)。计数注册拥有独立匹配历史，普通 await 的注册和

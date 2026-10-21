@@ -45,4 +45,4 @@ python3 -c 'import xreactor; print(xreactor.__file__)'
 | 后续提示 `No module named examples` / `file not found` | 回到仓库根目录，使用文档中的 `python3 -m pytest ...` |
 
 先继续 [1. 第一次 PASS 和 FAIL](first-test.md)。
-需要 native XClock 时再看 [接入 native](native-and-next.md)，不必在这里被 binding 构建挡住。
+需要原生 XClock 时再看 [接入 native](native-and-next.md)，不必在这里被 绑定 构建挡住。

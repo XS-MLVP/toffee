@@ -28,12 +28,12 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 
 | API | 用途 |
 | --- | --- |
-| `RisingEdge`, `FallingEdge`, `DriveStable` | stable phase trigger |
-| `ClockCycles` | rising cycle 计数 |
+| `RisingEdge`, `FallingEdge`, `DriveStable` | 稳定阶段触发条件 |
+| `ClockCycles` | 上升沿周期计数 |
 | `Value`, `ValueChange` | 指定 phase 的值条件和变化 |
 | `SimTimeout`, `WallTimeout` | 到期返回 TIMEOUT 事件，调用方决定是否抛异常 |
 | `AnyOf`, `AllOf` | 组合等待 |
-| `AsyncioEventTrigger`, `QueueTrigger`, `TaskComplete` | asyncio source adapter |
+| `AsyncioEventTrigger`, `QueueTrigger`, `TaskComplete` | 把 asyncio 事件接入等待 |
 | `XEvent`, `EdgeEvent`, `ConditionEvent`, `FsmEvent` | await 返回结果 |
 | `XPhase`, `XEventKind`, `LogicValue` | phase、事件类型和四态值 |
 
@@ -41,30 +41,30 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 
 | API | 用途 |
 | --- | --- |
-| `@xtrigger` | 编译到 native IR 的条件/Sequence/FSM |
-| `@pytrigger` | 明确的 Python predicate fallback |
+| `@xtrigger` | 编译到原生 IR 的条件/Sequence/FSM |
+| `@pytrigger` | 明确的 Python 条件函数 fallback |
 | `Next(expr)` | Sequence 中严格的相邻 sample 条件，失配重新等待起点 |
 | `Bin.transition(*values, overlap=True)` | 相邻采样值的转移 bin，复用 Sequence 匹配语义 |
 | `CoverGroup.bind(trigger=..., fields=..., strategy="auto", accumulate=False, overlap=False, max_active=None, diagnostics="off")` | 配置被动采集；复杂模式显式启用有界并发，汇总诊断可选；由 `Execution(coverage=[group])` 管理 |
-| `CoverGroup.sync()` / `clear_history()` | 同步 native 统计；仅清除未完成匹配 |
+| `CoverGroup.sync()` / `clear_history()` | 同步原生统计；仅清除未完成匹配 |
 | `CoverGroup.inspect()` | Execution 内按需读取当前步骤/状态与等待进度，不保存轨迹，也不要求开启诊断 |
 | `Sequence`, `Wait`, `Within`, `Hold` | 默认非重叠观察模式；coverage 绑定可启用并发；未命中不会自动让测试失败 |
 | `FSM`, `State` | 显式分支状态机 |
-| `@on` | persistent subscription 声明 |
+| `@on` | 持久订阅声明 |
 | `Execution.subscribe` | 启动绑定后的 subscription |
 
 ## 数据与协议
 
 | API | 用途 |
 | --- | --- |
-| `as_xdata` | 取得/校验 native XData |
-| `Bundle`, `BundleValue` | 结构化 live view 和不可变 snapshot |
+| `as_xdata` | 取得/校验原生 XData |
+| `Bundle`, `BundleValue` | 结构化 实时信号视图 和不可变 snapshot |
 | `PackedArray`, `split_packed` | 等宽 packed bus 拆分 |
 | `PackedLayout`, `PackedView` | 嵌套、自定义 packed 布局 |
 | `ReadyValid`, `Decoupled`, `Role` | 可选的 ready/valid 通道视图 |
-| `Driver`, `SignalDriver`, `Monitor` | 组件契约与不依赖 Bundle 的信号所有权基类 |
+| `Driver`, `SignalDriver`, `Monitor` | 组件接口与不依赖 Bundle 的信号所有权基类 |
 | `Agent` | 封装 Driver/Monitor 的接口实例；connect(ref)、send/submit/recv、drain/finish；由 Execution(agents=[...]) 管理 |
-| `ReadyValidMonitor` | passive ready/valid protocol component |
+| `ReadyValidMonitor` | 被动观察 ready/valid 握手 |
 | `SamplingMonitor` | 显式 trigger 与同步 capture；保留触发事件的通用采样模板 |
 | `MonitorClosedError`, `MonitorOverflowError` | 内置 Monitor 的终止与 lossless 容量错误 |
 | `SyncDriver`, `SyncSingleCycleDriver`, `SyncMultiCycleDriver` | await send 等待输入接受；通用基类、单周期和固定阶段多周期模板 |
@@ -74,7 +74,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | `AsyncDriver.submit(request) -> XTransfer[RequestT, ResponseT]` | 返回待响应的事务句柄，由响应关联方完成 |
 | `Transfer` | Monitor 交付的事务和接受事件 |
 
-## Functional coverage
+## 功能覆盖率
 
 | API | 用途 |
 | --- | --- |
@@ -87,7 +87,17 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | `generate_unified_coverage_site` | 多页 functional + LCOV 报告 |
 | `generate_unified_coverage_report` | 单文件统一报告 |
 
-参数与示例见对应的使用指南。
+以上名称从 `xreactor` 导入。用类组织覆盖模型时，从 `xreactor.declarative` 导入：
+
+| API | 用途 |
+| --- | --- |
+| `@coverpoint`, `CoverPoint`, `Bin` | 把分桶规则写成可复用的类 |
+| `@covergroup`, `CoverGroup`, `Cross` | 定义样本类型、覆盖点和交叉覆盖 |
+| `Fields`, `wire` | 指定字段路径，并绑定已有信号 |
+| `TemporalCoverPoint`, `SignalCoverGroup` | 直接对跨周期事件计数 |
+
+参见[类声明](../guides/coverage-classes.md)、[时序覆盖](../guides/coverage-patterns.md)。
+声明层的 `CoverGroup` 与顶层同名类来自不同模块；它的 `runtime` 属性用于接入既有运行和报告机制。
 
 ## Transaction 与 Scoreboard
 
@@ -121,7 +131,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | --- | --- |
 | `CoverageSample`, `IllegalHit`, `IllegalBinError` | 本次命中明细、非法记录与失败 |
 | `CoverageSchemaError`, `CoverageMergeError` | 无效定义或不兼容的合并 |
-| `CoverGroupDef.instantiate(..., run_id=None, run_metadata=None, contract=None)` | 运行身份、上下文与手动事务采样契约 |
+| `CoverGroupDef.instantiate(..., run_id=None, run_metadata=None, contract=None)` | 运行身份、上下文与手动事务采样规则 |
 | `CoverGroup.goal_met`, `CoverGroup.covered` | 组百分比达标与包含子项目标、非法命中、完整性的覆盖验收 |
 | `CoverGroup.assert_coverage(minimum=None, per_item=True)` | 默认同时检查正权重子项目标；可显式只检查组阈值 |
 | `CoverGroup.from_report(report)`, `CoverageDatabase.read_json(path)` | 读取当前格式的报告与数据库 |
@@ -139,7 +149,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | `Field` | Bundle.bind/view_as 的来源和位宽声明；见[数据](../guides/data.md) |
 | `drive_ready_valid` | 项目协议 Driver 可选的握手驱动辅助函数；见[协议视图](../guides/protocols.md) |
 | `XTrigger`, `PhaseTrigger`, `ConditionMode` | Trigger 契约、采样阶段和命中模式 |
-| `PythonPredicateTrigger`, `CompiledTrigger` | 显式 Python predicate 与 IR 条件实例 |
+| `PythonPredicateTrigger`, `CompiledTrigger` | 显式 Python 条件函数 与 IR 条件实例 |
 | `PhaseEvent` | DriveStable 等阶段事件 |
 | `XExpr`, `SequenceSpec`, `FsmSpec` | 编译表达式及时序规格；优先用装饰器与构造函数声明 |
 | `XSubscriptionSpec`, `BoundSubscriptionSpec` | @on 声明与绑定结果；见[订阅](../guides/subscriptions.md) |

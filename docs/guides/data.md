@@ -10,11 +10,11 @@ from xreactor import as_xdata
 signal = as_xdata(dut.data)
 ```
 
-Signal identity、位宽、读写和 native trigger 均使用该 XData 对象。
+绑定、位宽检查、读写和原生触发条件都使用同一个 XData 对象。
 
 ## Bundle
 
-`Bundle` 把多个 live signal 组织成结构化信号视图：
+`Bundle` 把多个信号组织在一起，方便按名称访问、采样和驱动：
 
 ```python
 from xreactor import Bundle
@@ -33,11 +33,12 @@ payload.drive({
 })
 ```
 
-`sample()` 返回不可变 `BundleValue`，可直接交给 scoreboard 和 coverage。
+`sample()` 返回不可变的 `BundleValue`，保存这次读到的值，可交给检查器比较或用于覆盖率采样。
 
 叶子值是保留位宽与 X/Z 的 LogicValue。模型需要整数时显式转换，例如
 `opcode = snapshot.opcode.as_int()`；遇到 X/Z 会报错，避免把未知值静默当作有效输入。
-`payload` 始终是 live view，`snapshot` 则保留本次采样结果；异步处理时应传递 snapshot。
+`payload` 连接的是当前信号，重新读取时可能已是下一拍的值。
+`snapshot` 保留这次采样结果；异步处理时应传递快照，不要事后重读引脚。
 
 ## PackedArray 与 PackedLayout
 
@@ -69,7 +70,7 @@ entries[0].drive({
 })
 ```
 
-这些对象都是 live view，不复制 simulator storage，也不引入隐式 sampling phase。
+这些对象直接访问底层信号，不复制仿真器中的存储，也不替你选择采样时刻。
 
 ## 从 DUT 名字或 Picker metadata 绑定
 
@@ -107,7 +108,7 @@ packet.payload[1].Set(0xA5)
 
 同一 struct 内不能混合显式与自动 offset；范围重叠默认报错，仅有意建立别名时使用
 `allow_overlap=True`。drive 写入布局叶子，padding 保留原值。`split_packed()` 是等宽
-`PackedArray` 的便利入口。这些视图要求支持子信号的 native XData。
+`PackedArray` 的便利入口。这些视图要求支持子信号的原生 XData。
 
 `LogicValue(value, x_mask, width)` 保存 aval/bval。`as_int()` 遇到 X/Z 会报错，先用
 `is_known` 判断；`as_int(strict=False)` 仅用于明确接受未知位的诊断，不代表硬件真值。

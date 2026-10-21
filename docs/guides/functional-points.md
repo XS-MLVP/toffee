@@ -84,7 +84,7 @@ combined.write_json("output/combined.json")
 
 运行配方通过 instantiate 的 run_id、run_metadata 和 contract 保存独立运行身份、
 测试名/seed 以及采样位置。合并后的每个普通 bin 都保留各来源的命中数和首次/末次
-metadata，报告可直接回答哪些运行贡献了命中；native 计数没有实际命中位置时
+metadata，报告可直接回答哪些运行贡献了命中；原生计数没有实际命中位置时
 不会补造时间。不要用 seed 单独标识一次运行，也不要在 sample metadata 中仅写 run_id
 来代替数据库的运行身份。报告格式和验收策略见[覆盖率指南](coverage.md)。
 

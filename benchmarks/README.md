@@ -1,72 +1,40 @@
-# Runtime benchmark
+# 性能测试
 
-The benchmark compares scheduling overhead with a no-op synthetic `XClock`.
-It is a regression baseline, not a simulator performance claim.
+这里的测试用于比较框架改动前后的开销，不直接代表真实 RTL 的仿真速度。
+先安装匹配的 xspcomm，在仓库根目录运行。
 
-```bash
-PYTHONPATH=src:/path/to/xcomm-build/python \
-  python3 benchmarks/benchmark_runtime.py \
-  --ticks 200000 --repeats 5 --json
-```
-
-Keep the host, xcomm build type, compiler flags, waveform/coverage settings,
-tick count and repeat count unchanged when comparing revisions. Report the
-median and retain all raw nanosecond samples from the JSON output.
-
-Cases:
-
-- one native `XClock.Step` crossing;
-- one Python crossing per `StepHalf`;
-- `RunUntil` with no watcher, Value, compiled Expr and compiled FSM;
-- explicit Python predicate sampling at each rising phase;
-- full `XReactor -> Future -> asyncio task` resume per cycle.
-
-Functional coverage has a separate transaction-level benchmark:
+## 调度与等待
 
 ```bash
-PYTHONPATH=src \
-  python3 benchmarks/benchmark_coverage.py \
-  --iterations 100000 --repeats 5 --json
+python3 benchmarks/benchmark_runtime.py --ticks 200000 --repeats 5 --json
 ```
 
-It compares transaction-field access, `details=False`, and per-sample detail
-construction. `--max-fast-ns` enables a fixed-runner CI threshold. The real
-e203 A/B benchmark is `examples/integration/e203/benchmark_coverage.py` and
-supports the relative `--max-slowdown-percent` threshold.
+测试比较 XClock 步进、半周期推进、原生条件与状态机等待、Python 条件轮询，
+以及每周期唤醒协程的开销。时钟不执行真实 RTL 计算。
 
-Passive native coverage and optional pattern diagnostics use the same script:
+## 覆盖率
 
 ```bash
-PYTHONPATH=src:/path/to/xcomm-build/python \
-  python3 benchmarks/benchmark_coverage.py --native --iterations 20000 --repeats 5
+python3 benchmarks/benchmark_coverage.py --iterations 100000 --repeats 5 --json
+python3 benchmarks/benchmark_coverage.py --native --iterations 20000 --repeats 5
 ```
 
-The `native_overlap` and `native_overlap_summary` modes run identical overlapping
-Sequence patterns, with three active attempts at steady state. Only the summary
-diagnostics setting changes. Counts, pending attempts and RunUntil returns are
-checked; timings include Execution startup and cleanup. This is a no-op XClock
-measurement, not a prediction of RTL simulation cost.
+前一项比较事务字段读取和采样明细的开销；后一项比较原生采样、重叠匹配和诊断计数。
+需要比较真实 RTL 的覆盖率开销时，使用
+`examples/integration/e203/benchmark_coverage.py`。
 
-Driver resource-lock and concurrency-slot handoffs have a native microbenchmark:
+## Driver 和 asyncio 调度
 
 ```bash
-PYTHONPATH=src:/path/to/xcomm-build/python \
-  python3 benchmarks/benchmark_driver_handoffs.py --requests 256 --repeats 7
+python3 benchmarks/benchmark_driver_handoffs.py --requests 256 --repeats 7
+python3 benchmarks/benchmark_asyncio_observer.py --repeats 7
 ```
 
-It reports per-request wall time, all raw samples, and final half-ticks for
-uncontended sequential input and contended two-stage input. Check simulated
-timing as well as wall time: a faster run that misses stage overlap is incorrect.
-This benchmark uses a no-op clock, not a real RTL throughput measurement.
+前者比较输入阶段的资源交接，后者分别测量仿真协程与外部任务的调度开销。
+同时检查接收时刻和最终仿真时间，不能把少执行了一段时序当成提速。
 
-Callback observation and unrelated host scheduling are measured separately:
+## 怎样比较结果
 
-```bash
-PYTHONPATH=src:/path/to/xcomm-build/python \
-  python3 benchmarks/benchmark_asyncio_observer.py --repeats 7
-```
-
-It measures per-cycle awaits, a long clock wait, and a native host Task yielding
-100,000 times with and without an active Execution. The host Task is explicitly
-outside simulation observation. Its relative cost measures the shared entry's
-overhead; it is not an estimate of HTTP or real RTL application slowdown.
+保持机器、编译选项、原生依赖、波形与覆盖率开关、迭代次数一致。
+重复运行，比较中位数，并保留 JSON 中的每次测量。
+不要把空时钟的结果直接换算成某个 DUT 的加速倍数。

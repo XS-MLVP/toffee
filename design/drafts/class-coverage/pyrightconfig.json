@@ -1,6 +1,0 @@
-{
-  "include": ["api.pyi", "usage.py", "native_usage.py"],
-  "pythonVersion": "3.11",
-  "typeCheckingMode": "strict",
-  "reportMissingModuleSource": "none"
-}

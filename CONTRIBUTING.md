@@ -1,81 +1,59 @@
-# XReactor development guide
+# 参与 XReactor 开发
 
-XReactor is maintained as an independent Python project. Native clock, data,
-and trigger primitives are provided by xcomm.
+XReactor 负责 Python API、仿真调度、验证组件和报告。
+原生时钟、信号和触发引擎由 xcomm 提供；真实 DUT 的环境代码放在
+`examples/integration/<dut>/`，不要混进框架实现。
 
-## Organize changes by feature
+## 一项改动应包含什么
 
-Every user-visible feature should be delivered as a coherent vertical slice:
+新增或修改功能时，一并更新：
 
-1. implementation in `src/xreactor/`, using a focused module or subpackage;
-2. user behavior in `docs/guides/` or `docs/reference/`, with implementation
-   decisions and validation records isolated under `design/`;
-3. unit tests in the matching `tests/` category;
-4. a minimal example under `examples/` when the API is user-facing;
-5. a benchmark under `benchmarks/` when the change affects a hot path.
+1. `src/xreactor/` 中的实现。
+2. `docs/guides/` 或 `docs/reference/` 中的用法和限制。
+3. 对应 `tests/` 分类中的回归。
+4. 面向用户的功能示例；影响高频路径时，还应有可重复的性能测试。
 
-Do not grow an unrelated catch-all module or test file. Split a module when it
-starts owning more than one independent concept. Integration code for a real
-DUT belongs in `examples/integration/<dut>/`.
+文档说明当前能做什么、怎样使用。不要把试验过程、机器专用路径、分轮测试数字
+或未实现的接口原型放进用户手册。生成的报告、日志和测量结果写入 `output/`，不要提交。
 
-## Project boundaries
+## 提交前检查
 
-- `src/xreactor`: Python API, scheduling, methodology and reports.
-- xcomm: native clock/data/trigger engine.
-- `examples/integration`: XReactor environments for external DUTs.
-- `tests/integration`: automated backend and host-asyncio integration tests.
-
-`Execution` never owns its backend. It clears execution-local state on exit;
-the backend creator is responsible for calling `close()`.
-
-## Verification
-
-The default command runs pure-Python tests and uses a native xspcomm binding
-when one is already importable. It also discovers the standard sibling Picker
-build at `../picker/build/dependence/xcomm/python`:
+先安装开发依赖：
 
 ```bash
-python3 -m pytest -q
+python3 -m pip install -e '.[test,docs]'
+python3 -m pytest -q --require-xspcomm
+mkdocs build --strict
 ```
 
-Pure-Python tests use `MemoryBackend`. Before merging a backend or scheduling
-change, require the native suite explicitly so a missing binding cannot turn
-into a successful run with skipped tests:
+`--require-xspcomm` 会在原生依赖不满足时失败，避免把原生测试没运行当成通过。
+没有原生环境时，可先用 `python3 -m pytest -q` 检查纯 Python 部分，但这不代替完整回归。
 
-```bash
-XCOMM_PYTHON=/path/to/xcomm/build/python \
-  python3 -m pytest -q --require-xspcomm
-```
+原生后端的提交、包版本、ABI 和协议版本以
+[依赖清单](.github/native-dependencies.json)为准。
+只编译了本地绑定而未安装时，可设置 `XCOMM_PYTHON=/path/to/xcomm/build/python`。
+测试也会查找同级 Picker 的 `build/dependence/xcomm/python`。
 
-The binding must provide `XClock.StepHalf` and `XTriggerEngine`. Building it
-requires SWIG 4.2 or newer. To install it from xcomm source, both build switches
-are required:
+需要从 xcomm 源码安装时，SWIG 须为 4.2 或更新版本，并打开两个构建选项：
 
 ```bash
 BUILD_XSPCOMM_SWIG=python XSPCOMM_BUILD_WHEEL=1 \
   python3 -m pip install /path/to/xcomm
 ```
 
-CI always installs the pinned xcomm source and runs with
-`--require-xspcomm`; native integration coverage therefore cannot be silently
-skipped there.
+不要只升级 Python 包而混用旧原生库。CI 会安装依赖清单固定的版本并运行原生测试。
 
-## Versions and releases
+## 生命周期
 
-Package versions come from Git tags through setuptools-scm. Do not add a second
-version string to the source. Each PR targeting `main` needs exactly one of
-`release:patch`, `release:minor`, or `release:major`; the first feature release
-uses `release:minor` to produce `v0.1.0`. Merge results are tagged automatically.
-Tagged CI repeats tests, strict documentation, distribution checks, a rebuild
-from the source archive, and an isolated wheel install before GitHub publishing.
+`Execution` 只清理本次执行注册的等待、采样和组件，不拥有 backend。
+创建 backend 的代码负责调用 `close()`；创建 DUT 的 fixture 负责初始化和释放 DUT。
+修改这类行为时，要同时测试正常退出、取消和异常退出。
 
-The xcomm checkout and required coverage ABI live in
-`.github/native-dependencies.json`. Update this pin alongside the relevant
-regressions; do not use a floating branch for release verification.
-Authored Markdown and Python records under `design/verification` are committed;
-write new generated reports, logs and coverage databases under `output/` so they
-remain ignored. Reusable report templates, fixtures and verification plans stay
-with the source files.
+## 版本和发布
 
-See [versioning and releases](docs/guides/versioning-and-releases.md) for setup,
-failure recovery, artifact provenance and local pre-commit commands.
+版本号由 Git tag 和 setuptools-scm 生成，不在源码中另写一份。
+针对 main 的 PR 需选择一个版本标签：`release:patch`、`release:minor` 或 `release:major`。
+具体选择和发布失败后的处理见[版本与发布](docs/guides/versioning-and-releases.md)。
+
+发布检查包括原生回归、严格文档构建、源码包重建和隔离安装。
+验证通过后发布的是同一组已检查产物，不另行构建一份替代。

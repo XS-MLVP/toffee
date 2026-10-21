@@ -1,115 +1,124 @@
-# Running tests with automatic coverage
+# 运行测试与汇总覆盖率
 
-Install the execution dependencies and use XReactor's command-line entry point:
-
-```bash
-python -m pip install 'xreactor[runner]'
-xreactor run tests/ --workers 8
-```
-
-`python -m xreactor run` is equivalent. XReactor loads its internal integration;
-pytest executes the tests and fixtures, and pytest-xdist schedules independent
-worker processes. Tests do not create run managers, worker collectors or merge
-callbacks. Ordinary `pytest` and library imports keep their existing behavior.
-
-Choose a new output directory with `--output`. Existing directories are rejected
-to prevent mixing measurements. Arguments such as `-k`, `-m`, `-q` and `--tb=short`
-are forwarded to pytest. `--workers 1` uses the same collection and publication
-path without xdist. `--collect-only` produces no measurement directory.
+先确认测试能由 pytest 单独运行，再用 `xreactor run` 收集覆盖率和生成报告。
+在源码仓库中安装运行依赖：
 
 ```bash
-xreactor run tests/ --workers 8 --output output/regression-001 -k prediction
-xreactor run tests/ --workers 1 --keep-coverage-inputs
+python3 -m pip install -e '.[runner]'
+xreactor run tests/ --workers 8 --output output/regression-001
 ```
 
-## Functional coverage
+`python3 -m xreactor run` 与 `xreactor run` 等价。
+pytest 负责运行测试和 fixture，pytest-xdist 把测试分给独立进程，
+XReactor 负责收集、合并和生成覆盖率报告。测试里不需要自己创建收集器。
 
-Create and sample the existing covergroups normally. Groups created by a test
-are accumulated into its worker's database after teardown. Groups created in
-module/session fixtures or during collection are captured once at worker
-shutdown. Counters, zero-count bins, instance identities, sampling contracts
-and origin provenance use the existing `CoverageDatabase.merge()` semantics.
-Reconstructed report objects are not registered as new measurements.
+## 选择用例和进程数
 
-The default path writes no per-case coverage JSON. At worker shutdown a single
-compressed checkpoint transfers the database to the controller. The controller
-merges all workers, renders the self-contained HTML directly from memory, commits
-the final manifest and reclaims the checkpoints. Small manifest metadata remains.
-`--export-coverage-json` additionally retains one final functional database.
+```bash
+# 只运行名称中含有 prediction 的测试。
+xreactor run tests/ --workers 8 --output output/prediction-001 -k prediction
 
-Explicit calls to `write_json()` still write exactly the requested file. Remove
-legacy per-case export calls when adopting automatic collection; otherwise those
-explicit exports remain additional user-requested artifacts. Objects declared in
-function scope should have that lifetime; use a module/session fixture for a
-group intentionally shared across cases.
+# 单进程诊断，仍然使用相同的收集和报告流程。
+xreactor run tests/ --workers 1 --output output/serial-001
+```
 
-Mark a synthetic model/schema test with
-`@pytest.mark.xreactor_functional_coverage(False)` to exclude its groups from
-automatic functional measurement. This covers setup, call and teardown;
-native fixture discovery remains enabled. Do not put synthetic groups in shared
-collection/session scope alongside measured DUT groups.
+`-k`、`-m`、`-q` 和 `--tb=short` 等参数会传给 pytest。
+`--collect-only` 只列出测试，不创建测量目录。
+`--output` 指定的目录必须尚不存在，避免不同运行的结果混在一起。
 
-For an auxiliary assertion-only group inside a measured scenario, use
-`definition.instantiate('helper', capture=False)`. It retains ordinary sampling,
-assertion and explicit-export behavior but is not an automatic measurement.
-Do not merge incompatible schemas or rename helpers to inflate measured groups.
+## 功能覆盖率怎样收集
 
-A project plugin can implement the public `pytest_xreactor_coverage(config,
-functional, native, pytest_exitstatus)` hook to validate the in-memory merged
-database or emit a small domain summary without exporting coverage JSON.
-It runs on the controller once, before commit. Its arguments are read-only;
-raising rejects the coverage transaction and retains available worker inputs.
+按平常的方式创建 covergroup，并在观察到事件时采样即可。
+XReactor 会在测试清理完成后收集该测试创建的组，最后合并各进程的结果。
+在模块或 session fixture 中创建的共享组，会在进程退出时收集一次。
 
-## Native DUT coverage
+合并会累加计数，并保留零命中的 bin。定义、实例名和采样规则必须兼容，
+不能把含义不同的覆盖模型强行拼成一份报告。规则见[功能覆盖率](coverage.md)。
 
-The built-in Picker/Verilator adapter discovers fixture-owned DUT objects exposing
-`SetCoverage`, `GetCovMetrics`, `GetXClock` and `Finish`. A fixture may return the
-DUT, an agent exposing `dut`, or a factory retaining `_instances`. Discovery runs
-after fixture setup and before teardown, so factories may construct instances
-in the test body. The fixture continues to own DUT initialization and `Finish()`.
-The runner does not take ownership of the simulation backend or close it.
-Factories that may finish and release a DUT in the test body should receive
-the public `xreactor_register_dut` fixture and call that callback when constructing
-the DUT. This routes its export immediately, before it disappears from fixture
-discovery; the callback neither steps nor closes the DUT. Tests stay unchanged.
+默认不逐例导出 JSON。各进程先写压缩后的中间结果，主进程合并后直接生成 HTML，
+再删除已经成功合并的中间文件。需要最终功能覆盖率数据库时，添加：
 
-Coverage-enabled DUTs receive private export paths. Their complete native tables
-are merged in bounded batches inside each worker and again across workers. Each
-distinct DUT build retains one `native/<build-id>/coverage.dat`, independent of
-worker count. Build identities include the generated module, nearby RTL/native
-libraries and build provenance when available. Different builds remain separate.
-The complete point universe, including toggle counters and zero counts, is
-validated and retained. Every merge also checks each output counter against the
-exact sum of its inputs before replacing the previous aggregate or deleting
-inputs. Invalid, overflowing or altered counters fail the run and retain the
-available inputs. Derivative LCOV reports select line/branch records.
+```bash
+xreactor run tests/ --workers 8 --output output/export-001 --export-coverage-json
+```
 
-The adapter uses `coverage_processor` from adjacent `build-provenance.json`,
-falling back to `verilator_coverage` on PATH. Override it with
-`--native-coverage-tool /path/to/verilator_coverage`.
+如果旧测试中仍调用 `write_json()`，那些文件还会照常生成。
+迁移到自动收集后，可以删掉仅用于跨用例汇总的手动导出，避免一份数据保存多次。
 
-Only fixture-owned discoverable DUTs are managed. A standalone clock does not
-identify its simulator or coverage export owner. Other simulator integrations
-can use the same internal export/merge boundary; no simulator is inferred from
-an arbitrary clock object or from scanning unrelated directories.
+### 不把模型自测算成 DUT 覆盖率
 
-## Retention and failures
+覆盖模型本身的单元测试可能会人为填满 bin。给这种测试加上标记：
 
-By default a completed run retains `coverage.html`, a small `manifest.json`,
-and any final DAT/LCOV artifacts. `--keep-coverage-inputs` also retains worker
-checkpoints, per-case functional snapshots and original native dumps for debugging.
+```python
+import pytest
 
-The manifest is the commit boundary: all final artifacts are written and hashed
-before it changes to `committed`. Only then are exclusively owned worker inputs
-removed. An interrupted merge, corrupt receipt, changed input, collection error
-or crashed worker leaves the run `incomplete` and retains available inputs.
-A cleanup failure preserves the committed result and records `cleanup_error`;
-it does not rerun an additive merge.
 
-Test failures remain failures and retain pytest's nonzero exit status. A completed
-failed test execution can still produce diagnostic coverage; HTML includes the
-test exit status and the manifest keeps test verdict counts separately. Coverage
-collection completion does not assert that the design passed verification.
+@pytest.mark.xreactor_functional_coverage(False)
+def test_coverage_definition():
+    # 在这里测试分桶或合并规则，不计入正式功能覆盖率。
+    ...
+```
 
-Historical run directories are not deleted automatically. Input consumption
-only concerns the current, exclusively owned execution directory.
+标记对该测试的 fixture 初始化、测试执行和清理都生效，但不会关闭原生 DUT 覆盖率收集。
+不要把这类人为样本与真实 DUT 的样本放进同一个 session 级共享组。
+
+真实场景里如果另建了一个只用于局部断言的辅助组，可以使用
+`definition.instantiate("helper", capture=False)`。它仍可采样、检查和手动导出，
+但不进入自动汇总。
+
+### 在合并后增加项目检查
+
+项目插件可以实现 `pytest_xreactor_coverage(config, functional, native, pytest_exitstatus)`。
+这个 hook 在主进程合并完成后、提交报告前调用一次，适合检查项目要求或输出小型摘要。
+参数中的合并结果只供读取，不应修改。
+
+hook 抛出异常会使收集失败，并保留可用的中间输入；不会把不满足要求的结果标成成功。
+普通项目不需要实现它。
+
+## 原生 DUT 覆盖率怎样收集
+
+Picker/Verilator 适配器从 fixture 中查找提供 `SetCoverage`、`GetCovMetrics`、
+`GetXClock` 和 `Finish` 的 DUT。fixture 可以直接返回 DUT，也可以返回带 `dut`
+的 Agent，或用 `_instances` 保存实例的工厂。
+
+fixture 仍负责初始化 DUT 和调用 `Finish()`。运行器不接管仿真时钟，也不关闭 backend。
+如果工厂会在测试中提前关闭并释放 DUT，需要在创建时通过
+`xreactor_register_dut` fixture 提供的回调登记它，避免清理时已经找不到对象。
+登记不会推进或关闭 DUT。
+
+每个进程先分批合并原生计数，主进程再按 DUT 构建身份合并。
+同一构建最终只保留一份 `native/<build-id>/coverage.dat`，不会随进程数保存多份。
+不同构建不会互相合并。零点、toggle 和其他原生计数也会保留，不只保留命中行。
+每次合并都会核对输出计数是否等于输入之和。
+
+覆盖率处理器优先使用 `build-provenance.json` 中的路径，否则查找 PATH 上的
+`verilator_coverage`。也可显式指定：
+
+```bash
+xreactor run tests/ --output output/native-001 \
+  --native-coverage-tool /path/to/verilator_coverage
+```
+
+只创建一个独立时钟对象，并不足以让运行器找到它背后的模拟器或导出文件。
+DUT 应由 fixture 管理，或在创建时显式登记。
+
+## 结果在哪里，失败时保留什么
+
+| 文件 | 用途 |
+| --- | --- |
+| `coverage.html` | 查看汇总覆盖率和测试状态 |
+| `manifest.json` | 查看运行是否完整、测试判定和产物身份 |
+| `native/<build-id>/coverage.dat` | 每种 DUT 构建的完整原生计数 |
+| 原生 LCOV 文件 | 查看行和分支覆盖率 |
+
+添加 `--keep-coverage-inputs` 可保留各进程中间结果和原始导出，便于排查合并问题。
+正常回归不需要打开它。
+
+最终产物全部写好并校验后，manifest 才会标为 `committed`，随后回收本轮中间输入。
+收集中断、输入损坏、测试收集不完整或进程崩溃时，会标为 `incomplete` 并保留可用输入。
+如果只在删除中间文件时出错，已经提交的结果仍保留，错误记在 `cleanup_error`。
+
+**测试失败与覆盖率收集失败是两件事。** 测试 FAIL 仍返回非零退出码，
+但已经完整执行的失败回归也能生成诊断覆盖率。报告生成成功不代表 DUT 验证通过。
+
+运行器只回收本轮自己创建的中间文件，不自动删除历史运行目录。

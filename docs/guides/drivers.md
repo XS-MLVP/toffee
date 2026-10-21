@@ -1,80 +1,61 @@
-# Driver：输入驱动与提交
+# Driver：把请求变成输入时序
 
-`Driver` 和 `Monitor` 是独立的组件契约，不要求共同的 `Interface` 基类。
-`SignalDriver` 为不同驱动方式提供信号所有权、方向检查和生命周期管理，
-但不决定一个 transaction 应如何发射。具体 driver 可以实现单次周期驱动、
-脉冲驱动、流水线排队或带反压的驱动；这些名称应描述行为，而非它使用的
-`Bundle` 形状。`ReadyValid` 是一个可选的具体通道视图，不是组件必经层。
+测试通常只需要表达“发送一次操作”。Driver 负责把这个操作转换成设计要求的信号和时序，
+并告诉调用者输入在什么时候真正被接受。用例不必重复操作引脚或等待边沿。
 
-以下 Sync/Async 模板的传输形态有两个独立维度。这里的“异步”指提交立即返回
-`XTransfer`，而不是 Python 函数是否写成 `async def`；“多周期”指一次输入事务
-的发射或握手可能占用多个时钟周期，而不是 DUT 的响应延迟。
+## 先选提交方式，再看输入占几拍
 
-| 提交方式 | 单周期输入发射 | 多周期输入发射 |
+有两个独立问题：
+
+- **是否等输入接受后才返回？** Sync Driver 在 `await send()` 中完成驱动；
+  Async Driver 在提交时立即返回 `XTransfer`，可以先提交多笔，再等待它们。
+- **输入本身占几拍？** 单周期模板占一拍；多周期模板把一次输入分成多个阶段。
+  这说的是输入时序，不是 DUT 计算结果需要多久。
+
+| 提交方式 | 单周期输入 | 固定阶段的多周期输入 |
 | --- | --- | --- |
-| 等待接受：`await send()` | `SyncSingleCycleDriver` | `SyncMultiCycleDriver`；非固定时序继承 `SyncDriver` |
-| 立即提交：`send()` 或 `submit()` | `AsyncSingleCycleDriver` | `AsyncMultiCycleDriver`；非固定时序继承 `AsyncDriver` |
+| 等待输入接受 | `SyncSingleCycleDriver` | `SyncMultiCycleDriver` |
+| 立即提交，稍后等待 | `AsyncSingleCycleDriver` | `AsyncMultiCycleDriver` |
 
-四种能力都由 XReactor 提供，且不依赖某个 DUT 或具体握手协议。这里的
-`SyncDriver` 是等待输入接受，不是阻塞 Python event loop。
-Driver 基类只约定 send 返回可等待的完成事件以及 close，SignalDriver 增加信号 ownership；
-它们不要求后台队列、响应事务或阶段锁。协议 Driver 应按提交方式继承 SyncDriver
-或 AsyncDriver，在 `_drive_one()` 中实现具体输入时序，复用模板的并发和清理机制。
-当前框架不提供独立的 ReadyValidDriver。
+这里的“异步”不取决于函数有没有写成 `async def`。
+“同步”也不表示阻塞整个 Python 事件循环，只是当前调用要等输入接受。
 
-当前通用 Driver 类关系如下。`DriveStage` 是多周期模板的静态阶段描述，
-不是信号 Bundle，也不是另一个活动组件：
+输入时序不是固定阶段时，继承 `SyncDriver` 或 `AsyncDriver`，
+在 `_drive_one()` 中定义实际的握手、阶段和接受条件。
 
-```text
-Driver
-└── SignalDriver
-    ├── SyncDriver
-    │   ├── SyncSingleCycleDriver
-    │   └── SyncMultiCycleDriver
-    └── AsyncDriver
-        ├── AsyncSingleCycleDriver
-        └── AsyncMultiCycleDriver
-```
-`AsyncDriver` 是与端口协议、数据形状和事务周期数无关的异步提交模板，统一管理
-容量、`XTransfer` 生命周期、accepted stream、取消与失败传播。它不要求使用
-显式队列；提交返回事务句柄是这里“异步”的定义。具体实现可以用它覆盖
-异步行的任一列，而不需要为两列分别建立空基类。
-`SyncDriver` 和 `AsyncDriver` 的 `max_active=1` 让整个输入事务独占通道；
-异步串行提交复用同一个发射协程，连续请求不会因任务切换插入空拍。
-更大的值允许不同事务在多周期流水线中重叠。重叠并不意味着允许两个
-事务同时写同一端口：具体 Driver 应按实际协议使用 `resource_lock(stage)` 仲裁
-共享阶段，并在取消或异常时恢复它驱动的信号。输入阶段是否重叠，与已接受
-请求的响应是否尚未完成是不同问题。
-两个 MultiCycle 模板已经实现固定时长的阶段遍历和逐阶段互斥，调用方仅声明
-`DriveStage(name, bits, idle, encode, cycles)`；不同阶段必须绑定互不重叠的输入信号。
-`max_active=1` 禁止事务间的输入重叠，较大的值允许前后事务占用不同阶段，
-但不会让同一阶段并行写入。阶段时长可以不同；输入接受点是最后阶段的最后一拍。
-如果阶段会因握手/背压动态延长、共享一个端口，或有非线性的阶段转移，
-应继承 `SyncDriver`/`AsyncDriver`，在协议 Driver 中明确接受条件与资源占用。
-`XTransfer` 只有在完整输入被接受时才进入 `PROCESSING`。
-`AsyncDriver.send()` 返回接受时自动完成的句柄，`await` 得到接受事件；
-调用 send 就提交，随后是否立即 await 由调用方决定。接受后释放容量，不要求响应 collector。
-`submit()` 的句柄则由响应检查方完成。`cancel()` 只允许撤销尚未接受的请求。
-关闭时仍未完成的已接受请求会进入 FAILED，并通过 `DriverIncompleteError` 报告。
-Sync/Async 模板共享私有并发控制与返回事件校验，具体时序仍由 `_drive_one()` 决定。
+## send 和 submit 分别等什么
 
 | 调用 | SyncDriver | AsyncDriver |
 | --- | --- | --- |
 | `driver.send(request)` | 返回尚未运行的协程 | 立即提交，返回输入句柄 |
-| `await driver.send(request)` | 执行驱动并等待接受 | 提交并等待接受 |
-| `driver.submit(request)` | 未提供 | 立即提交，返回待响应的事务句柄 |
+| `await driver.send(request)` | 驱动并等到输入接受 | 提交并等到输入接受 |
+| `driver.submit(request)` | 不提供 | 立即提交，返回等待响应的事务句柄 |
 
-AsyncSingleCycleDriver 继承相同的提交语义，SyncSingleCycleDriver 继承等待调用的语义；
-两者具体单周期时序和 idle 行为不变。其他协议 Driver 的调用时机以各自契约为准。
+`send()` 完成只表示输入已接受，不表示输出已经回来。
+`submit()` 用于还要跟踪输出的事务，由响应检查方完成句柄；通常通过 Agent 使用。
 
-具体模板的 `resource_lock()` 按当前 Driver 内的资源名复用互斥锁，使用
-`async with self.resource_lock(name)` 表达占用范围。不同 Driver 中的相同名字不共享
-资源；资源锁也不改变信号 ownership。底层使用原生 asyncio.Lock，测试作者无需
-创建锁。Execution 统一处理时钟推进前的就绪工作，阶段代码无需插入 sleep(0)。
-锁不推断流水级、占用周期、缓冲深度或硬件仲裁；这些时序仍由具体 Driver 定义。
+`XTransfer` 在完整输入被接受后进入 `PROCESSING`。
+`cancel()` 只能撤销尚未接受的请求；关闭 Driver 时仍未完成的已接受事务会报告
+`DriverIncompleteError`，不会当作正常完成。
 
-活动中的异步 Driver 应使用 `await driver.aclose()` 收尾；同步 `close()` 不会在
-输入仍被驱动时提前释放信号所有权。
+## 多周期输入能不能重叠
+
+`max_active=1` 让一笔输入完成后再开始下一笔。
+更大的值允许不同输入占用不同阶段，但不允许两笔同时写同一组信号。
+
+多周期模板使用 `DriveStage(name, bits, idle, encode, cycles)` 描述各阶段：
+阶段有自己的信号、空闲值、编码函数和时长。不同阶段的信号不能重叠。
+输入在最后阶段的最后一拍才算接受。
+
+若阶段会因反压延长，或多个阶段要使用同一端口，就在自定义 Driver 中使用
+`async with self.resource_lock(name)` 管理占用。
+同名资源只在该 Driver 内互斥，不会替硬件推断仲裁规则。
+输入阶段重叠与响应仍未返回是两件事，应分别配置。
+
+## 关闭时恢复输入
+
+`SignalDriver` 管理驱动信号的独占使用、方向检查和空闲恢复。
+活动中的异步 Driver 用 `await driver.aclose()` 关闭，或放进异步上下文：
 
 ```python
 from xreactor import AsyncSingleCycleDriver, Bundle, Execution
@@ -87,10 +68,9 @@ async with Execution(backend):
         accepted = [await item for item in inputs]
 ```
 
-
-具体采样时间表及完整多阶段实现见[流水输入示例](pipeline-examples.md)。
-用例通过 [Agent](agents-and-reference-models.md) 封装这些 Driver；上面的独立 context
-用法适合组件开发与单独驱动验证。
+上例先提交三笔，再等待各自的接受事件，没有等待 DUT 响应。
+项目用例通常通过 [Agent](agents-and-reference-models.md) 使用 Driver；
+具体时序对照见[流水输入示例](pipeline-examples.md)。
 
 ## 实现自己的多周期输入
 

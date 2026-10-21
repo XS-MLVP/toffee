@@ -1,42 +1,46 @@
-# 按功能维护回归
+# 运行和维护测试
 
-运行完整框架回归及用户 quick start：
+在仓库根目录执行：
 
 ```bash
 python3 -m pytest -q --require-xspcomm
 mkdocs build --strict
 ```
 
-`--require-xspcomm` 保证 native 依赖缺失时失败，而不是跳过全部原生验证。普通 pytest
-允许没有 native 的环境运行 MemoryBackend 部分。版本、导入路径与命令见安装指南。多页源码报告集成测试需要 genhtml，CI 安装 lcov，
-本地未安装时仅跳过这组工具测试。
+`--require-xspcomm` 会在原生绑定缺失或接口不匹配时失败。
+普通 `pytest` 允许没有原生环境的用户运行纯 Python 测试；不能据此宣布完整回归通过。
+多页 HTML 报告的测试还需要系统安装 `genhtml`。
 
-## 功能分组
+## 测试放在哪里
 
-| 目录 / 入口 | 覆盖内容 |
+| 目录 | 主要检查什么 |
 | --- | --- |
-| runtime/test_runtime、test_subscriptions | 时钟/值/模式、组合等待、订阅、取消与运行作用域 |
-| runtime/test_scoreboard、test_transfers | 直接比较、关联、预算、残余、状态与失败观察 |
-| interfaces/test_*driver、test_signal_driver | 驱动模板、接受/并发、信号所有权和单周期时序 |
-| interfaces/test_sampling_monitor、test_monitor_lifecycle | 快照、采样 phase、共享关闭和交付契约；特殊协议候选逻辑单独保留 |
-| interfaces/test_agent | 注册、部分启动、反向清理、异常与宿主隔离 |
-| interfaces/test_data_interfaces、test_protocols | 显式绑定、结构化数据及可选协议工具 |
-| integration/test_xcomm_backend | native half-step、wide/XZ、packed、IR 与订阅 |
-| integration/test_asyncio_*、test_driver_handoffs、test_http_integration | 阶段收敛、锁交接、外部 I/O 与任务边界 |
-| integration/test_*examples、test_agent_native、test_transaction_lifecycle_native | 复用文档 Driver/DUT 替身，在两种后端核对接受/响应 tick、失败与清理 |
-| integration/test_quickstart_tutorial | 主线各段与文档同步、故障练习退出码；native 示例由 CI 单独运行 |
-| integration/test_verification_flow | 覆盖采样、失败产物、预算与完整退出路径 |
-| coverage/ | bins、gates、cross、schema/merge、HTML/LCOV、跨 case 合并与报告命令 |
-| examples/getting_started、examples/transactions/test_pipeline_coverage.py | 用户完整示例，也在默认 testpaths 中执行 |
+| `runtime/` | 时钟等待、订阅、取消、事务、Scoreboard 和退出清理 |
+| `interfaces/` | 信号与 Bundle、Driver、Monitor、Agent 的行为 |
+| `integration/` | 原生后端、asyncio 交接、教程和完整使用流程 |
+| `coverage/` | bin、交叉覆盖、时序匹配、合并和报告 |
+| `runner/` | 多进程运行、自动收集、原生合并和失败时的文件保留 |
+| `release/` | 版本选择、打包和发布产物校验 |
+| `typing/` | 公共 API 的类型正例和错误用法 |
 
-[功能与回归索引](../docs/reference/feature-map.md)连接每类功能的用户指南、场景和回归。
-递进示例、故障练习和 native 选读见[入门代码](../examples/getting_started/README.md)。
-运行报告与覆盖数据保存在本地产物目录，不纳入 Git。
+入门示例和流水线覆盖示例也在默认测试范围内。
+[功能索引](../docs/reference/feature-map.md)列出指南、示例和对应回归。
 
-## 按未覆盖行补充用例
+## 新增测试
 
-行覆盖收敛以完整框架回归为基础，包括 MemoryBackend 和 native XClock；这组命令
-测量的是 `src/xreactor` 的 Python 代码，不包含 e203、Cache 等 DUT 的 RTL 行覆盖率。
+优先复用 `interfaces/conftest.py` 中的双后端时钟 fixture，
+以及 `integration/conftest.py` 中的 DUT 替身。
+
+测试应检查用户能观察到的结果：数据、接收时刻、异常、资源释放或报告内容。
+不要只断言某个私有函数被调用，也不要为了覆盖配置分支而复制整套场景。
+
+修复问题时，先添加能复现问题的测试，再修改实现。
+改动采样和生命周期后，检查取消、异常退出及第二次运行，不能只测一次正常结束。
+
+教程中的代码片段有自动检查。修改教程或示例时，要保持两者一致，
+并确认故意失败的练习仍报出文档说明的异常。
+
+## 查看 Python 覆盖率
 
 ```bash
 python3 -m pytest -q --require-xspcomm \
@@ -45,51 +49,9 @@ python3 -m pytest -q --require-xspcomm \
   --cov-report=html:output/python-coverage/html
 ```
 
-打开 `output/python-coverage/html/index.html`，从未执行的行定位遗漏行为。新增用例应
-验证正常结果、边界错误、失败后的资源释放或报告内容，再运行完整回归。开启分支覆盖时，
-pytest 的综合百分比不能当作行覆盖率；行覆盖率应按 JSON 的
-`totals.covered_lines / totals.num_statements` 计算，分支覆盖率单独计算。
+这测量的是框架的 Python 代码，不是外部 DUT 的 RTL。
+行覆盖率和分支覆盖率分别查看；不要把 pytest 显示的综合百分比当成行覆盖率。
+补用例时先判断遗漏了什么行为，不要直接调用私有函数或扩大排除规则来凑满数字。
 
-2026-10-02 在 Python 3.12 和 native 覆盖 ABI v3 上的实测如下。数字是当次运行记录，
-后续改动应重新生成报告。
-
-| 指标 | 补充前 | 本轮补充后 |
-| --- | --- | --- |
-| 通过的用例 | 560 | 873 |
-| Python 行覆盖率 | 5462 / 6021，90.72% | 6002 / 6024，99.63% |
-| Python 分支覆盖率 | 1745 / 2208，79.03% | 2144 / 2210，97.01% |
-| 未覆盖行 | 559 | 22 |
-
-本轮新增 313 个参数展开后的用例，覆盖数据定义、signal-tree 和 packed 布局、覆盖模型
-与快照校验、采样绑定与 native 回退、事务比较与接受流、组件生命周期和调度故障。
-同时复现并修复 `pytrigger` 拒绝异步返回值时未关闭协程的问题，两种后端都有回归。
-源码多出的 3 行来自这项清理修复；原有的 44 行覆盖排除未改动。
-
-目标仍是 100%，当前没有刷满。剩余 22 行应继续按以下原因审查，不应为了数字直接
-调用私有 helper、修改排除配置或删除保护条件：
-
-| 剩余位置 | 后续检查方向 |
-| --- | --- |
-| `backend.py`、`_coverage_runtime.py`、`coverage.py`、`data.py` | 检查重复防御分支的可达性；例如 native 常量和 Sequence 类型错误已被前置校验拒绝，覆盖恢复也先验证来源与计数结构 |
-| `_asyncio_observer.py`、`agent.py`、`async_drivers.py`、`execution.py` | 检查重复关闭、已结束事务和撤销时钟需求的调度路径 |
-| `monitors.py`、`reactor.py` | 抽象采样实现，以及订阅停止后在取消期间出现第二个异常的处理 |
-| `scoreboard.py` | `finish` 内部尾部超时保护的可达性：进入循环时已要求检查点不晚于尾部终点，而尾部终点不晚于总 deadline |
-
-这些用例已在默认 pytest 收集范围内。HTML 和 JSON 报告保存在本地，不会自动上传。
-
-## 精简与新增规则
-
-复用 integration/conftest 的 make_toy 和 interfaces/conftest 的双后端时钟 fixture。
-通用 Monitor 的关闭/容量/取消契约用同一个参数化场景检查两类 Monitor，协议特有的
-候选采样不合并。通用 Driver 的 Sync/Async 及 SingleCycle 时序不同，分别保留回归。
-
-新增测试应证明一个可观察行为或已复现问题：检查采样信号、事件 tick、结果/异常身份、
-资源释放或产物内容。不要仅断言私有 helper 被调用，不为每个配置分支复制一份测试。
-有真实子系统边界才放 integration；仅使用 asyncio 不足以将单元测试归为集成。
-
-当前测试包含纯 Python 与 native XClock 替身，不包含构建外部 RTL 的耗时环境。e203 与
-cache 的构建/执行命令在 examples/integration 对应 README，不能用 native 时钟通过
-宣称这些 RTL 已重新验证。
-
-框架回归结果使用 pytest 原生 verdict。覆盖示例让两个 case 贡献同一模型的部分场景，
-合并实际采样计数；不从测试标签推算功能覆盖。
+真实 RTL 的构建和测试见 `examples/integration/` 中的项目说明。
+原生时钟替身测试通过，不代表那些 RTL 已经重新运行。

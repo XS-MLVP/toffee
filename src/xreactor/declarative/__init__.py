@@ -1,4 +1,4 @@
-"""Experimental class-based functional coverage v2 authoring API.
+"""Class-based functional coverage declarations.
 
 Public names are scoped to this namespace. The existing xreactor coverage API
 and its execution/counting implementation remain available.

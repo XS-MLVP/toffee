@@ -1,7 +1,11 @@
-# Functional coverage 与统一报告
+# 功能覆盖率与报告
 
-Functional coverage 可以手动采样 Monitor 的事务，也可以绑定时钟或编译条件，
-由 Execution 管理采集。可编译的信号覆盖在 xcomm 中持续计数。
+功能覆盖率回答的是“哪些情况已经测到，哪些还没有”，不是“设计是否正确”。
+先从规格列出需要观察的情况，再定义 bin，并在实际事件发生时采样。
+
+可以对 Monitor 整理好的事务手动采样，也可以绑定信号和时钟，让 Execution 自动采集。
+下面先介绍直接定义覆盖组的写法；需要复用较大模型时，见[类声明](coverage-classes.md)。
+跨周期事件见[时序覆盖](coverage-patterns.md)，按编号统计延迟见[事务覆盖](coverage-transactions.md)。
 
 ## 定义 covergroup
 
@@ -52,7 +56,7 @@ coverage.assert_coverage(100.0)
 
 `details=False` 累计计数与运行证据，不返回本次采样的 bin 命中明细。
 
-环境可以给运行提供身份、上下文及事务采样契约，无需给 case 声明功能标签：
+环境可以给运行提供身份、上下文及事务采样规则，无需给 case 声明功能标签：
 
 ```python
 coverage = definition.instantiate(
@@ -68,7 +72,7 @@ coverage = definition.instantiate(
 
 普通 point/cross 命中以 `provenance[bin_id][origin_id]` 保存该来源的 count、首次和末次
 metadata，不保存全量事务。`origins` 关联 run_id、实例和 run_metadata。手动 sample 和
-Python collector 可以保存实际命中位置；native count sink 当前只保存运行关联和计数，
+Python 收集器 可以保存实际命中位置；原生计数器 当前只保存运行关联和计数，
 first/last 为 null，不把同步时间当成命中时间。未传 metadata 的普通命中也以 null 表示。
 
 ## Bin 类型
@@ -127,13 +131,13 @@ CoverageDatabase([states]).write_json("states.json")
 ```
 
 `bind()` 返回当前 CoverGroup，不创建新的公开组件。`fields` 的键对应 point 的
-`source` 和 Iff 的字段路径。native 支持 XData 的完整无符号位宽，包括超过 64 位的
+`source` 和 Iff 的字段路径。原生支持 XData 的完整无符号位宽，包括超过 64 位的
 值、范围、mask、转移、Iff 和同样本 cross。计数器仍为检查溢出的 64 位整数，
 与被观测信号的位宽无关。整个 group 一起选择执行路径：
 
 - `native`：不支持的输入在启动时报告错误；
 - `python`：明确逐 sample 回到 Python；
-- `auto`：优先 native，否则整组回退。报告的 `sampling_backend` 和
+- `auto`：优先原生，否则整组回退。报告的 `sampling_backend` 和
   `sampling_fallback` 给出实际路径及原因。
 
 采集本身不会推进时钟；用例仍需等待 Trigger 或执行已有的事务操作。多个 group
@@ -158,7 +162,7 @@ payload_bins = CoverPointDef("payload", {
 跳过普通命中并打断相邻转移；mask 的不关心位也不例外。非法值在命中当时保存，
 之后修改信号或延迟 `sync()` 不会改变诊断证据。超过信号取值域的无符号常量不会被
 截断：不可达的 value/transition 不命中，范围和 mask 按原始整数语义匹配。
-带符号值、宽信号算术表达式不在此次扩展范围，native 仍要求直接绑定 XData。
+带符号值、宽信号算术表达式不在此次扩展范围，原生仍要求直接绑定 XData。
 
 运行完整示例（两次运行的 bins/counts 应相同）：
 
@@ -186,10 +190,10 @@ for scenario in scenarios:
 
 | 操作 | 计数 | 未完成的匹配 |
 | --- | --- | --- |
-| `report()` / `sync()` | 从 native 同步，不重复累计 | 保留 |
+| `report()` / `sync()` | 从原生同步，不重复累计 | 保留 |
 | `clear_history()` | 保留 | 清空 |
-| `reset()` | 清空，同时更新 native 统计 epoch | 清空 |
-| Execution 退出 | 同步最终数据并保留 | 清空并释放 native 注册 |
+| `reset()` | 清空，同时更新原生统计 epoch | 清空 |
+| Execution 退出 | 同步最终数据并保留 | 清空并释放原生注册 |
 | 下次 Execution 进入 | 默认清空；`accumulate=True` 保留 | 始终重新开始 |
 
 运行中读取 `samples` 等直接统计字段前调用 `sync()`；`report()`、覆盖率查询及 JSON
@@ -221,7 +225,7 @@ Next 要求紧接的一次 sample 成功，失败即重新等待起点。Sequenc
 项目可显式传入 `abort=dut.abort_flag`，并把它放入 fields 的具名映射；abort 优先于
 同拍完成，清历史但保留计数。框架不推断信号的协议含义。`@pytrigger` 需要
 `contract="项目定义名称/v1"` 来标识自定义判断语义，始终走 Python 采样；其自定义闭包
-状态不由框架管理。采样契约不同的运行不能合并或继续累计。
+状态不由框架管理。采样规则不同的运行不能合并或继续累计。
 
 现有示例可直接运行：
 
@@ -230,8 +234,8 @@ python3 examples/coverage/functional_coverage.py --stateful
 python3 examples/coverage/functional_coverage.py --stateful --native --output state.json
 ```
 
-native 示例要求含 `XTriggerEngine.CoverageVersion() == 5` 的 xcomm Python binding。
-修改 C++ 后端后需同步重建 binding；旧版本下 `native` 在启动时失败，`auto` 整组回退。
+原生示例要求含 `XTriggerEngine.CoverageVersion() == 5` 的 xcomm Python 绑定。
+修改 C++ 后端后需同步重建 绑定；旧版本下 `native` 在启动时失败，`auto` 整组回退。
 
 ## 可选的并发匹配
 
@@ -260,7 +264,7 @@ group.bind(
   旧实例的完成不让新实例在同拍再前进一步。
 - 达到容量后又出现新起点会报错，报告标记 `collection_complete=False`；不静默忽略。
   已有计数保留，`assert_coverage()` 拒绝用不完整采集宣告达标。
-- 配置只能在 Execution 外修改；并发策略进入采样契约，不同策略的产物不能直接累计或合并。
+- 配置只能在 Execution 外修改；并发策略进入采样规则，不同策略的产物不能直接累计或合并。
 
 例如第 1、2 拍 start，第 3 拍 done，在上述窗口内会完成两次模式；group 也采样两次。
 两个实例共享同一个完成条件，不代表框架已把两笔事务与各自响应配对。按 key 区分事务、
@@ -308,7 +312,7 @@ async with Execution(backend, coverage=[group]):
 随后释放全部状态，不把普通关闭或外部取消计入业务 `aborted`。
 
 默认下次 Execution 重置统计；`accumulate=True` 保留计数及诊断，但不继承匹配历史。
-汇总合并对事件次数求和、对峰值取最大值。诊断开关不改变采样契约；混合开启和关闭的运行时，
+汇总合并对事件次数求和、对峰值取最大值。诊断开关不改变采样规则；混合开启和关闭的运行时，
 报告通过 `collected_runs` / `uncollected_runs` 标明诊断范围，未采集不能冒充零。
 `clear_history()` 保留统计并记录清除数量；`reset()` 同时重置覆盖计数、诊断和历史。
 

@@ -1,22 +1,21 @@
 # 版本、CI 与发布
 
 XReactor 的版本来自 Git tag，正式版本使用 `vX.Y.Z`。维护者不需要在源码中重复修改
-版本字符串：`v0.1.0` 构建为 `0.1.0`，后续未打 tag 的提交构建为开发版本。
+版本字符串：例如 `v1.0.0` 构建为 `1.0.0`，后续未打 tag 的提交构建为开发版本。
 `setuptools-scm` 只参与构建，使用已安装的包不需要 Git 或该工具。
 
 ## 提交与版本选择
 
 向 `main` 提交 PR 时，选择且只选择一个标签：
 
-| 标签 | 适用变化 | 从 0.1.0 开始的下一版本 |
+| 标签 | 适用变化 | 从 1.0.0 开始的下一版本 |
 | --- | --- | --- |
-| `release:patch` | 修复、文档或不改变公共契约的维护 | 0.1.1 |
-| `release:minor` | 新增公共能力，保留已有调用方式 | 0.2.0 |
-| `release:major` | 移除接口或改变已有语义 | 1.0.0 |
+| `release:patch` | 修复、文档或不改变已有用法的维护 | 1.0.1 |
+| `release:minor` | 新增公共能力，保留已有调用方式 | 1.1.0 |
+| `release:major` | 移除接口或改变已有语义 | 2.0.0 |
 
-没有正式 tag 时从 `0.0.0` 计算增量；首个功能 PR 使用 `release:minor`，产生
-`v0.1.0`。标签缺失或同时选择多个增量会使版本检查失败。默认分支是 `main`，
-与 Picker、xcomm 当前使用的 `master` 分开配置。
+没有正式 tag 时从 `0.0.0` 计算增量。标签缺失或同时选择多个增量会使版本检查失败。
+版本工作流针对默认分支 `main` 运行。
 
 PR 合并后，Version policy 工作流确认目标提交是 `main` 第一父链上的实际 PR 合并
 结果，再创建带注释的 tag。分支中的 tag、PR 内部提交和直接 push 不触发自动发布。
@@ -29,8 +28,8 @@ PR 合并后，Version policy 工作流确认目标提交是 `main` 第一父链
 
 | 检查 | 验收条件 |
 | --- | --- |
-| Python 3.11、3.12 | 安装包后执行完整回归，`--require-xspcomm` 不允许缺少 native 后端时跳过；同时运行文档中的 CLI 示例 |
-| native 依赖 | 从 `.github/native-dependencies.json` 读取完整提交 SHA 和预览包版本，构建 xcomm 并分别核对原生 ABI 与 coverage 描述协议 |
+| Python 3.11、3.12 | 安装包后执行完整回归，`--require-xspcomm` 不允许缺少原生后端时跳过；同时运行文档中的 CLI 示例 |
+| 原生依赖 | 从 `.github/native-dependencies.json` 读取完整提交 SHA 和预览包版本，构建 xcomm 并分别核对原生 ABI 与 coverage 描述协议 |
 | 用户文档 | `mkdocs build --strict` 通过 |
 | 分发包 | wheel 与源码包的名称、版本、报告模板一致，`twine check --strict` 通过 |
 | 源码包重建 | 在没有 Git 元数据的目录中重新构建 wheel，保留同一版本 |
@@ -54,7 +53,7 @@ Tagged release 接受 tag push、Version policy 的 dispatch 或维护者手动�
 发布包包括：
 
 - 一个纯 Python wheel 和一个源码包；
-- `RELEASE-MANIFEST.json`：包版本、源码 SHA、CI run ID、native 依赖 pin、各包的 SHA-256；
+- `RELEASE-MANIFEST.json`：包版本、源码 SHA、CI run ID、原生依赖 pin、各包的 SHA-256；
 - `SHA256SUMS`：分发包和清单的校验和。
 
 发布前再次核对清单、当前 tag、依赖、run ID 和文件集合。已有发布资产不覆盖；

@@ -19,7 +19,7 @@ nav:
       - 9. 看懂失败: getting-started/failures.md
       - 10. 功能覆盖率: getting-started/coverage.md
       - 选读：乱序响应: getting-started/out-of-order.md
-      - 选读：native 与项目 DUT: getting-started/native-and-next.md
+      - 选读：原生时钟与项目 DUT: getting-started/native-and-next.md
   - 仿真与事件:
       - Execution 与 Backend: guides/execution-and-backend.md
       - Trigger 与超时: guides/triggers.md
@@ -33,12 +33,12 @@ nav:
       - Scoreboard 与事务: guides/scoreboard.md
       - 可选协议视图: guides/protocols.md
   - 覆盖率与运行:
-      - 统一 CLI 与多 worker: guides/runner.md
-      - Functional coverage: guides/coverage.md
-      - Coverage v2 草稿：类声明: guides/coverage-v2.md
-      - Coverage v2 草稿：协议绑定: guides/coverage-v2-protocol.md
-      - Coverage v2 草稿：xtrigger 与原生适配: guides/coverage-v2-trigger-bins.md
-      - Coverage v2 草稿：程序回收与表达式审查: guides/coverage-v2-engine-audit.md
+      - 运行测试与汇总覆盖率: guides/runner.md
+      - 功能覆盖率: guides/coverage.md
+      - 用类定义覆盖模型: guides/coverage-classes.md
+      - 事务覆盖: guides/coverage-transactions.md
+      - 时序覆盖: guides/coverage-patterns.md
+      - 原生表达式与资源管理: guides/expressions-and-resources.md
       - 功能点与跨用例覆盖: guides/functional-points.md
       - 报告与运行产物: guides/verification-flow.md
       - 外部 asyncio 集成: guides/asyncio-and-pytest.md

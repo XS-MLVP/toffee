@@ -1,8 +1,8 @@
-# Agent 与 reference model
+# Agent 与参考模型
 
-Agent 是接口实例：封装可选的 Driver 和具名 Monitor，提供 send、submit、recv 和响应
-检查入口。环境构造时创建 Agent、连接模型，再把实例交给 Execution。普通用例通过
-Agent 操作接口，不需要拆出内部组件接线，也不进入 Agent context。
+Agent 把同一接口的 Driver、Monitor 和检查配置放在一起。
+环境负责创建 Agent、连接参考模型，再交给 Execution 启动和关闭。
+测试只需发送请求、等待完成并检查结果，不必每次重新连接这些组件。
 
 ```python
 model = AccumulatorModel()

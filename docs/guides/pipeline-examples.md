@@ -37,13 +37,13 @@ python3 examples/transactions/pipeline.py
 python3 examples/transactions/pipeline.py --case overlap
 ```
 
-有 native binding 时，同一组代码也可以运行在真实 XClock 上：
+有原生绑定 时，同一组代码也可以运行在真实 XClock 上：
 
 ```bash
 python3 examples/transactions/pipeline.py --backend native
 ```
 
-这验证 native 调度，不需要 RTL。若 binding 位于构建目录，先按
+这验证原生调度，不需要 RTL。若 绑定 位于构建目录，先按
 [安装指南](../getting-started/installation.md)配置 PYTHONPATH；pytest 的本地构建自动
 发现不会应用到普通脚本。
 
@@ -279,10 +279,10 @@ capacity 不是流水级数，max_active 也不是最多在途响应数。
 python3 -m pytest -q tests/integration/test_pipeline_examples.py --require-xspcomm
 ```
 
-这些回归分别在 MemoryBackend 和 native XClock 上验证：连续输入无空拍、三笔
+这些回归分别在 MemoryBackend 和原生 XClock 上验证：连续输入无空拍、三笔
 响应同时在途、固定延迟截止周期成功、两种 Driver 在 max_active=1/2 下的真实采样、
 阶段资源互斥、FIFO 变延迟、倒序 key 匹配，以及四种预期失败。
-还检查任务、watcher、backend 租约、信号 idle 与 native 回调的清理。
+还检查任务、watcher、backend 租约、信号 idle 与原生回调的清理。
 
 `tests/integration/test_driver_handoffs.py` 另外覆盖无手动 yield 的级联锁交接、
 DriveStable 前的写入、并发名额交接、公平性、取消、异常，以及外部任务不阻塞仿真。

@@ -54,7 +54,7 @@
 
 ## 数据
 
-- native 条件支持任意位宽无符号 XData；
+- 原生条件支持任意位宽无符号 XData；
 - 常量必须能由目标信号位宽表示；
 - `ValueChange` 比较四态值的 aval/bval；
 - 编译表达式暂不提供 signed 运算。
@@ -63,7 +63,7 @@
 
 - 一个 `XCommClockBackend` 对应一个 clock domain；
 - Sequence 采用非重叠匹配；
-- `@pytrigger` 在每个 sample phase 执行 Python predicate；
+- `@pytrigger` 在每个 sample phase 执行 Python 条件函数；
 - Backend 不能同时用于多个 active `Execution`；
 - Backend、XClock 和 DUT signal 不支持跨线程并发访问；
 - `Bundle` 和具体通道视图需要显式绑定；不存在通用 `Interface` 基类；

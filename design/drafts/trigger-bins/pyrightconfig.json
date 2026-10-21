@@ -1,0 +1,7 @@
+{
+  "include": ["api.pyi", "example.py"],
+  "extraPaths": ["../../../src", "../../.."],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "strict",
+  "reportMissingModuleSource": "none"
+}

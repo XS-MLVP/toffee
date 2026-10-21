@@ -8,6 +8,7 @@ from typing import Any
 
 from .events import LogicValue
 from .signals import as_xdata, sample_signal, signal_width, write_signal
+from .signals import compile_signal_sampler
 
 DataNode = Any
 ValueNode = Any
@@ -523,7 +524,7 @@ class Bundle(Mapping[str, DataNode]):
 
     __slots__ = ("_fields", "_path")
     _reserved = frozenset(
-        {"drive", "fields", "items", "keys", "leaves", "sample", "values"}
+        {"drive", "fields", "items", "keys", "leaves", "sample", "values", "compile_sampler"}
     )
 
     def __init__(
@@ -579,6 +580,15 @@ class Bundle(Mapping[str, DataNode]):
         return BundleValue(
             tuple((name, _sample_node(value)) for name, value in self.items())
         )
+
+    def compile_sampler(self):
+        """Compile repeated sampling for this fixed tree and signal widths.
+
+        Only structure and getters are cached. Every invocation reads fresh
+        values and returns the same immutable BundleValue as sample(). Rebuild
+        the sampler if leaves, getter implementations or widths are rebound.
+        """
+        return compile_sampler(self)
 
     def drive(self, value: Mapping[str, Any] | "BundleValue") -> None:
         if not isinstance(value, Mapping):
@@ -803,6 +813,23 @@ def normalize_data(node: DataNode, path: str = "data") -> DataNode:
 
 def sample_data(node: DataNode) -> ValueNode:
     return _sample_node(node)
+
+
+def compile_sampler(node: DataNode):
+    """Compile fresh sampling of a fixed DataNode tree and declared widths.
+
+    Packed views retain their normal wide/four-state path. Leaves without
+    explicit widths retain dynamic width inference. Recompile after rebinding.
+    """
+    if isinstance(node, Bundle):
+        fields = tuple((name, compile_sampler(value)) for name, value in node.items())
+        return lambda: BundleValue(tuple((name, sample()) for name, sample in fields))
+    if isinstance(node, (PackedView, PackedArray)):
+        return lambda: _sample_node(node)
+    if isinstance(node, tuple):
+        samplers = tuple(compile_sampler(value) for value in node)
+        return lambda: tuple(sample() for sample in samplers)
+    return compile_signal_sampler(node)
 
 
 def drive_data(node: DataNode, value: Any, path: str = "data") -> None:

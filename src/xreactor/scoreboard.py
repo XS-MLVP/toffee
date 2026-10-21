@@ -836,6 +836,30 @@ def _positive_cycles(value: int) -> None:
         raise ValueError("timeout_cycles must be a positive integer")
 
 
+_PLAIN_SCALARS = frozenset((type(None), bool, int, float, complex, str, bytes, bytearray))
+
+
+def _plain_equal(wanted: Any, got: Any) -> bool:
+    """Positive-only fast path for ordinary sampled Python values.
+
+    Do not trust container equality for arbitrary objects: dataclass equality
+    may omit fields and list equality accepts identical NaNs. Unsupported
+    values and mismatches always use the diagnostic structural walk below.
+    """
+    wanted_type, got_type = type(wanted), type(got)
+    if wanted_type in _PLAIN_SCALARS and got_type in _PLAIN_SCALARS:
+        return wanted == got
+    if wanted_type in (list, tuple) and got_type in (list, tuple):
+        return len(wanted) == len(got) and all(
+            _plain_equal(left, right) for left, right in zip(wanted, got)
+        )
+    if wanted_type is dict and got_type is dict:
+        return wanted.keys() == got.keys() and all(
+            _plain_equal(value, got[key]) for key, value in wanted.items()
+        )
+    return False
+
+
 def structural_differences(
     expected: Any,
     actual: Any,
@@ -844,6 +868,8 @@ def structural_differences(
 ) -> tuple[Difference, ...]:
     """Return deterministic leaf differences for common transaction values."""
 
+    if limit > 0 and _plain_equal(expected, actual):
+        return ()
     differences: list[Difference] = []
 
     def visit(wanted: Any, got: Any, path: str) -> None:

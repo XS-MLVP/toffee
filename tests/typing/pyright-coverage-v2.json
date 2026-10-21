@@ -1,0 +1,6 @@
+{
+  "include": ["coverage_v2_positive.py", "coverage_v2_protocol_positive.py", "coverage_v2_trigger_positive.py"],
+  "extraPaths": ["../../src", "../.."],
+  "typeCheckingMode": "strict",
+  "pythonVersion": "3.11"
+}

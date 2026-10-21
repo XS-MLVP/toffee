@@ -30,7 +30,7 @@ PR 合并后，Version policy 工作流确认目标提交是 `main` 第一父链
 | 检查 | 验收条件 |
 | --- | --- |
 | Python 3.11、3.12 | 安装包后执行完整回归，`--require-xspcomm` 不允许缺少 native 后端时跳过；同时运行文档中的 CLI 示例 |
-| native 依赖 | 从 `.github/native-dependencies.json` 读取完整提交 SHA，构建 xcomm 并核对 coverage ABI |
+| native 依赖 | 从 `.github/native-dependencies.json` 读取完整提交 SHA 和预览包版本，构建 xcomm 并分别核对原生 ABI 与 coverage 描述协议 |
 | 用户文档 | `mkdocs build --strict` 通过 |
 | 分发包 | wheel 与源码包的名称、版本、报告模板一致，`twine check --strict` 通过 |
 | 源码包重建 | 在没有 Git 元数据的目录中重新构建 wheel，保留同一版本 |

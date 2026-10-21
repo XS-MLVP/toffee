@@ -230,7 +230,7 @@ python3 examples/coverage/functional_coverage.py --stateful
 python3 examples/coverage/functional_coverage.py --stateful --native --output state.json
 ```
 
-native 示例要求含 `XTriggerEngine.CoverageVersion() == 3` 的 xcomm Python binding。
+native 示例要求含 `XTriggerEngine.CoverageVersion() == 5` 的 xcomm Python binding。
 修改 C++ 后端后需同步重建 binding；旧版本下 `native` 在启动时失败，`auto` 整组回退。
 
 ## 可选的并发匹配

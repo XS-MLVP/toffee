@@ -20,10 +20,14 @@ Agent 封装接口并连接参考模型，Scoreboard 核对事务；Execution �
 动手修改练习。已有经验、只想查某个功能时，
 再使用下方指南。
 
+已有 Toffee 验证环境，准备迁移到采用 xreactor 实现的 Toffee v2 时，阅读
+[Toffee v2 迁移说明](guides/toffee-v2-migration.md)，核对 API 对应关系、采样和模型更新语义。
+
 ## 按使用场景找功能
 
 | 要完成的工作 | 功能指南 |
 | --- | --- |
+| 用统一 CLI 启动多 worker，自动汇总覆盖率并回收中间产物 | [统一 CLI 与多 worker](guides/runner.md) |
 | 启动/退出仿真、复用 backend、配置推进预算 | [Execution 与 Backend](guides/execution-and-backend.md) |
 | 等待时钟、信号条件、超时或多个事件 | [Trigger](guides/triggers.md) |
 | 在 native 引擎识别条件、时间窗口和状态机 | [编译条件、Sequence、FSM](guides/compiled-triggers.md) |

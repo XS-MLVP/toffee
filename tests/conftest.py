@@ -46,6 +46,9 @@ def _native_api_error() -> str | None:
         return "xspcomm.XClock.StepHalf is unavailable"
     if not hasattr(xspcomm, "XTriggerEngine"):
         return "xspcomm.XTriggerEngine is unavailable"
+    for method in ("AcquireClock", "ReleaseClock", "CollectExpressions", "ExprNewBits", "ExprNewBool", "ExprEvalBits"):
+        if not hasattr(xspcomm.XTriggerEngine, method):
+            return f"xspcomm.XTriggerEngine.{method} is unavailable; use the matching native draft"
     return None
 
 

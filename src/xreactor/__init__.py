@@ -10,7 +10,7 @@ from .backend import (
     XCommClockBackend,
 )
 from ._asyncio_observer import SimulationNotSettledError
-from .decorators import pytrigger, xtrigger
+from .decorators import PythonTriggerDefinition, TriggerDefinition, pytrigger, xtrigger
 from .components import Driver, Monitor, SignalDriver
 from .agent import Agent
 from .scoreboard import (
@@ -72,6 +72,9 @@ from .events import (
     XPhase,
 )
 from .ir import (
+    bits,
+    BitsType,
+    BoolType,
     FSM,
     FsmSpec,
     Hold,
@@ -116,6 +119,9 @@ from .triggers import (
 )
 
 __all__ = [
+    "bits",
+    "BitsType",
+    "BoolType",
     "Agent",
     "SimulationNotSettledError",
     "AcceptedDriver",
@@ -238,6 +244,8 @@ __all__ = [
     "split_packed",
     "structural_differences",
     "xtrigger",
+    "TriggerDefinition",
+    "PythonTriggerDefinition",
     "drive_ready_valid",
 ]
 

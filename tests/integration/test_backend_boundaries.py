@@ -5,10 +5,10 @@ from types import SimpleNamespace
 import pytest
 
 from xreactor import (
-    ClockCycles, DriveStable, Execution, FallingEdge, MemoryBackend, RisingEdge,
-    RunLimit, SimTimeout, Value, ValueChange, XCommClockBackend, XEventKind, pytrigger, FSM, State,
+    Bundle, ClockCycles, DriveStable, Execution, FallingEdge, MemoryBackend, RisingEdge,
+    RunLimit, SimTimeout, Value, ValueChange, XCommClockBackend, XEventKind, pytrigger, xtrigger, FSM, State,
 )
-from xreactor.ir import BinaryExpr, BoundSignalExpr, ConstantExpr, SignalExpr, UnaryExpr, XExpr
+from xreactor.ir import BinaryExpr, BoundSignalExpr, ConstantExpr, SignalExpr, UnaryExpr, XExpr, signal_expr
 from xreactor.triggers import CompiledTrigger, XTrigger
 
 
@@ -36,6 +36,36 @@ def test_stale_handles_and_closed_backend(backend):
                       lambda: backend.run_until(RunLimit())):
         with pytest.raises(RuntimeError, match="closed"):
             operation()
+
+
+@pytest.mark.parametrize("bound", [False, True])
+def test_bundle_expression_builder_reuses_symbolic_and_live_leaves(backend, bound):
+    if isinstance(backend, MemoryBackend):
+        signal = SimpleNamespace(value=0, width=1)
+
+        def set_value(value):
+            signal.value = value
+    else:
+        import xspcomm
+        signal = xspcomm.XData(1, xspcomm.XData.InOut)
+        set_value = signal.Set
+    ports = Bundle(flag=signal)
+    assert ports.flag is signal
+    if bound:
+        expression = signal_expr(ports.flag)
+        assert signal_expr(expression) is expression
+        trigger = CompiledTrigger("bound", None, expression, RisingEdge(backend.clock))
+    else:
+        @xtrigger(sample=RisingEdge(backend.clock))
+        def condition(bundle):
+            return signal_expr(bundle.flag)
+        trigger = condition(ports)
+        assert isinstance(trigger.program, SignalExpr)
+    handle = backend.arm(trigger)
+    assert not backend.run_until(RunLimit(max_ticks=2)).hits
+    set_value(1)
+    assert backend.run_until(RunLimit(max_ticks=2)).hits[0].kind is XEventKind.CONDITION
+    assert backend.disarm(handle)
 
 
 def test_countdown_and_value_change_rearm_in_memory():
@@ -105,7 +135,7 @@ def native():
     (ConstantExpr(-1), "negative constants"),
     (ConstantExpr(1 << 64), "fit uint64"),
     (UnaryExpr("negate", ConstantExpr(1)), "unary op"),
-    (BinaryExpr("add", ConstantExpr(1), ConstantExpr(2)), "binary op"),
+    (BinaryExpr("unsupported_add", ConstantExpr(1), ConstantExpr(2)), "binary op"),
     (XExpr(), "IR node"),
 ])
 def test_native_expression_errors_do_not_allocate_watchers(native, expression, message):

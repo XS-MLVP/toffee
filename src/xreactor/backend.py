@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from collections import OrderedDict
+from contextlib import contextmanager
 from enum import Enum
 import importlib
 import time
@@ -11,6 +13,10 @@ from .signals import read_signal, sample_signal, signal_identity
 from .ir import (
     BoundSignalExpr,
     BinaryExpr,
+    BitsConstExpr,
+    BitsType,
+    BoolType,
+    CastExpr,
     ConstantExpr,
     FsmSpec,
     HoldStep,
@@ -26,6 +32,9 @@ from .ir import (
     _advance_sequence,
     _condition_known,
     _evaluate_condition,
+    _operand_types,
+    _uses_typed,
+    expression_type,
 )
 from .triggers import (
     ClockCycles,
@@ -541,6 +550,7 @@ class XCommClockBackend:
         *,
         on_phase: Callable[[XPhase, int], None] | None = None,
         capacity: int = 1024,
+        program_cache_capacity: int = 256,
     ) -> None:
         required = ("StepHalf", "GetHalfTick", "GetPhase")
         missing = [name for name in required if not hasattr(clock, name)]
@@ -555,6 +565,8 @@ class XCommClockBackend:
             )
         if capacity <= 0:
             raise ValueError("capacity must be positive")
+        if program_cache_capacity < 0:
+            raise ValueError("program_cache_capacity must be nonnegative")
         try:
             xspcomm = importlib.import_module(type(clock).__module__)
         except ImportError as error:
@@ -569,9 +581,18 @@ class XCommClockBackend:
         self.clock = clock
         self._xspcomm = xspcomm
         self._engine = xspcomm.XTriggerEngine(clock, capacity)
+        if not hasattr(self._engine, "AcquireClock"):
+            raise RuntimeError("xspcomm was built without XEngine clock ownership support; rebuild xcomm")
         self._native_handles: dict[tuple[int, int], Any] = {}
         self._triggers: dict[tuple[int, int], XTrigger[Any]] = {}
-        self._program_cache: dict[tuple[Any, ...], tuple[str, Any]] = {}
+        self._program_cache: OrderedDict[tuple[Any, ...], Any] = OrderedDict()
+        self._program_cache_capacity = program_cache_capacity
+        # Cached native roots borrow XData pointers: keep their bindings alive.
+        self._program_cache_sources: dict[tuple[Any, ...], CompiledTrigger] = {}
+        self._compile_depth = 0
+        self._collection_pending = False
+        self._transaction_new_keys: list[tuple[Any, ...]] = []
+        self._collection_threshold = 256
         self._python_last_condition: dict[tuple[int, int], bool] = {}
         self._coverage_collectors: list[Any] = []
         self.tick = int(clock.GetHalfTick())
@@ -580,17 +601,35 @@ class XCommClockBackend:
         self._owner: object | None = None
 
     def acquire(self, owner: object) -> None:
+        if self._closed:
+            raise RuntimeError("backend is closed")
         if self._owner is not None and self._owner is not owner:
             raise RuntimeError("backend instance already has an active Execution")
+        if self._owner is None and self._native_handles:
+            raise RuntimeError("disarm standalone registrations before entering Execution")
+        self._engine.AcquireClock()
+        self.tick = int(self.clock.GetHalfTick())
+        self.phase = _xcomm_phase(self.clock.GetPhase())
         self._owner = owner
 
     def release(self, owner: object) -> None:
         if self._owner is owner:
+            self._engine.ReleaseClock()
             self._owner = None
 
     def arm(self, trigger: XTrigger[Any]) -> BackendHandle:
+        if isinstance(trigger, CompiledTrigger):
+            with self._expression_transaction():
+                return self._arm(trigger)
+        return self._arm(trigger)
+
+    def _arm(self, trigger: XTrigger[Any]) -> BackendHandle:
         if self._closed:
             raise RuntimeError("backend is closed")
+        # Standalone backend calls hold the same native lease until close().
+        # Execution takes it eagerly in acquire(), before registering work.
+        self._engine.AcquireClock()
+        cache_key = None
         native_phase: Any
         if isinstance(trigger, RisingEdge):
             self._require_clock_source(trigger.source)
@@ -663,38 +702,15 @@ class XCommClockBackend:
             )
             compiled = self._program_cache.get(cache_key)
             if compiled is None:
-                if isinstance(trigger.program, FsmSpec):
-                    compiled = (
-                        "fsm",
-                        self._lower_fsm(trigger.program, trigger.dut),
-                    )
-                elif isinstance(trigger.program, SequenceSpec):
-                    compiled = (
-                        "sequence",
-                        self._lower_sequence(trigger.program, trigger.dut),
-                    )
-                else:
-                    compiled = (
-                        "expr",
-                        self._lower_expr(trigger.program, trigger.dut),
-                    )
-                self._program_cache[cache_key] = compiled
-            kind, program = compiled
-            if kind == "fsm":
-                state_count, start_state, transitions = program
-                native = self._engine.ArmFsm(
-                    state_count, start_state, transitions, native_phase
-                )
-            elif kind == "sequence":
-                native = self._engine.ArmSequence(
-                    program, native_phase
-                )
+                compiled = self._lower_program(trigger.program, trigger.dut)
+            if compiled.kind == self._xspcomm.XTriggerProgramKind_Fsm:
+                native = self._engine.ArmFsm(compiled.state_count, compiled.start_state,
+                                            compiled.transitions, native_phase)
+            elif compiled.kind == self._xspcomm.XTriggerProgramKind_Sequence:
+                native = self._engine.ArmSequence(compiled.steps, native_phase)
             else:
-                native = self._engine.ArmExpr(
-                    program,
-                    native_phase,
-                    self._native_condition_mode(trigger.mode),
-                )
+                native = self._engine.ArmExpr(compiled.root, native_phase,
+                                             self._native_condition_mode(trigger.mode))
         elif isinstance(trigger, PythonPredicateTrigger):
             native_phase = self._native_sample_phase(trigger.sample)
             native = self._engine.ArmSample(native_phase)
@@ -710,6 +726,15 @@ class XCommClockBackend:
         key = (handle.slot, handle.generation)
         self._native_handles[key] = native
         self._triggers[key] = trigger
+        if cache_key is not None and self._program_cache_capacity:
+            if self._compile_depth and cache_key not in self._program_cache:
+                self._transaction_new_keys.append(cache_key)
+            self._program_cache[cache_key] = compiled
+            self._program_cache.move_to_end(cache_key)
+            self._program_cache_sources[cache_key] = trigger
+            while len(self._program_cache) > self._program_cache_capacity:
+                evicted, _ = self._program_cache.popitem(last=False)
+                del self._program_cache_sources[evicted]
         if isinstance(trigger, PythonPredicateTrigger):
             self._python_last_condition[key] = False
         return handle
@@ -721,7 +746,61 @@ class XCommClockBackend:
         self._python_last_condition.pop(key, None)
         if native is None:
             return False
-        return bool(self._engine.Disarm(native))
+        result = bool(self._engine.Disarm(native))
+        self._collect_expressions()
+        return result
+
+    @contextmanager
+    def _expression_transaction(self):
+        if not self._compile_depth:
+            self._transaction_new_keys.clear()
+        self._compile_depth += 1
+        try:
+            yield
+        except BaseException:
+            self._collection_pending = True
+            raise
+        finally:
+            self._compile_depth -= 1
+            if not self._compile_depth:
+                force = self._collection_pending
+                if force:
+                    for key in self._transaction_new_keys:
+                        self._program_cache.pop(key, None)
+                        self._program_cache_sources.pop(key, None)
+                self._transaction_new_keys.clear()
+                self._collection_pending = False
+                self._collect_expressions(force=force)
+
+    def _collect_expressions(self, *, force: bool = False) -> None:
+        if self._compile_depth or not hasattr(self._engine, "CollectExpressions"):
+            return
+        if not force and self._engine.ExpressionNodeCount() < self._collection_threshold:
+            return
+        roots = []
+        for program in self._program_cache.values():
+            roots.append(int(program.root))
+            roots.extend(int(part.root) for part in program.steps)
+            roots.extend(int(part.root) for part in program.transitions)
+        mapping = self._engine.CollectExpressions(self._xspcomm.XIntVector(roots))
+        for program in self._program_cache.values():
+            if program.root >= 0:
+                program.root = int(mapping[program.root])
+            for parts in (program.steps, program.transitions):
+                for index in range(len(parts)):
+                    part = parts[index]
+                    if part.root >= 0:
+                        part.root = int(mapping[part.root])
+                    parts[index] = part
+        self._collection_threshold = max(256, int(self._engine.ExpressionNodeCount()) * 2)
+
+    def collect_programs(self) -> None:
+        """Collect unused programs at a stable, non-compiling runtime boundary."""
+        if self._closed or self._compile_depth:
+            raise RuntimeError("program collection requires an open, non-compiling backend")
+        if not hasattr(self._engine, "CollectExpressions"):
+            raise NotImplementedError("xcomm lacks expression collection; rebuild the draft native branch")
+        self._collect_expressions(force=True)
 
     def rearm(self, handle: BackendHandle) -> bool:
         native = self._native_handles.get(
@@ -734,6 +813,7 @@ class XCommClockBackend:
     def run_until(self, limit: RunLimit) -> RunResult:
         if self._closed:
             raise RuntimeError("backend is closed")
+        self._engine.AcquireClock()
         wall_time_ns = (
             0
             if limit.max_wall_time_ms is None
@@ -835,6 +915,8 @@ class XCommClockBackend:
         self._native_handles.clear()
         self._triggers.clear()
         self._program_cache.clear()
+        self._program_cache_sources.clear()
+        self._collection_threshold = 256
         self._python_last_condition.clear()
         self.tick = int(self.clock.GetHalfTick())
         self.phase = _xcomm_phase(self.clock.GetPhase())
@@ -842,12 +924,14 @@ class XCommClockBackend:
     def close(self) -> None:
         if self._closed:
             return
-        if self._coverage_collectors:
-            raise RuntimeError("close the owning Execution before closing its coverage backend")
+        if self._owner is not None or self._coverage_collectors:
+            raise RuntimeError("release the owning Execution before closing its backend")
         self._engine.Clear()
+        self._engine.ReleaseClock()
         self._native_handles.clear()
         self._triggers.clear()
         self._program_cache.clear()
+        self._program_cache_sources.clear()
         self._python_last_condition.clear()
         self._closed = True
 
@@ -1015,6 +1099,15 @@ class XCommClockBackend:
         )
 
     def _lower_expr(self, expression: XExpr, dut: Any) -> int:
+        if _uses_typed(expression):
+            if not hasattr(self._engine, "ExprNewBits"):
+                raise NotImplementedError("typed expressions require the draft xcomm Bits API; rebuild xcomm")
+            kind = expression_type(expression, dut)
+            root = self._lower_typed_expr(expression, dut)
+            if isinstance(kind, BitsType):
+                root = int(self._engine.ExprNewBits(self._xspcomm.ExprOp_LNOT, root, -1, 1, False))
+                root = int(self._engine.ExprNewBits(self._xspcomm.ExprOp_LNOT, root, -1, 1, False))
+            return root
         if isinstance(expression, ConstantExpr):
             if not isinstance(expression.value, (bool, int)):
                 raise TypeError(
@@ -1120,6 +1213,35 @@ class XCommClockBackend:
             f"{type(expression).__name__}"
         )
 
+    def _lower_typed_expr(self, expression: XExpr, dut: Any, context: BitsType | None = None) -> int:
+        kind = expression_type(expression, dut, context)
+        width, signed = (kind.width, kind.signed) if isinstance(kind, BitsType) else (1, False)
+        if isinstance(expression, (ConstantExpr, BitsConstExpr)):
+            if isinstance(kind, BoolType):
+                return int(self._engine.ExprNewBool(bool(expression.value)))
+            encoded = (int(expression.value) & ((1 << width) - 1)).to_bytes((width + 7) // 8, "little")
+            return int(self._engine.ExprNewBitsConst(width, signed, encoded))
+        if isinstance(expression, (SignalExpr, BoundSignalExpr)):
+            signal = resolve_path(dut, expression.path) if isinstance(expression, SignalExpr) else expression.signal
+            return int(self._engine.ExprNewBitsSignal(self._native_xdata(signal, "typed expression signal"), signed))
+        if isinstance(expression, CastExpr):
+            lhs = self._lower_typed_expr(expression.operand, dut)
+            return int(self._engine.ExprNewBits(self._xspcomm.ExprOp_CAST, lhs, -1, width, signed))
+        operations = {"not": "LNOT", "bit_not": "BNOT", "neg": "SUB", "and": "LAND", "or": "LOR",
+                      "add": "ADD", "sub": "SUB", "mul": "MUL", "div": "DIV", "mod": "MOD",
+                      "bit_and": "BAND", "bit_or": "BOR", "bit_xor": "BXOR", "shl": "SHL", "shr": "SHR",
+                      "eq": "EQ", "ne": "NE", "lt": "LT", "le": "LE", "gt": "GT", "ge": "GE"}
+        if isinstance(expression, UnaryExpr):
+            lhs, rhs = self._lower_typed_expr(expression.operand, dut), -1
+        elif isinstance(expression, BinaryExpr):
+            a, b = _operand_types(expression, dut)
+            lhs = self._lower_typed_expr(expression.left, dut, a if isinstance(a, BitsType) else None)
+            rhs = self._lower_typed_expr(expression.right, dut, b if isinstance(b, BitsType) else None)
+        else:
+            raise TypeError(f"unsupported typed expression {type(expression).__name__}")
+        return int(self._engine.ExprNewBits(getattr(self._xspcomm, "ExprOp_" + operations[expression.op]),
+                                          lhs, rhs, width, signed))
+
     def _program_key(
         self, program: XExpr | SequenceSpec | FsmSpec, dut: Any, phase: int
     ) -> tuple[Any, ...]:
@@ -1158,6 +1280,10 @@ class XCommClockBackend:
         return ("expr", phase, self._expr_key(program, dut))
 
     def _expr_key(self, expression: XExpr, dut: Any) -> tuple[Any, ...]:
+        if isinstance(expression, BitsConstExpr):
+            return ("bits-constant", expression.value, expression.width, expression.signed)
+        if isinstance(expression, CastExpr):
+            return ("cast", expression.width, expression.signed, self._expr_key(expression.operand, dut))
         if isinstance(expression, ConstantExpr):
             value = expression.value
             if not isinstance(value, (bool, int)):
@@ -1165,15 +1291,16 @@ class XCommClockBackend:
                     "@xtrigger native constants must be bool or int, got "
                     f"{type(value).__name__}"
                 )
-            return ("const", int(value))
+            return ("const", type(value).__name__, int(value))
         if isinstance(expression, SignalExpr):
             signal = resolve_path(dut, expression.path)
-            return ("signal", expression.path, id(signal))
+            from .signals import signal_width
+            return ("signal", expression.path, id(signal), signal_width(signal))
         if isinstance(expression, BoundSignalExpr):
             native_signal = self._native_xdata(
                 expression.signal, "bound expression signal"
             )
-            return ("bound-signal", signal_identity(native_signal))
+            return ("bound-signal", signal_identity(native_signal), int(native_signal.W()) or 1)
         if isinstance(expression, UnaryExpr):
             return (
                 "unary",
@@ -1191,6 +1318,20 @@ class XCommClockBackend:
             "unsupported @xtrigger IR node: "
             f"{type(expression).__name__}"
         )
+
+    def _lower_program(self, program: Any, dut: Any) -> Any:
+        """One native program compiler for ordinary waits and coverage bins."""
+        native = self._xspcomm.XTriggerProgram()
+        native.overlap = False
+        if isinstance(program, FsmSpec):
+            native.kind = self._xspcomm.XTriggerProgramKind_Fsm
+            native.state_count, native.start_state, native.transitions = self._lower_fsm(program, dut)
+        elif isinstance(program, SequenceSpec):
+            native.kind = self._xspcomm.XTriggerProgramKind_Sequence
+            native.steps = self._lower_sequence(program, dut)
+        else:
+            native.root = self._lower_expr(program, dut)
+        return native
 
     def _lower_sequence(self, sequence: SequenceSpec, dut: Any) -> Any:
         native_steps = self._xspcomm.XSequenceStepVector()

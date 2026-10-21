@@ -14,9 +14,18 @@ authors = [{name = "XS-MLVP"}]
 dependencies = []
 
 [project.optional-dependencies]
+runner = [
+    "pytest>=8",
+    "pytest-asyncio>=0.23",
+    "pytest-xdist>=3.6,<4",
+]
+native = [
+    "xspcomm>=0.3.0.dev3,<0.4",
+]
 test = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
+    "pytest-xdist>=3.6,<4",
     "pytest-cov>=5",
 ]
 docs = [
@@ -24,13 +33,14 @@ docs = [
 ]
 
 [project.scripts]
+xreactor = "xreactor.cli:main"
 xreactor-coverage-report = "xreactor.coverage_report:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-xreactor = ["templates/*.html", "templates/*.css"]
+xreactor = ["templates/*.html", "templates/*.css", "py.typed"]
 
 [tool.setuptools_scm]
 fallback_version = "0.1.0.dev0"

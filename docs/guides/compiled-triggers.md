@@ -20,6 +20,10 @@ event = await handshake(dut)
 布尔组合必须使用 `&`、`|`、`~`，不能使用 Python `and`、`or`、`not`。支持信号、
 无符号常量和比较表达式；位宽检查发生在 arm/lowering 阶段。
 
+配套 coverage v2 原生草稿另外支持 `as_signed()`、`as_unsigned()`、`resize()` 和
+固定宽度数据运算，详见[两态表达式规则](coverage-v2-engine-audit.md)。
+逻辑 `&`、`|`、`~` 保持原含义，位运算使用 `bit_and/or/xor/not()`。
+
 装饰器只声明规格，调用 `handshake(dut)` 才生成绑定 DUT 的 Trigger。`sample` 可以写
 真实 phase trigger，也可以像上例一样使用 DUT 属性路径字符串。
 

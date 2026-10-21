@@ -267,11 +267,63 @@ class TransitionMatcher:
         return {"type": "transition", "values": list(self.values), "overlap": self.overlap}
 
 
-Matcher = ValueMatcher | RangeMatcher | WildcardMatcher | DefaultMatcher | TransitionMatcher
+@dataclass(frozen=True, slots=True)
+class PatternMatcher:
+    program: Any
+    mode: str = "enter"
+    overlap: bool = False
+    max_active: int = 1
+    terminals: tuple[str, ...] = ()
+
+    def __post_init__(self):
+        from .ir import SequenceSpec, FsmSpec, XExpr, WaitStep, program_to_dict
+        from .triggers import normalize_condition_mode
+        object.__setattr__(self, "mode", normalize_condition_mode(self.mode).value)
+        if not isinstance(self.program, (XExpr, SequenceSpec, FsmSpec)):
+            raise CoverageSchemaError("pattern requires existing Expr/Sequence/FSM IR")
+        program_to_dict(self.program)
+        if type(self.overlap) is not bool or type(self.max_active) is not int or not 1 <= self.max_active <= (1 << 32)-1:
+            raise CoverageSchemaError("invalid pattern overlap/capacity")
+        if not self.overlap and self.max_active != 1:
+            raise CoverageSchemaError("max_active > 1 requires overlap")
+        if isinstance(self.program, XExpr) and (self.overlap or self.terminals):
+            raise CoverageSchemaError("Expr cannot have overlap or terminals")
+        if isinstance(self.program, (SequenceSpec, FsmSpec)) and self.mode != "enter":
+            raise CoverageSchemaError("condition modes apply only to Expr patterns")
+        if isinstance(self.program, SequenceSpec):
+            if self.terminals or (self.overlap and not isinstance(self.program.steps[0], WaitStep)):
+                raise CoverageSchemaError("invalid Sequence pattern options")
+        if isinstance(self.program, FsmSpec):
+            names = {t.terminal for _, st in self.program.states for t in st.transitions if t.terminal is not None}
+            if not names or not set(self.terminals) <= names:
+                raise CoverageSchemaError("unknown or missing FSM terminal")
+        object.__setattr__(self, "terminals", tuple(self.terminals))
+
+    def execution_key(self):
+        """Process identity; terminal selection belongs to the consuming bin."""
+        shape = self.to_dict()
+        shape.pop("terminals")
+        key = json.dumps(shape, sort_keys=True, separators=(",", ":"))
+        from .ir import PythonPredicateExpr
+        return (key, id(self.program._predicate)) if isinstance(self.program, PythonPredicateExpr) else key
+
+    def matches(self, value):
+        raise RuntimeError("pattern bins require Execution-owned sampling")
+
+    def to_dict(self):
+        from .ir import program_to_dict
+        return dict(type="pattern", program=program_to_dict(self.program), mode=self.mode,
+                    overlap=self.overlap, max_active=self.max_active, terminals=list(self.terminals))
+
+
+Matcher = ValueMatcher | RangeMatcher | WildcardMatcher | DefaultMatcher | TransitionMatcher | PatternMatcher
 
 
 def _matcher_from_dict(data: Mapping[str, Any]) -> Matcher:
     kind = data.get("type")
+    if kind == "pattern":
+        from .ir import program_from_dict
+        return PatternMatcher(program_from_dict(data["program"]), data["mode"], data["overlap"], data["max_active"], tuple(data["terminals"]))
     if kind == "values":
         return ValueMatcher(tuple(data["values"]))
     if kind == "ranges":
@@ -541,7 +593,10 @@ class CoverPointDef:
         source = self.name if self.source is None else self.source
         object.__setattr__(self, "_source_parts", tuple(source.split(".")))
         from ._coverage_exclusions import excluded_normal_bins
-        excluded = excluded_normal_bins(named)
+        pattern = any(isinstance(item.spec.matcher, PatternMatcher) for item in named)
+        if pattern and not all(isinstance(item.spec.matcher, PatternMatcher) for item in named):
+            raise CoverageSchemaError("cannot mix value and pattern bins in a point")
+        excluded = {} if pattern else excluded_normal_bins(named)
         object.__setattr__(self, "_excluded_bins", MappingProxyType(excluded))
         object.__setattr__(
             self,
@@ -583,6 +638,10 @@ class CoverPointDef:
                 raise CoverageSchemaError(message)
             if policy is OverlapPolicy.WARN:
                 warnings.warn(message, UserWarning, stacklevel=2)
+
+    @property
+    def is_pattern(self):
+        return isinstance(self._named_bins[0].spec.matcher, PatternMatcher)
 
     @property
     def normal_bins(self) -> tuple[NamedBin, ...]:
@@ -717,6 +776,8 @@ class CoverGroupDef:
             raise CoverageSchemaError("point and cross names must be distinct")
         if not any(item.weight > 0 for item in (*self.points, *self.crosses)):
             raise CoverageSchemaError("cover group requires a positive-weight item")
+        if any(point_map[name].is_pattern for cross in self.crosses for name in cross.points if name in point_map):
+            raise CoverageSchemaError("Cross requires shared sample context; pattern points cannot be crossed")
         resolved = tuple(_resolve_cross(item, point_map) for item in self.crosses)
         object.__setattr__(self, "_resolved_crosses", resolved)
 
@@ -729,7 +790,7 @@ class CoverGroupDef:
 
     def to_dict(self) -> dict[str, Any]:
         result = {
-            "version": 2 if any(isinstance(bin.spec.matcher, TransitionMatcher)
+            "version": 3 if any(p.is_pattern for p in self.points) else 2 if any(isinstance(bin.spec.matcher, TransitionMatcher)
                                 for point in self.points for bin in point._named_bins) else SCHEMA_VERSION,
             "name": self.name,
             "iff": None if self.iff is None else self.iff.to_dict(),
@@ -744,7 +805,7 @@ class CoverGroupDef:
     @classmethod
     def from_dict(cls, data: Mapping[str, Any]) -> "CoverGroupDef":
         version = data.get("version")
-        if version not in (1, 2):
+        if version not in (1, 2, 3):
             raise CoverageSchemaError(
                 f"unsupported coverage schema version {version!r}"
             )
@@ -836,7 +897,7 @@ def _resolve_cross(
 
 
 def _matcher_overlaps(left: Matcher, right: Matcher) -> bool:
-    if isinstance(left, TransitionMatcher) or isinstance(right, TransitionMatcher):
+    if isinstance(left, (TransitionMatcher, PatternMatcher)) or isinstance(right, (TransitionMatcher, PatternMatcher)):
         return False  # Temporal coexistence is intentional, not a static overlap.
     if isinstance(left, DefaultMatcher) or isinstance(right, DefaultMatcher):
         return False
@@ -865,6 +926,20 @@ def _matcher_overlaps(left: Matcher, right: Matcher) -> bool:
 
 def _normal_overlaps(named: Sequence[NamedBin]) -> tuple[tuple[str, str], ...]:
     normal = [item for item in named if item.spec.kind is BinKind.NORMAL]
+    # Physical-index matrices often have thousands of distinct value bins.
+    # Invert exact scalar membership instead of comparing every bin pair.
+    # Mixed/custom matchers retain the original general overlap algorithm.
+    if all(type(item.spec.matcher) is ValueMatcher
+           and all(type(value) in (type(None), bool, int, str)
+                   for value in item.spec.matcher.values) for item in normal):
+        owners: dict[Scalar, list[int]] = {}
+        pairs: set[tuple[int, int]] = set()
+        for index, item in enumerate(normal):
+            for value in item.spec.matcher.values:
+                previous = owners.setdefault(value, [])
+                pairs.update((prior, index) for prior in previous)
+                previous.append(index)
+        return tuple((normal[left].name, normal[right].name) for left, right in sorted(pairs))
     result: list[tuple[str, str]] = []
     for index, left in enumerate(normal):
         for right in normal[index + 1 :]:
@@ -1020,6 +1095,8 @@ class CoverGroup:
                                         {"kind": "transaction", "name": contract})
         self._diagnostics: Any = None
         self._collection_complete = True
+        from ._coverage_capture import register
+        register(self)
 
     def _new_origin(self) -> None:
         self._origin_id = uuid4().hex
@@ -1043,7 +1120,7 @@ class CoverGroup:
     def bind(self, *, trigger: Any, fields: Mapping[str, Any], abort: Any = None,
              strategy: str = "auto", accumulate: bool = False,
              contract: str | None = None, overlap: bool = False,
-             max_active: int | None = None, diagnostics: str = "off") -> "CoverGroup":
+             max_active: int | None = None, diagnostics: str = "off", root: Any = None) -> "CoverGroup":
         """Configure passive sampling; pass this instance to Execution(coverage=[...]).
 
         Each execution starts new matching history. By default counters are also
@@ -1054,7 +1131,7 @@ class CoverGroup:
             if self._collector is not None:
                 raise RuntimeError("cannot rebind active coverage")
             self._binding = configure(trigger, fields, abort, strategy, accumulate, contract,
-                                      overlap, max_active, diagnostics)
+                                      overlap, max_active, diagnostics, root)
         return self
 
     def _start(self, execution: Any) -> None:
@@ -1115,6 +1192,7 @@ class CoverGroup:
         metadata: Mapping[str, Any] | None = None,
         details: bool = True,
         diagnostics: Any = None,
+        pattern_hits: Any = None,
     ) -> CoverageSample | None:
         """Atomically sample one transaction.
 
@@ -1160,7 +1238,10 @@ class CoverGroup:
                         if hit:
                             selected.add(item.name)
                 matches[point.name] = frozenset(selected)
-            point_plans = tuple(self._plan_point(point, sample, matches.get(point.name, frozenset()))
+            if pattern_hits is None and any(p.is_pattern for p in self.definition.points):
+                raise RuntimeError("pattern points require Execution-owned sampling")
+            point_plans = tuple(self._plan_pattern_point(point, sample, pattern_hits)
+                                if point.is_pattern else self._plan_point(point, sample, matches.get(point.name, frozenset()))
                                 for point in self.definition.points)
             plan_by_name = {plan.point.name: plan for plan in point_plans}
             cross_plans = tuple(
@@ -1206,9 +1287,9 @@ class CoverGroup:
                 stats.ignored += int(plan.ignored)
                 stats.unmatched += int(plan.unmatched)
                 for name in plan.increments:
-                    stats.counts[name] += 1
+                    stats.counts[name] += pattern_hits[(plan.point.name, name)] if plan.point.is_pattern else 1
                 for name in plan.normal:
-                    self._record_hit(stats, name, 1, normal_metadata)
+                    self._record_hit(stats, name, pattern_hits[(plan.point.name, name)] if plan.point.is_pattern else 1, normal_metadata)
             for plan in cross_plans:
                 stats = self._crosses[plan.cross.definition.name]
                 if plan.gated:
@@ -1235,6 +1316,15 @@ class CoverGroup:
                 }),
                 illegal_hits=tuple(illegal_hits),
             )
+
+    def _plan_pattern_point(self, point, sample, hits):
+        if point.iff is not None and not point.iff.enabled(sample):
+            return _PointPlan(point, 0, gated=True)
+        names = tuple(item.name for item in point._named_bins if hits.get((point.name, item.name), 0))
+        normal = tuple(name for name in names if point.bins[name].kind is BinKind.NORMAL)
+        illegal = tuple(name for name in names if point.bins[name].kind is BinKind.ILLEGAL)
+        ignored = any(point.bins[name].kind is BinKind.IGNORE for name in names)
+        return _PointPlan(point, 0, increments=names, normal=normal, illegal=illegal, ignored=ignored, unmatched=not names)
 
     def _plan_point(self, point: CoverPointDef, sample: Any,
                     temporal: frozenset[str] = frozenset()) -> _PointPlan:
@@ -1525,11 +1615,13 @@ class CoverGroup:
                 raise CoverageMergeError("coverage report items do not match schema")
             ordered[kind] = tuple(expected[name] for name in names)
         definition = replace(definition, **ordered)
-        group = cls(
-            definition,
-            report["instance"],
-            illegal_policy=report.get("illegal_policy", "raise"),
-        )
+        from ._coverage_capture import suspended
+        with suspended():
+            group = cls(
+                definition,
+                report["instance"],
+                illegal_policy=report.get("illegal_policy", "raise"),
+            )
         group.samples = report["samples"]
         group._sampling_contract = _json_value(report.get("sampling_contract"))
         group._sampling_backend = report.get("sampling_backend", "manual")

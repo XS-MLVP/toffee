@@ -626,7 +626,7 @@ async def test_coverage_old_abi_is_rejected_or_falls_back_before_sampling(monkey
                                          strategy=strategy)
     try:
         if strategy == "native":
-            with pytest.raises(NotImplementedError, match="ABI version 3"):
+            with pytest.raises(NotImplementedError, match="descriptor version 5"):
                 async with Execution(backend, coverage=[group]):
                     pass
             assert group.samples == 0
@@ -635,7 +635,7 @@ async def test_coverage_old_abi_is_rejected_or_falls_back_before_sampling(monkey
                 await ClockCycles(backend.clock, 2)
             report = group.report()
             assert report["sampling_backend"] == "python"
-            assert "ABI version 3" in report["sampling_fallback"]
+            assert "descriptor version 5" in report["sampling_fallback"]
             assert report["points"][0]["counts"]["zero"] == 2
         assert backend.watcher_count == 0 and backend._owner is None
         assert not backend._coverage_collectors

@@ -4,6 +4,10 @@ XReactor 是基于 `asyncio` 的 Python 硬件验证框架。测试协程可以�
 信号条件、时序序列和外部异步事件。可编译的条件与状态机由 xcomm trigger engine
 执行。
 
+本分支是 coverage v2 草稿，适配 picker/xcomm 的 `xreactor-coverage-v2` 分支。
+配套版本为 xspcomm `0.3.0.dev0`、原生 ABI 3、coverage 描述协议 4；精确提交和
+构建方法见 [coverage v2 适配说明](docs/guides/coverage-v2-trigger-bins.md#pickerxcomm-分支适配)。
+
 第一次写验证测试，从[零基础教程](docs/getting-started/index.md)开始。用一个小累加器，
 先学会输入、等待时钟和检查结果，再逐步加入 Driver、Monitor、Agent、参考模型、
 流水提交和覆盖率。主线集中在一个测试文件，配有逐步解释、运行结果和改错练习，
@@ -14,6 +18,16 @@ XReactor 是基于 `asyncio` 的 Python 硬件验证框架。测试协程可以�
 ```bash
 python3 -m pip install -e .
 ```
+
+统一运行入口支持自动收集覆盖率、多 worker 合并和中间产物回收：
+
+```bash
+python3 -m pip install -e '.[runner]'
+xreactor run tests/ --workers 8
+```
+
+默认不生成逐例覆盖率 JSON；完整用法和原生 DUT 适配见
+[统一 CLI 与多 worker](docs/guides/runner.md)。
 
 开发与测试依赖：
 
@@ -43,6 +57,7 @@ PYTHONPATH=src python3 examples/triggers/basic_execution.py
 ## 文档
 
 - [安装](docs/getting-started/installation.md)
+- [Toffee v2 迁移说明](docs/guides/toffee-v2-migration.md)
 - [从零开始的学习路线](docs/getting-started/index.md) · [第一条断言](docs/getting-started/first-test.md)
 - [Trigger](docs/guides/triggers.md)
 - [编译条件、Sequence 和 FSM](docs/guides/compiled-triggers.md)

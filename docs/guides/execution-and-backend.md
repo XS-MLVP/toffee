@@ -18,6 +18,18 @@ async with Execution(
 退出 `Execution` 时，当前测试注册的 watcher、subscription 和编译缓存会被清理。
 Backend 与 DUT 状态继续保留。
 
+对于 `XCommClockBackend`，创建 Backend 时不接管时钟，进入 Execution 前仍可用
+`dut.Step(...)` 完成初始化。进入 Execution 时，原生 XEngine 独占对应的 XClock，
+直到退出时完成注册清理并释放。作用域内（包括暂停期间）调用 `dut.Step`、
+`clock.Step`、`RawStep`、`StepHalf` 或 `Reset` 会立即抛出错误；旧的
+`AStep`、`ANext`、`ACondition`、`RunStep` 也不可混用，请用 xreactor Trigger 等待。
+不同 Backend 包装同一个 XClock，也不能同时接管它。
+
+正常退出、测试体异常或启动失败后，时钟恢复手动控制。释放不会推进或复位时钟；
+若退出时停在半周期中间，手动调用完整周期 `Step` 前需用 `StepHalf` 完成剩余半周期。
+直接使用 Backend 的 `arm` / `run_until` 时，会在首次调用时接管时钟并持有到
+`close()`；进入 Execution 前须先移除直接注册的 watcher。
+
 ## Backend 的创建与关闭
 
 ```python

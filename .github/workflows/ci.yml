@@ -44,7 +44,7 @@ jobs:
           pin = json.load(open('.github/native-dependencies.json'))['xcomm']
           assert re.fullmatch(r'[0-9a-f]{40}', pin['ref'])
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              for key in ('repository', 'ref', 'coverage_abi'):
+              for key in ('repository', 'ref', 'package_version', 'native_abi', 'coverage_protocol'):
                   print(f'{key}={pin[key]}', file=output)
           PY
       - uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
       - name: Install build and report tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build lcov
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build lcov verilator
           python -m pip install 'swig>=4.2,<5' '.[test]'
       - name: Install pinned native backend
         run: python -m pip install ./_deps/xcomm
@@ -68,13 +68,22 @@ jobs:
           BUILD_XSPCOMM_SWIG: python
           XSPCOMM_BUILD_WHEEL: "1"
           CMAKE_BUILD_PARALLEL_LEVEL: "2"
-      - name: Require the tested native coverage ABI
+          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_XSPCOMM: ${{ steps.native.outputs.package_version }}
+      - name: Require the tested package, native ABI and coverage protocol
         env:
-          EXPECTED_ABI: ${{ steps.native.outputs.coverage_abi }}
+          EXPECTED_PACKAGE_VERSION: ${{ steps.native.outputs.package_version }}
+          EXPECTED_NATIVE_ABI: ${{ steps.native.outputs.native_abi }}
+          EXPECTED_COVERAGE_PROTOCOL: ${{ steps.native.outputs.coverage_protocol }}
         run: |
           python - <<'PY'
+          from importlib.metadata import version
           import os, xspcomm
-          assert xspcomm.XTriggerEngine.CoverageVersion() == int(os.environ['EXPECTED_ABI'])
+          assert version('xspcomm') == os.environ['EXPECTED_PACKAGE_VERSION']
+          assert xspcomm.version() == os.environ['EXPECTED_PACKAGE_VERSION']
+          assert xspcomm.abi_version() == int(os.environ['EXPECTED_NATIVE_ABI'])
+          assert xspcomm.XTriggerEngine.CoverageVersion() == int(os.environ['EXPECTED_COVERAGE_PROTOCOL'])
+          for method in ('AcquireClock', 'ReleaseClock', 'CollectExpressions', 'ExprNewBits', 'ExprNewBool', 'ExprEvalBits'):
+              assert hasattr(xspcomm.XTriggerEngine, method), method
           PY
       - run: python -m pytest -q --require-xspcomm
       - name: Run documented command-line examples
@@ -89,6 +98,7 @@ jobs:
           python -m examples.transactions.reference_model --backend native
           python examples/transactions/pipeline.py
           python examples/transactions/pipeline.py --backend native
+          python -m examples.coverage.trigger_bins --engine xcomm --strategy native
 
   docs:
     runs-on: ubuntu-24.04

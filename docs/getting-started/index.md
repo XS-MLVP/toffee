@@ -52,3 +52,10 @@ examples/getting_started/
 
 页面中的 `bash` 代码块在终端执行，`python` 代码块对应源文件中的代码；预期输出不用复制。
 现在从[准备环境](installation.md)开始。
+
+## 完成教程后
+
+第 3 步后，你能独立编写带输入、时钟和边界断言的测试；完成第 10 步后，
+你能把可复用组件、参考模型、流水检查和覆盖率组合进一个测试环境。
+接下来按自己的项目任务查[操作指南](../guides/index.md)，按名称查[API](../reference/api.md)。
+想理解时钟与 asyncio 的关系，或覆盖率能说明什么，阅读[原理说明](../explanation/index.md)。

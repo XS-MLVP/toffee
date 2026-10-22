@@ -15,6 +15,8 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 
 ## 执行与 Backend
 
+构造参数、默认值与资源契约见[Execution 参考](execution.md)。
+
 | API | 用途 |
 | --- | --- |
 | `Execution` | 一个测试的异步运行作用域 |
@@ -126,6 +128,8 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | `AcceptedDriver`, `ObservedMonitor` | 异步 Scoreboard 使用的结构化组件 Protocol |
 
 ## 覆盖率与运行报告
+
+运行测试的 CLI、产物和插件接口见[Runner 参考](runner.md)。
 
 | API | 用途 |
 | --- | --- |

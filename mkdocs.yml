@@ -5,7 +5,7 @@ theme:
   name: readthedocs
 nav:
   - 首页: index.md
-  - 从零开始:
+  - 教程:
       - 学习路线: getting-started/index.md
       - 0. 准备环境: getting-started/installation.md
       - 1. 第一次 PASS 和 FAIL: getting-started/first-test.md
@@ -20,37 +20,46 @@ nav:
       - 10. 功能覆盖率: getting-started/coverage.md
       - 选读：乱序响应: getting-started/out-of-order.md
       - 选读：原生时钟与项目 DUT: getting-started/native-and-next.md
-  - 仿真与事件:
-      - Execution 与 Backend: guides/execution-and-backend.md
-      - Trigger 与超时: guides/triggers.md
-      - 编译条件、Sequence 与 FSM: guides/compiled-triggers.md
-      - 持久订阅: guides/subscriptions.md
-  - 验证组件:
-      - 信号与结构化数据: guides/data.md
-      - Driver: guides/drivers.md
-      - Monitor: guides/monitors.md
-      - Agent 与参考模型: guides/agents-and-reference-models.md
-      - Scoreboard 与事务: guides/scoreboard.md
-      - 可选协议视图: guides/protocols.md
-  - 覆盖率与运行:
-      - 运行测试与汇总覆盖率: guides/runner.md
-      - 功能覆盖率: guides/coverage.md
-      - 用类定义覆盖模型: guides/coverage-classes.md
-      - 事务覆盖: guides/coverage-transactions.md
-      - 时序覆盖: guides/coverage-patterns.md
-      - 原生表达式与资源管理: guides/expressions-and-resources.md
-      - 功能点与跨用例覆盖: guides/functional-points.md
-      - 报告与运行产物: guides/verification-flow.md
-      - 外部 asyncio 集成: guides/asyncio-and-pytest.md
-      - 版本、CI 与发布: guides/versioning-and-releases.md
-  - 使用场景:
-      - 流水输入与阶段重叠: guides/pipeline-examples.md
+  - 操作指南:
+      - 按任务查找: guides/index.md
+      - 仿真与事件:
+          - 配置 Execution 与 Backend: guides/execution-and-backend.md
+          - 等待 Trigger 与超时: guides/triggers.md
+          - 编译条件、Sequence 与 FSM: guides/compiled-triggers.md
+          - 持续订阅事件: guides/subscriptions.md
+          - 集成 asyncio 与 pytest: guides/asyncio-and-pytest.md
+      - 验证组件:
+          - 绑定信号与结构化数据: guides/data.md
+          - 编写 Driver: guides/drivers.md
+          - 采集 Monitor 输出: guides/monitors.md
+          - 接入 Agent 与参考模型: guides/agents-and-reference-models.md
+          - 使用 Scoreboard 检查事务: guides/scoreboard.md
+          - 使用协议视图: guides/protocols.md
+          - 流水输入与阶段重叠: guides/pipeline-examples.md
+      - 覆盖率与回归:
+          - 定义功能覆盖率: guides/coverage.md
+          - 用类定义覆盖模型: guides/coverage-classes.md
+          - 统计事务覆盖: guides/coverage-transactions.md
+          - 统计时序覆盖: guides/coverage-patterns.md
+          - 功能点与跨用例覆盖: guides/functional-points.md
+          - 组合验证环境: guides/verification-flow.md
+          - 运行测试与汇总覆盖率: guides/runner.md
+      - 迁移与维护:
+          - 迁移到 Toffee 2: guides/toffee-v2-migration.md
+          - 版本、CI 与发布: guides/versioning-and-releases.md
       - 可运行示例: examples.md
   - 参考:
-      - Toffee v2 迁移说明: guides/toffee-v2-migration.md
-      - 功能与回归索引: reference/feature-map.md
-      - API: reference/api.md
+      - 参考目录: reference/index.md
+      - API 索引: reference/api.md
+      - Execution 参数与生命周期: reference/execution.md
+      - Runner 命令与产物: reference/runner.md
+      - 原生表达式与资源: guides/expressions-and-resources.md
       - 行为与限制: reference/semantics-and-limitations.md
+      - 功能与回归索引: reference/feature-map.md
+  - 原理说明:
+      - 理解设计: explanation/index.md
+      - 仿真调度与资源归属: explanation/execution-model.md
+      - 检查、覆盖率与回归结果: explanation/coverage-results.md
 markdown_extensions:
   - tables
   - fenced_code

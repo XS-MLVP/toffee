@@ -1,83 +1,82 @@
 # Toffee
 
-> [!IMPORTANT]
-> **Toffee Legacy（旧版）保留在 [`master` 分支](https://github.com/XS-MLVP/toffee/tree/master)。**
-> 当前 `main` 为 **Toffee 2**，由 XReactor 迁入并统一命名，API 与 Legacy 不兼容。
-> 旧项目可以继续使用 `master`；升级前请阅读[迁移指南](docs/guides/toffee-v2-migration.md)。
+Toffee 是一个 Python 硬件验证框架。用 `async` / `await` 描述输入时序与条件等待，
+用 pytest 运行测试，再通过参考模型、结果检查和覆盖率构建完整的验证环境。
 
-## 版本与迁移
+- **时钟与事件**：等待时钟边沿、信号条件和跨周期事件；支持将条件编译到原生后端求值。
+- **驱动与检查**：用 Driver、Monitor 和 Agent 组织可复用组件，通过 Scoreboard 检查顺序或乱序响应。
+- **覆盖与回归**：定义功能覆盖、交叉覆盖和时序覆盖，在多进程回归后汇总功能与原生覆盖率。
 
-| 你要使用的版本 | 代码位置 | 说明 |
-| --- | --- | --- |
-| **Toffee Legacy** | [`master`](https://github.com/XS-MLVP/toffee/tree/master) | 保留原有 Toffee 实现、旧 API 和 `0.x` 版本历史 |
-| **Toffee 2** | [`main`](https://github.com/XS-MLVP/toffee/tree/main) | 基于 [XReactor 1.1.0](https://github.com/XS-MLVP/xreactor/tree/v1.1.0) 迁入的新实现 |
+## 快速开始
 
-从 Legacy 迁移，需要调整运行作用域、信号绑定、驱动与参考模型接线，并核对采样语义；
-从 XReactor 迁入，需要更新包导入、CLI 和 runner 接口名称。具体步骤见
-[迁移到 Toffee 2](docs/guides/toffee-v2-migration.md)。
-
-本次通过源码和 Git 标签交付，尚未向 PyPI 发布 Toffee 2。分发包名为 `pytoffee`，
-导入名为 `toffee`；请按下方步骤从源码安装。
-
-Toffee 是用 Python 编写硬件测试的框架。你可以发送输入、等待时钟、检查结果，
-再把重复的工作放进 Driver、Monitor 和参考模型。测试由 pytest 运行，
-功能覆盖率和原生覆盖率可以在多进程回归后自动汇总。
-
-第一次使用，建议从[入门教程](docs/getting-started/index.md)开始。
-教程用一个 8 位累加器，先写出第一个通过和失败的测试，再逐步加入时钟、
-流水线、自动检查和覆盖率。前半部分只需 Python，不需要 RTL 或仿真器。
-
-## 安装并运行第一个测试
-
-需要 Python 3.11 或更新版本。在仓库根目录执行：
+需要 **Python 3.11+**。在仓库根目录创建环境并从源码安装：
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install -e '.[test]'
-python3 -m pytest -q examples/getting_started/test_accumulator.py::test_addition
 ```
 
-看到 `1 passed` 后，继续[输入与时钟](docs/getting-started/clock-and-input.md)。
-安装遇到问题时，查看[环境准备](docs/getting-started/installation.md)。
+下面用仓库自带的 8 位累加器模型演示一个测试，无需安装 RTL 仿真器。
+测试送入数字 3，等待一个时钟周期，再检查累加结果与空闲时的行为：
 
-## 运行项目回归
+```python
+import pytest
+
+from toffee import ClockCycles, Execution
+from examples.getting_started.toy_dut import TutorialDut
+
+
+@pytest.mark.asyncio
+async def test_one_input_and_idle():
+    dut = TutorialDut()
+    try:
+        async with Execution(dut.backend):
+            assert dut.total.U() == 0
+            dut.operand.Set(3)
+            dut.enable.Set(1)
+            await ClockCycles(dut.clock, 1)
+            dut.enable.Set(0)
+            assert dut.total.U() == 3
+
+            await ClockCycles(dut.clock, 2)
+            assert dut.total.U() == 3
+    finally:
+        dut.close()
+```
+
+这个用例已包含在[示例文件](examples/getting_started/test_accumulator.py)中，可以直接运行：
 
 ```bash
-toffee run tests/ --workers 8 --output output/regression-001
+python3 -m pytest -q examples/getting_started/test_accumulator.py::test_one_input_and_idle
 ```
 
-pytest-xdist 把测试分给独立进程，Toffee 汇总覆盖率并生成报告。
-输出目录必须是新目录，避免两轮结果混在一起。默认不保留逐例覆盖率 JSON。
-参数和产物说明见[运行测试与汇总覆盖率](docs/guides/runner.md)。
+预期得到 `1 passed`。继续阅读[累加器教程](docs/getting-started/index.md)，
+逐步加入边界测试、Driver、Monitor、参考模型与覆盖率。
 
-## 接入真实 DUT
+## 用于项目验证
 
-纯 Python 示例使用 `MemoryBackend`。真实 DUT 可以使用 Picker 生成的 Python 包，
-通过 xspcomm 提供的 `XClock`、`XData` 和 `XTriggerEngine` 接入。
-驱动与检查代码仍由项目定义，不需要改成另一套测试写法。
+接入真实 RTL 时，使用 Picker 生成的 DUT Python 包，通过 `XCommClockBackend`
+连接 xspcomm 的时钟与信号。具体准备和依赖要求见[真实 DUT 接入指南](docs/getting-started/native-and-next.md)。
 
-先阅读[原生后端与项目 DUT](docs/getting-started/native-and-next.md)。
-开发时所需的 xcomm 提交、包版本、ABI 和协议版本统一记录在
-[依赖清单](.github/native-dependencies.json)，不要混用不同版本的生成包和运行库。
-
-## 按需要查文档
-
-- [从零开始](docs/getting-started/index.md)：安装、断言、输入、时钟和逐步练习。
-- [Driver](docs/guides/drivers.md)、[Monitor](docs/guides/monitors.md)、
-  [Agent 与参考模型](docs/guides/agents-and-reference-models.md)：组织可复用的验证环境。
-- [Scoreboard](docs/guides/scoreboard.md)：比较结果，关联流水线中的输入与输出。
-- [功能覆盖率](docs/guides/coverage.md)：定义需要测到的场景，查看和合并实际命中。
-- [用类定义覆盖模型](docs/guides/coverage-classes.md)、
-  [时序覆盖](docs/guides/coverage-patterns.md)：组织较大的模型，统计跨周期事件。
-- [运行测试与汇总覆盖率](docs/guides/runner.md)：多进程回归、报告和失败排查。
-- [可运行示例](docs/examples.md)、[API 索引](docs/reference/api.md)：按功能查代码。
-
-完整目录见[用户手册](docs/index.md)。参与开发请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。
-
-## 本地预览文档
+测试增多后，用 `toffee run` 并行执行并汇总覆盖率。例如，运行整个入门示例目录：
 
 ```bash
-python3 -m pip install -e '.[docs]'
-mkdocs serve
+toffee run examples/getting_started --workers 4
 ```
+
+终端会显示本次运行的产物目录；有覆盖数据时会生成 `coverage.html`。
+将示例路径换成项目测试目录即可运行自己的回归，更多选项见[回归运行指南](docs/guides/runner.md)。
+
+## 文档
+
+- [入门教程](docs/getting-started/index.md)：从一条断言到完整的验证环境。
+- [操作指南](docs/guides/index.md)：接入 DUT、组织组件、采集覆盖率和运行回归。
+- [接口参考](docs/reference/index.md)：API、命令行参数和行为限制。
+- [原理说明](docs/explanation/index.md)：仿真调度、资源归属与覆盖率含义。
+- [可运行示例](docs/examples.md) · [参与开发](CONTRIBUTING.md)
+
+## Toffee Legacy
+
+旧版 Toffee 保留在 [`master` 分支](https://github.com/XS-MLVP/toffee/tree/master)。
+当前版本是一次 **breaking change**，与 Toffee Legacy 的 API 不兼容。

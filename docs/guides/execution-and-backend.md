@@ -1,47 +1,29 @@
-# Execution 与 Backend
+# 配置 Execution 与 Backend
 
-`Execution` 是一个测试的运行作用域，负责注册 Trigger、推进仿真和分发事件。
-
-环境可以预先创建并连接接口实例，再通过 `Execution(backend, agents=[agent])` 注册。
-Execution 统一启动 Agent，退出时先检查和清理组件，再关闭运行资源。Agent 不需要
-独立的 context；普通用例直接调用其实例方法。具体示例见
-[Agent 与 reference model](agents-and-reference-models.md)。
-
-```python
-async with Execution(
-    backend,
-    default_sample=RisingEdge(dut.clock),
-):
-    await RisingEdge(dut.clock)
-```
-
-退出 `Execution` 时，当前测试注册的 watcher、subscription 和编译缓存会被清理。
-Backend 与 DUT 状态继续保留。
-
-对于 `XCommClockBackend`，创建 Backend 时不接管时钟，进入 Execution 前仍可用
-`dut.Step(...)` 完成初始化。进入 Execution 时，原生 XEngine 独占对应的 XClock，
-直到退出时完成注册清理并释放。作用域内（包括暂停期间）调用 `dut.Step`、
-`clock.Step`、`RawStep`、`StepHalf` 或 `Reset` 会立即抛出错误；旧的
-`AStep`、`ANext`、`ACondition`、`RunStep` 也不可混用，请用 toffee Trigger 等待。
-不同 Backend 包装同一个 XClock，也不能同时接管它。
-
-正常退出、测试体异常或启动失败后，时钟恢复手动控制。释放不会推进或复位时钟；
-若退出时停在半周期中间，手动调用完整周期 `Step` 前需用 `StepHalf` 完成剩余半周期。
-直接使用 Backend 的 `arm` / `run_until` 时，会在首次调用时接管时钟并持有到
-`close()`；进入 Execution 前须先移除直接注册的 watcher。
+本页说明如何把已有 DUT 放入测试作用域，并在结束时释放资源。
+以下片段假设项目已经提供 `dut`、注册的 `dut.clock` 和兼容的 xspcomm 绑定；
+首次接入见[原生后端与项目 DUT](../getting-started/native-and-next.md)。
 
 ## Backend 的创建与关闭
 
+在已有 async 测试函数中创建 Backend，用 `Execution` 管理本次运行，
+并在 `finally` 中关闭 Backend：
+
 ```python
+from toffee import Execution, RisingEdge, XCommClockBackend
+
 backend = XCommClockBackend(dut.GetXClock())
 try:
-    async with Execution(backend):
-        ...
+    async with Execution(backend, default_sample=RisingEdge(dut.clock)):
+        await RisingEdge(dut.clock)
+        # 在稳定上升沿读取并检查 DUT 输出。
 finally:
     backend.close()
 ```
 
-`Execution` 不关闭 Backend。创建 Backend 的代码负责调用 `close()`。
+把 DUT 的释放放在 Backend 关闭之后。Execution 内使用 Trigger 等待，
+不要调用 `dut.Step()` 或启动另一套时钟任务；暂停期间也一样。
+退出 Execution 会清理本次等待与组件，Backend 和 DUT 的状态仍然保留。
 
 ## 在 pytest 中复用 Backend
 
@@ -77,6 +59,10 @@ backend fixture，完整配方见[模型与测试环境教程](../getting-starte
 在多个 case 之间复用 Backend 时，时钟和 DUT 状态不会自动复位。需要确定初态的测试
 应在进入 `Execution` 后执行 reset sequence。
 
+有 Agent 的项目先构造并连接实例，再通过 `Execution(backend, agents=[agent])` 注册。
+Execution 统一启动并反向清理组件；Agent 不需要独立 context，退出后应新建实例。
+完整接线见[Agent 与参考模型](agents-and-reference-models.md)。
+
 ## 输入提交与显式暂停
 
 Execution 会等待当前阶段已就绪的任务及其级联唤醒处理完，再推进仿真。使用
@@ -96,27 +82,10 @@ async with Execution(backend), input_driver as driver:
 
 ## 调度参数
 
-```python
-Execution(
-    backend,
-    default_sample=RisingEdge(dut.clock),
-    max_batch_ticks=4096,
-    quantum_ms=10.0,
-    budget_check_interval=64,
-    max_settle_rounds=100_000,
-)
-```
+先使用默认预算运行测试。遇到 `SimulationNotSettledError` 时，检查报错的 tick、phase
+和未完成回调，排除无限 `sleep(0)` 循环；独立后台服务按
+[asyncio 集成指南](asyncio-and-pytest.md)使用 `external_task`。
+仅对确定会结束的长任务链增加 `max_settle_rounds`。
 
-| 参数 | 含义 |
-| --- | --- |
-| `default_sample` | `Value` 和编译条件的默认采样 Trigger |
-| `max_batch_ticks` | 单次 Backend 调用最多推进的 half ticks |
-| `quantum_ms` | 单次连续推进的 wall-clock 时间上限 |
-| `budget_check_interval` | 原生执行器检查时间预算的间隔 |
-| `max_settle_rounds` | 单次阶段收敛检查允许交回 asyncio 的最大轮数；必须为正整数 |
-
-同一 Backend 同一时间只能属于一个 active `Execution`。
-
-域内任务若无限循环 `await asyncio.sleep(0)`，会让当前阶段始终有就绪工作。超过
-预算会抛出 `SimulationNotSettledError`，包含 tick、phase 和未完成回调。增加预算
-只能用于有限但较长的任务链；后台服务应通过 external_task 放到域外运行。
+完整默认值、控制权和关闭契约见[Execution 参考](../reference/execution.md)。
+需要理解阶段收敛与三种预算的区别时，阅读[仿真调度与资源归属](../explanation/execution-model.md)。

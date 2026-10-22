@@ -7,9 +7,9 @@ Timer 以及其他异步任务同时运行。
 组件生命周期及 Trigger 等待，见[流水输入示例](pipeline-examples.md)。无需自行
 创建并发任务来开启流水，也没有通用 parallel 接口。
 
-asyncio 仍是唯一运行 Python Task 和回调的调度器。Execution 观察属于本次仿真的
-即时回调，在它们及其继续唤醒的工作处理完之前，不推进时钟或进行 DriveStable 采样。
-外部库使用的原生同步原语与任务保持兼容；这不要求测试作者使用这些 API。
+时钟何时推进、任务归属与生命周期的区别，见
+[仿真调度与资源归属](../explanation/execution-model.md)。
+本页重点给出 pytest、外部 I/O 和后台任务的接入写法。
 
 ## pytest
 

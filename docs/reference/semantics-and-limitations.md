@@ -1,5 +1,8 @@
 # 行为与限制
 
+本页列出当前实现的行为契约。配置参数见[Execution 参考](execution.md)，
+这些边界背后的原因见[仿真调度与资源归属](../explanation/execution-model.md)。
+
 ## 采样
 
 - `RisingEdge` 和 `FallingEdge` 在稳定的 half-step 返回；
@@ -54,15 +57,18 @@
 
 ## 数据
 
-- 原生条件支持任意位宽无符号 XData；
-- 常量必须能由目标信号位宽表示；
+- 原生条件支持任意位宽 XData，位向量可显式使用有符号或无符号解释；
+- `bits`、`as_signed()`、`as_unsigned()` 和 `resize()` 指定类型；两个带类型的操作数须同位宽、同符号类型；
+- 常量必须能由目标类型表示，算术结果按位宽截断；
 - `ValueChange` 比较四态值的 aval/bval；
-- 编译表达式暂不提供 signed 运算。
+- 数据运算按两态位向量定义，不提供完整的 SystemVerilog 四态传播。
+
+具体操作、溢出和除法规则见[表达式与资源](../guides/expressions-and-resources.md)。
 
 ## 当前限制
 
 - 一个 `XCommClockBackend` 对应一个 clock domain；
-- Sequence 采用非重叠匹配；
+- 普通 Sequence 等待采用非重叠匹配；覆盖采集可显式启用 `overlap=True`，并须设置正整数 `max_active`，见[时序覆盖](../guides/coverage-patterns.md)；
 - `@pytrigger` 在每个 sample phase 执行 Python 条件函数；
 - Backend 不能同时用于多个 active `Execution`；
 - Backend、XClock 和 DUT signal 不支持跨线程并发访问；

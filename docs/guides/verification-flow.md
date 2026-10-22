@@ -1,5 +1,8 @@
 # 组件组合、覆盖率与运行产物
 
+本页假设你已有 Driver、Monitor 和模型，目标是把它们接入一个可运行并保存产物的环境。
+采样位置为何影响计数含义，见[检查、覆盖率与回归结果](../explanation/coverage-results.md)。
+
 这个项目配方将 Driver、Monitor、Scoreboard 和覆盖率接在一起；普通用例只提交事务和
 调用有预算的 finish。环境构造 Agent 实例并连接独立模型，Execution 统一管理组件，
 Agent 内部连接响应 Scoreboard。组件边界与有状态模型接入见[Agent 与 reference model](agents-and-reference-models.md)。

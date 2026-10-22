@@ -7,7 +7,7 @@ Cache 命令、接受条件和响应时序均属于项目协议，不能作为�
 ## 构建一次
 
 需要 Picker、Verilator、C++ 编译器及当前 xspcomm。替换下面的 Picker 路径，在
-XReactor 仓库根目录执行：
+Toffee 仓库根目录执行：
 
 ```bash
 python3 -m pip install -e '.[test]'
@@ -30,7 +30,7 @@ export PYTHONPATH="$CACHE_DUT_PARENT${PYTHONPATH:+:$PYTHONPATH}"
 不加随机输入也能跑完整定向场景：
 
 ```bash
-python3 examples/integration/cache/cache_functional_xreactor.py \
+python3 examples/integration/cache/cache_functional_toffee.py \
   --random-ops 0 --artifacts output/cache-directed
 ```
 
@@ -38,7 +38,7 @@ python3 examples/integration/cache/cache_functional_xreactor.py \
 coherence probe、146 个响应 beat。然后增加随机压力：
 
 ```bash
-python3 examples/integration/cache/cache_functional_xreactor.py \
+python3 examples/integration/cache/cache_functional_toffee.py \
   --seed 0x1234 --random-ops 300 --artifacts output/cache-seed-0x1234
 ```
 
@@ -243,7 +243,7 @@ genhtml output/cache-line-comparison/execution-after.info \
 同一配置的运行产物可按实际命中合并。下面 run-a/run-b 替换为两次执行的产物目录：
 
 ```bash
-xreactor-coverage-report \
+toffee-coverage-report \
   --functional run-a/functional-coverage.json \
   --functional run-b/functional-coverage.json \
   --output output/cache-combined.html --site output/cache-combined
@@ -265,6 +265,6 @@ python3 examples/integration/cache/cache_direct_protocol_probe.py \
 核对异步路径的真实接受、数据和 user。它们不能替代读 burst 的独立失败证据。
 具体检查见[同步探针代码](cache_direct_protocol_probe.py)，每次运行的详细记录保存在指定产物目录。
 
-`example_xreactor.py` 另保留为短小的 trigger/backend 连通性检查；上述两个脚本分别承担
+`example_toffee.py` 另保留为短小的 trigger/backend 连通性检查；上述两个脚本分别承担
 功能验证和协议差分；`test_cache_coherence.py` 集中保存 coherence 正常和故障回归，
 不按每个 feature 拆文件。

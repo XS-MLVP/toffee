@@ -4,7 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import (
+from toffee import (
     AnyOf, Execution, FSM, Hold, MemoryBackend, RisingEdge, Sequence, SimTimeout,
     State, Wait, Within, XCommClockBackend, XEventKind, XPhase, xtrigger,
 )
@@ -69,7 +69,7 @@ async def test_compiled_pattern_contract(backend_kind, trigger, requests, acks, 
             clock.RemoveStepRisCbByDesc("native_sample")
 
 # Coverage uses the same native clock and compiled patterns as ordinary waits.
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CrossDef, ClockCycles, Iff, Next
+from toffee import Bin, CoverGroupDef, CoverPointDef, CrossDef, ClockCycles, Iff, Next
 
 
 def coverage_backend(kind, names=("value", "other", "gate", "abort")):
@@ -91,7 +91,7 @@ def set_coverage_signal(signal, value):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("kind,strategy", [("memory", "auto"), ("native", "native"), ("native", "python")])
 async def test_coverage_exclusion_identity_and_run_evidence(kind, strategy):
-    from xreactor import CoverGroup, CoverageMergeError
+    from toffee import CoverGroup, CoverageMergeError
     backend, signals = coverage_backend(kind)
     group = CoverGroupDef("identity", (
         CoverPointDef("value", {"a": Bin.values(0), "a × b": Bin.values(1),
@@ -308,7 +308,7 @@ async def test_coverage_external_cancellation_and_snapshot_failure_cleanup(kind)
 @pytest.mark.asyncio
 @pytest.mark.parametrize("strategy", ["native", "python"])
 async def test_coverage_unknowns_illegal_priority_and_typed_failure(strategy):
-    from xreactor import IllegalBinError
+    from toffee import IllegalBinError
     backend, signals = coverage_backend("native")
     schema = CoverGroupDef("state", (CoverPointDef("value", {
         "path": Bin.transition(1, 2), "low": Bin.range(0, 3),
@@ -344,7 +344,7 @@ async def test_coverage_unknowns_illegal_priority_and_typed_failure(strategy):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("strategy", ["native", "python"])
 async def test_coverage_drive_stable_and_data_isolation(strategy):
-    from xreactor import DriveStable, CoverageMergeError, CoverGroup
+    from toffee import DriveStable, CoverageMergeError, CoverGroup
     backend, signals = coverage_backend("native")
     schema = CoverGroupDef("state", (CoverPointDef("value", {"one": Bin.values(1)}),))
     left = schema.instantiate("dut").bind(trigger=DriveStable(backend.clock), fields=signals, strategy=strategy)
@@ -405,7 +405,7 @@ async def test_unknown_pattern_condition_and_coverage_contract(strategy):
 @pytest.mark.parametrize("strategy", ["native", "python"])
 async def test_wide_coverage_bins_snapshots_and_execution_isolation(width, strategy):
     """High bits participate in matching, diagnostics and unknown detection."""
-    from xreactor import CoverGroup
+    from toffee import CoverGroup
     x = pytest.importorskip("xspcomm")
     clock = x.XClock(lambda _: 0)
     backend = XCommClockBackend(clock)
@@ -580,7 +580,7 @@ async def test_optional_pattern_overlap_and_summary(strategy, pattern, overlap):
 @pytest.mark.asyncio
 @pytest.mark.parametrize("strategy", ["native", "python"])
 async def test_wide_coverage_pattern_abort_and_illegal_failure(strategy):
-    from xreactor import IllegalBinError
+    from toffee import IllegalBinError
     x = pytest.importorskip("xspcomm")
     clock = x.XClock(lambda _: 0)
     backend = XCommClockBackend(clock)
@@ -733,7 +733,7 @@ async def test_pattern_diagnostics_deadline_abort_clear_reset_and_exit(kind, str
 @pytest.mark.asyncio
 @pytest.mark.parametrize("strategy", ["native", "python"])
 async def test_transition_summary_and_mixed_diagnostic_runs(strategy):
-    from xreactor import CoverGroup, CoverageMergeError
+    from toffee import CoverGroup, CoverageMergeError
     backend, fields = coverage_backend("native")
     group = CoverGroupDef("bin_summary", (CoverPointDef("value", {
         "path": Bin.transition(1, 2),

@@ -21,7 +21,7 @@ from .coverage_report import build_unified_coverage_model, parse_lcov, render_un
 
 class CoverageHooks:
     @pytest.hookspec
-    def pytest_xreactor_coverage(self, config, functional, native, pytest_exitstatus):
+    def pytest_toffee_coverage(self, config, functional, native, pytest_exitstatus):
         """Inspect merged coverage before commit, without exporting a database.
 
         ``functional`` is the merged report or None; ``native`` contains final
@@ -36,33 +36,33 @@ def pytest_addhooks(pluginmanager):
 
 
 def pytest_addoption(parser):
-    group = parser.getgroup("XReactor managed execution")
-    group.addoption("--xreactor-output")
-    group.addoption("--xreactor-keep-coverage-inputs", action="store_true")
-    group.addoption("--xreactor-export-coverage-json", action="store_true")
-    group.addoption("--xreactor-native-coverage-tool")
+    group = parser.getgroup("Toffee managed execution")
+    group.addoption("--toffee-output")
+    group.addoption("--toffee-keep-coverage-inputs", action="store_true")
+    group.addoption("--toffee-export-coverage-json", action="store_true")
+    group.addoption("--toffee-native-coverage-tool")
 
 
 def pytest_configure(config):
-    config.addinivalue_line("markers", "xreactor_functional_coverage(enabled): exclude synthetic/unit-test groups from automatic measurement; native DUT collection is unaffected")
-    if config.getoption("xreactor_output") and not config.option.collectonly:
+    config.addinivalue_line("markers", "toffee_functional_coverage(enabled): exclude synthetic/unit-test groups from automatic measurement; native DUT collection is unaffected")
+    if config.getoption("toffee_output") and not config.option.collectonly:
         plugin = _ExecutionCoverage(config)
-        config._xreactor_managed_coverage = plugin
-        config.pluginmanager.register(plugin, "xreactor-managed-coverage")
+        config._toffee_managed_coverage = plugin
+        config.pluginmanager.register(plugin, "toffee-managed-coverage")
 
 
 def pytest_unconfigure(config):
-    plugin = getattr(config, "_xreactor_managed_coverage", None)
+    plugin = getattr(config, "_toffee_managed_coverage", None)
     if plugin is not None:
         plugin.close()
 
 
 @pytest.fixture
-def xreactor_register_dut(request):
+def toffee_register_dut(request):
     """Register factory-owned DUTs before an early Finish(), without ownership transfer."""
-    plugin = getattr(request.config, '_xreactor_managed_coverage', None)
+    plugin = getattr(request.config, '_toffee_managed_coverage', None)
     if plugin is None or plugin.coverage is None:
-        raise pytest.UsageError('xreactor_register_dut requires managed worker execution')
+        raise pytest.UsageError('toffee_register_dut requires managed worker execution')
     return plugin.coverage.native.discover
 
 
@@ -122,11 +122,11 @@ class _WorkerCoverage:
 class _ExecutionCoverage:
     def __init__(self, config):
         self.config = config
-        self.root = Path(config.getoption("xreactor_output")).resolve()
+        self.root = Path(config.getoption("toffee_output")).resolve()
         self.worker = getattr(config, "workerinput", {}).get("workerid")
         self.distributed = bool(self.worker or getattr(config.option, "numprocesses", 0))
-        self.keep = config.getoption("xreactor_keep_coverage_inputs")
-        self.export_json = config.getoption("xreactor_export_coverage_json")
+        self.keep = config.getoption("toffee_keep_coverage_inputs")
+        self.export_json = config.getoption("toffee_export_coverage_json")
         self.receipts: dict[str, Any] = {}
         self.started: set[str] = set()
         self.errors: list[str] = []
@@ -139,7 +139,7 @@ class _ExecutionCoverage:
             write(self.root / "manifest.json", dict(format="xreactor-execution", version=1, state="running"))
         if self.worker or not self.distributed:
             self.coverage = _WorkerCoverage(self.root / "_workers" / (self.worker or "main"),
-                keep=self.keep, tool=config.getoption("xreactor_native_coverage_tool"))
+                keep=self.keep, tool=config.getoption("toffee_native_coverage_tool"))
             self.capture = capture(self.coverage)
             self.capture.__enter__()
 
@@ -185,9 +185,9 @@ class _ExecutionCoverage:
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_protocol(self, item):
-        marker = item.get_closest_marker("xreactor_functional_coverage")
+        marker = item.get_closest_marker("toffee_functional_coverage")
         if marker is not None and (len(marker.args) != 1 or type(marker.args[0]) is not bool or marker.kwargs):
-            raise pytest.UsageError("xreactor_functional_coverage requires one boolean argument")
+            raise pytest.UsageError("toffee_functional_coverage requires one boolean argument")
         enabled = marker is None or marker.args[0]
         if self.coverage:
             self.coverage.scope = "case"
@@ -245,9 +245,9 @@ class _ExecutionCoverage:
     def pytest_testnodedown(self, node, error):
         worker = node.gateway.id
         output = getattr(node, "workeroutput", {})
-        row = output.get("xreactor_coverage")
+        row = output.get("toffee_coverage")
         if error or row is None or worker in self.receipts:
-            detail = error or output.get("xreactor_coverage_error", "missing or duplicate receipt")
+            detail = error or output.get("toffee_coverage_error", "missing or duplicate receipt")
             self.errors.append(f"worker did not finish cleanly: {worker}: {detail}")
         else:
             self.receipts[worker] = row
@@ -259,7 +259,7 @@ class _ExecutionCoverage:
                 receipt = self.coverage.finish(exitstatus)
                 identity = write(self.coverage.root / "receipt.json", receipt)
                 if self.worker:
-                    self.config.workeroutput["xreactor_coverage"] = identity
+                    self.config.workeroutput["toffee_coverage"] = identity
                     return
                 self.receipts["main"] = identity
             self._finalize(session)
@@ -268,7 +268,7 @@ class _ExecutionCoverage:
                 session.exitstatus = pytest.ExitCode.TESTS_FAILED
             error = traceback.format_exc()
             if self.worker:
-                self.config.workeroutput["xreactor_coverage_error"] = error
+                self.config.workeroutput["toffee_coverage_error"] = error
             else:
                 write(self.root / "manifest.json", dict(format="xreactor-execution", version=1,
                     state="incomplete", pytest_exitstatus=int(session.exitstatus),
@@ -339,13 +339,13 @@ class _ExecutionCoverage:
         if functional or lines or native:
             report = self.root / "coverage.html"
             render_unified_coverage_html(build_unified_coverage_model(functional=functional, line_coverage=lines,
-                title=f"XReactor coverage (test exit status {int(session.exitstatus)})"), report)
+                title=f"Toffee coverage (test exit status {int(session.exitstatus)})"), report)
             artifacts.append(dict(kind="html", **fingerprint(report)))
         counts = Counter(next((s for s in ("ERROR", "FAIL", "XPASS", "XFAIL", "SKIP", "PASS") if s in states), "ERROR")
                          for states in self.reports.values())
         if self.collection is None or set(self.reports) != set(self.collection):
             raise ValueError("reported tests differ from collected tests")
-        self.config.hook.pytest_xreactor_coverage(config=self.config, functional=functional,
+        self.config.hook.pytest_toffee_coverage(config=self.config, functional=functional,
             native=[row for row in artifacts if row["kind"] == "native"],
             pytest_exitstatus=int(session.exitstatus))
         manifest = dict(format="xreactor-execution", version=1, state="committed",
@@ -376,7 +376,7 @@ class _ExecutionCoverage:
 
     def pytest_terminal_summary(self, terminalreporter):
         if not self.worker:
-            terminalreporter.write_line(f"XReactor artifacts: {self.root}")
+            terminalreporter.write_line(f"Toffee artifacts: {self.root}")
 
     def close(self):
         if self.capture is not None:

@@ -66,7 +66,7 @@ jobs:
     if: needs.resolve.outputs.bump != ''
     runs-on: ubuntu-24.04
     concurrency:
-      group: xreactor-version-tag
+      group: toffee-version-tag
       queue: max
       cancel-in-progress: false
     permissions:
@@ -89,7 +89,7 @@ jobs:
           if ! git rev-parse --verify "refs/tags/$tag" >/dev/null 2>&1; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git tag -a "$tag" -m "XReactor ${tag#v}"
+            git tag -a "$tag" -m "Toffee ${tag#v}"
             git push origin "refs/tags/$tag"
           fi
           echo "tag=$tag" >> "$GITHUB_OUTPUT"

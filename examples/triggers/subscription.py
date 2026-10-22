@@ -3,7 +3,7 @@
 import asyncio
 from types import SimpleNamespace
 
-from xreactor import Execution, MemoryBackend, RisingEdge, XPhase, on
+from toffee import Execution, MemoryBackend, RisingEdge, XPhase, on
 
 
 async def main():

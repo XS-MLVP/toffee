@@ -32,7 +32,7 @@
 
 变体的 Driver 明确写入 tag 和 operand，等一拍后把输入恢复为空闲；Monitor 捕获包含 tag
 的响应记录。完整实现可以打开仓库中的文件，或查看
-[源码](https://github.com/Makiras/xreactor/blob/main/examples/transactions/reference_model.py)。
+[源码](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/reference_model.py)。
 主线已逐步说明了这些组件的职责，这里复用现成的接口实现。
 
 ## 运行并验证乱序
@@ -46,7 +46,7 @@ import pytest
 from examples.transactions.reference_model import (
     AccumulatorAgent, AccumulatorDut, AccumulatorModel, Command, Result,
 )
-from xreactor import Execution
+from toffee import Execution
 
 
 @pytest.mark.asyncio

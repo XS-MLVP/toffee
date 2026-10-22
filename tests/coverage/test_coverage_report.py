@@ -9,7 +9,7 @@ import shutil
 
 import pytest
 
-from xreactor import (
+from toffee import (
     Bin,
     CoverageDatabase,
     CoverGroupDef,
@@ -20,7 +20,7 @@ from xreactor import (
     generate_unified_coverage_site,
     parse_lcov,
 )
-from xreactor.coverage_report import main
+from toffee.coverage_report import main
 
 
 @pytest.mark.parametrize("text,message", [
@@ -76,7 +76,7 @@ def test_cli_generates_both_outputs_and_protects_unowned_directory(tmp_path):
     foreign.mkdir()
     kept = foreign / "keep.txt"
     kept.write_text("user data")
-    with pytest.raises(FileExistsError, match="non-XReactor directory"):
+    with pytest.raises(FileExistsError, match="non-Toffee directory"):
         generate_unified_coverage_site(functional_paths=[functional], output_dir=foreign)
     assert kept.read_text() == "user data"
 
@@ -105,9 +105,9 @@ def test_module_entry_point_generates_report(tmp_path, monkeypatch):
     group = CoverGroupDef("module", (CoverPointDef("a", {"zero": Bin.values(0)}),)).instantiate("dut")
     functional = CoverageDatabase([group]).write_json(tmp_path / "functional.json")
     output = tmp_path / "coverage.html"
-    monkeypatch.setattr(sys, "argv", ["xreactor.coverage_report", "--functional", str(functional), "--output", str(output)])
+    monkeypatch.setattr(sys, "argv", ["toffee.coverage_report", "--functional", str(functional), "--output", str(output)])
     with pytest.warns(RuntimeWarning, match="found in sys.modules"), pytest.raises(SystemExit) as caught:
-        runpy.run_module("xreactor.coverage_report", run_name="__main__")
+        runpy.run_module("toffee.coverage_report", run_name="__main__")
     assert caught.value.code == 0 and output.is_file()
 
 
@@ -271,7 +271,7 @@ def test_report_requires_coverage_input(tmp_path, layout):
 @pytest.mark.parametrize("diagnostics", ["off", "summary"])
 async def test_pattern_diagnostics_are_optional_in_reports(tmp_path, diagnostics):
     from types import SimpleNamespace
-    from xreactor import ClockCycles, Execution, MemoryBackend, RisingEdge
+    from toffee import ClockCycles, Execution, MemoryBackend, RisingEdge
     clock = object()
     backend = MemoryBackend(clock)
     value = SimpleNamespace(value=1, width=8)

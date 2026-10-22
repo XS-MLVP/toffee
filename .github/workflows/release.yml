@@ -21,7 +21,7 @@ defaults:
     shell: bash
 
 concurrency:
-  group: xreactor-release-${{ github.event.client_payload.tag || inputs.tag || github.ref_name }}
+  group: toffee-release-${{ github.event.client_payload.tag || inputs.tag || github.ref_name }}
   queue: max
   cancel-in-progress: false
 

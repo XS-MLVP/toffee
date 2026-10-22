@@ -6,7 +6,7 @@
 这些条件由 C++ 引擎判断，不需要 Python 每拍轮询：
 
 ```python
-from xreactor import RisingEdge, xtrigger
+from toffee import RisingEdge, xtrigger
 
 
 @xtrigger(sample=RisingEdge("clk"))
@@ -32,7 +32,7 @@ event = await handshake(dut)
 `@pytrigger` 用于调用 Python 条件函数：
 
 ```python
-from xreactor import pytrigger
+from toffee import pytrigger
 
 allowed_values = {1, 2, 3}
 
@@ -47,7 +47,7 @@ def model_accepts(dut):
 ## 非重叠 Sequence
 
 ```python
-from xreactor import Hold, Next, Sequence, Wait, Within
+from toffee import Hold, Next, Sequence, Wait, Within
 
 @xtrigger(sample=RisingEdge("clk"))
 def request_then_ack(dut):
@@ -72,7 +72,7 @@ def request_then_ack(dut):
 ## 显式 FSM
 
 ```python
-from xreactor import FSM, State
+from toffee import FSM, State
 
 @xtrigger(sample=RisingEdge("clk"))
 def request_fsm(dut):

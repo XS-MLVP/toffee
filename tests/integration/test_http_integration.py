@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from xreactor import ClockCycles, MemoryBackend, Execution
+from toffee import ClockCycles, MemoryBackend, Execution
 
 
 class HttpIntegrationTests(unittest.IsolatedAsyncioTestCase):

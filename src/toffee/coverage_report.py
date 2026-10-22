@@ -113,7 +113,7 @@ def parse_lcov(path: str | Path, *, name: str | None = None) -> dict[str, Any]:
 
 
 def load_functional_coverage(paths: Sequence[str | Path]) -> dict[str, Any] | None:
-    """Load and merge one or more XReactor functional-coverage databases."""
+    """Load and merge one or more Toffee functional-coverage databases."""
 
     if not paths:
         return None
@@ -202,12 +202,12 @@ def _prepare_site(directory: Path) -> None:
     if directory.exists() and any(directory.iterdir()):
         if not marker.is_file():
             raise FileExistsError(
-                f"refusing to replace non-XReactor directory {directory}; "
+                f"refusing to replace non-Toffee directory {directory}; "
                 "choose an empty output directory"
             )
         shutil.rmtree(directory)
     directory.mkdir(parents=True, exist_ok=True)
-    marker.write_text("xreactor unified coverage site v1\n", encoding="utf-8")
+    marker.write_text("toffee unified coverage site v1\n", encoding="utf-8")
 
 
 def _site_page(title: str, body: str, *, root_prefix: str) -> str:
@@ -415,7 +415,7 @@ def generate_unified_coverage_site(
 ) -> Path:
     """Generate a navigable static site with per-group and source pages.
 
-    The destination may be replaced only when it contains XReactor's marker,
+    The destination may be replaced only when it contains Toffee's marker,
     preventing accidental deletion of an unrelated directory.
     """
 
@@ -603,14 +603,14 @@ def _line_argument(value: str) -> tuple[str, Path]:
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Combine XReactor functional coverage and LCOV into HTML"
+        description="Combine Toffee functional coverage and LCOV into HTML"
     )
     parser.add_argument(
         "--functional",
         action="append",
         default=[],
         type=Path,
-        help="XReactor functional-coverage JSON; repeat to merge shards",
+        help="Toffee functional-coverage JSON; repeat to merge shards",
     )
     parser.add_argument(
         "--line-coverage",

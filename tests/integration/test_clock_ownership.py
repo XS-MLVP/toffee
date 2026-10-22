@@ -2,7 +2,7 @@
 
 import pytest
 
-from xreactor import ClockCycles, Execution, FallingEdge, RunLimit, XCommClockBackend
+from toffee import ClockCycles, Execution, FallingEdge, RunLimit, XCommClockBackend
 
 
 @pytest.fixture
@@ -96,7 +96,7 @@ async def test_failed_execution_start_releases_native_clock(clock, monkeypatch):
     backend = XCommClockBackend(clock)
     try:
         with monkeypatch.context() as patch:
-            patch.setattr("xreactor.execution.XReactor", broken_reactor)
+            patch.setattr("toffee.execution.Reactor", broken_reactor)
             with pytest.raises(ValueError, match="reactor startup failed"):
                 async with Execution(backend):
                     pytest.fail("startup unexpectedly succeeded")

@@ -1,6 +1,25 @@
-# XReactor
+# Toffee
 
-XReactor 是用 Python 编写硬件测试的框架。你可以发送输入、等待时钟、检查结果，
+> [!IMPORTANT]
+> **Toffee Legacy（旧版）保留在 [`master` 分支](https://github.com/XS-MLVP/toffee/tree/master)。**
+> 当前 `main` 为 **Toffee 2**，由 XReactor 迁入并统一命名，API 与 Legacy 不兼容。
+> 旧项目可以继续使用 `master`；升级前请阅读[迁移指南](docs/guides/toffee-v2-migration.md)。
+
+## 版本与迁移
+
+| 你要使用的版本 | 代码位置 | 说明 |
+| --- | --- | --- |
+| **Toffee Legacy** | [`master`](https://github.com/XS-MLVP/toffee/tree/master) | 保留原有 Toffee 实现、旧 API 和 `0.x` 版本历史 |
+| **Toffee 2** | [`main`](https://github.com/XS-MLVP/toffee/tree/main) | 基于 [XReactor 1.1.0](https://github.com/XS-MLVP/xreactor/tree/v1.1.0) 迁入的新实现 |
+
+从 Legacy 迁移，需要调整运行作用域、信号绑定、驱动与参考模型接线，并核对采样语义；
+从 XReactor 迁入，需要更新包导入、CLI 和 runner 接口名称。具体步骤见
+[迁移到 Toffee 2](docs/guides/toffee-v2-migration.md)。
+
+本次通过源码和 Git 标签交付，尚未向 PyPI 发布 Toffee 2。分发包名为 `pytoffee`，
+导入名为 `toffee`；请按下方步骤从源码安装。
+
+Toffee 是用 Python 编写硬件测试的框架。你可以发送输入、等待时钟、检查结果，
 再把重复的工作放进 Driver、Monitor 和参考模型。测试由 pytest 运行，
 功能覆盖率和原生覆盖率可以在多进程回归后自动汇总。
 
@@ -25,10 +44,10 @@ python3 -m pytest -q examples/getting_started/test_accumulator.py::test_addition
 ## 运行项目回归
 
 ```bash
-xreactor run tests/ --workers 8 --output output/regression-001
+toffee run tests/ --workers 8 --output output/regression-001
 ```
 
-pytest-xdist 把测试分给独立进程，XReactor 汇总覆盖率并生成报告。
+pytest-xdist 把测试分给独立进程，Toffee 汇总覆盖率并生成报告。
 输出目录必须是新目录，避免两轮结果混在一起。默认不保留逐例覆盖率 JSON。
 参数和产物说明见[运行测试与汇总覆盖率](docs/guides/runner.md)。
 

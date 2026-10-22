@@ -1,6 +1,6 @@
-# 参与 XReactor 开发
+# 参与 Toffee 开发
 
-XReactor 负责 Python API、仿真调度、验证组件和报告。
+Toffee 负责 Python API、仿真调度、验证组件和报告。
 原生时钟、信号和触发引擎由 xcomm 提供；真实 DUT 的环境代码放在
 `examples/integration/<dut>/`，不要混进框架实现。
 
@@ -8,7 +8,7 @@ XReactor 负责 Python API、仿真调度、验证组件和报告。
 
 新增或修改功能时，一并更新：
 
-1. `src/xreactor/` 中的实现。
+1. `src/toffee/` 中的实现。
 2. `docs/guides/` 或 `docs/reference/` 中的用法和限制。
 3. 对应 `tests/` 分类中的回归。
 4. 面向用户的功能示例；影响高频路径时，还应有可重复的性能测试。

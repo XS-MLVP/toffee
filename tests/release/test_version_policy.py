@@ -90,13 +90,13 @@ def test_rejects_a_conflicting_tag_and_an_out_of_order_commit(repository):
 
 def test_merge_provenance_requires_a_real_associated_merge(repository, monkeypatch):
     sha = policy.git("rev-parse", "HEAD")
-    monkeypatch.setenv("GITHUB_REPOSITORY", "example/xreactor")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "example/toffee")
     check_output = subprocess.check_output
     responses = []
 
     def fetch(args, **kwargs):
         if args[0] == "gh":
-            assert args == ["gh", "api", f"repos/example/xreactor/commits/{sha}/pulls"]
+            assert args == ["gh", "api", f"repos/example/toffee/commits/{sha}/pulls"]
             return json.dumps(responses)
         return check_output(args, **kwargs)
 

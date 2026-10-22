@@ -3,11 +3,11 @@ import asyncio
 import importlib.util
 import unittest
 from contextvars import ContextVar
-from xreactor import Execution, MemoryBackend, FallingEdge, ClockCycles, DriveStable, on
+from toffee import Execution, MemoryBackend, FallingEdge, ClockCycles, DriveStable, on
 
 class AsyncioObservationTests(unittest.IsolatedAsyncioTestCase):
     async def asyncTearDown(self):
-        from xreactor._asyncio_observer import _observers
+        from toffee._asyncio_observer import _observers
         self.assertNotIn(asyncio.get_running_loop(), _observers)
 
     def environment(self):
@@ -239,7 +239,7 @@ class AsyncioObservationTests(unittest.IsolatedAsyncioTestCase):
             while True:
                 await asyncio.sleep(0)
         try:
-            from xreactor import SimulationNotSettledError
+            from toffee import SimulationNotSettledError
             with self.assertRaisesRegex(SimulationNotSettledError, "tick=0"):
                 async with Execution(backend, max_settle_rounds=16) as execution:
                     task = asyncio.create_task(busy())
@@ -463,7 +463,7 @@ class AsyncioObservationTests(unittest.IsolatedAsyncioTestCase):
 class NativeAsyncioObservationTests(AsyncioObservationTests):
     def environment(self):
         import xspcomm
-        from xreactor import XCommClockBackend
+        from toffee import XCommClockBackend
         clock = xspcomm.XClock(lambda _: 0)
         backend = XCommClockBackend(clock)
         self.addCleanup(backend.close)

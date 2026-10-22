@@ -5,7 +5,7 @@
 DUT 信号使用 XData。需要检查或取得底层对象时调用：
 
 ```python
-from xreactor import as_xdata
+from toffee import as_xdata
 
 signal = as_xdata(dut.data)
 ```
@@ -17,7 +17,7 @@ signal = as_xdata(dut.data)
 `Bundle` 把多个信号组织在一起，方便按名称访问、采样和驱动：
 
 ```python
-from xreactor import Bundle
+from toffee import Bundle
 
 payload = Bundle(
     opcode=dut.req_opcode,
@@ -45,7 +45,7 @@ payload.drive({
 等宽一维总线：
 
 ```python
-from xreactor import PackedArray
+from toffee import PackedArray
 
 lanes = PackedArray(dut.lanes, element_width=32, count=4)
 lanes[2].Set(0x1234)
@@ -54,7 +54,7 @@ lanes[2].Set(0x1234)
 嵌套结构和多维布局：
 
 ```python
-from xreactor import PackedLayout, PackedView
+from toffee import PackedLayout, PackedView
 
 entry = PackedLayout.struct({
     "valid": PackedLayout.bits(1),
@@ -77,7 +77,7 @@ entries[0].drive({
 用 Field 声明来源和预期位宽，绑定时即检查接口变化：
 
 ```python
-from xreactor import Bundle, Field
+from toffee import Bundle, Field
 
 request = Bundle.bind(dut, {
     "address": Field("req_addr", width=32),

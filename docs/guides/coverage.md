@@ -10,7 +10,7 @@
 ## 定义 covergroup
 
 ```python
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CrossDef
+from toffee import Bin, CoverGroupDef, CoverPointDef, CrossDef
 
 definition = CoverGroupDef(
     "fetch",
@@ -108,7 +108,7 @@ Bin.illegal(Bin.range(12, 15))
 ## 绑定信号，由 Execution 管理
 
 ```python
-from xreactor import Execution, RisingEdge
+from toffee import Execution, RisingEdge
 
 states = CoverGroupDef("states", (
     CoverPointDef("state", {
@@ -204,7 +204,7 @@ for scenario in scenarios:
 ## 用已有 Trigger 识别复杂模式
 
 ```python
-from xreactor import Next, Sequence, Wait, xtrigger
+from toffee import Next, Sequence, Wait, xtrigger
 
 @xtrigger(sample=RisingEdge("clock"))
 def start_then_done(dut):
@@ -242,7 +242,7 @@ python3 examples/coverage/functional_coverage.py --stateful --native --output st
 前一次模式尚未结束时还需要观察新的起点，可以在已有绑定上开启重叠：
 
 ```python
-from xreactor import Sequence, Wait, Within, xtrigger
+from toffee import Sequence, Wait, Within, xtrigger
 
 @xtrigger(sample=RisingEdge("clock"))
 def completion(dut):
@@ -319,7 +319,7 @@ async with Execution(backend, coverage=[group]):
 ## 保存和合并
 
 ```python
-from xreactor import CoverageDatabase
+from toffee import CoverageDatabase
 
 database = CoverageDatabase([coverage])
 database.write_json("functional-coverage.json")
@@ -344,7 +344,7 @@ CoverageMergeError，计数保持不变。应合并独立运行的最终快照�
 Verilator coverage 先转换为 LCOV，其他能产生 LCOV 的 simulator 使用同一入口：
 
 ```bash
-xreactor-coverage-report \
+toffee-coverage-report \
   --functional functional-coverage.json \
   --line-coverage Verilator=line-coverage.info \
   --site coverage-report
@@ -358,7 +358,7 @@ xreactor-coverage-report \
 - functional 与 line coverage 的统一导航。
 
 完整样例见
-[functional_coverage.py](https://github.com/Makiras/xreactor/blob/main/examples/coverage/functional_coverage.py)。
+[functional_coverage.py](https://github.com/XS-MLVP/toffee/blob/main/examples/coverage/functional_coverage.py)。
 
 ## 从事务字段采样并设置门控
 
@@ -366,7 +366,7 @@ xreactor-coverage-report \
 把设计字段名和覆盖率名称分开；Iff 指定何时计数：
 
 ```python
-from xreactor import Iff
+from toffee import Iff
 
 point = CoverPointDef(
     "opcode", {"read": Bin.values(0), "write": Bin.values(1)},
@@ -433,13 +433,13 @@ point 的 `overlap="warn"` 默认诊断重叠，`"error"` 拒绝重叠定义，`
 只需要分享一个文件时：
 
 ```bash
-xreactor-coverage-report --functional functional-coverage.json --output coverage.html
+toffee-coverage-report --functional functional-coverage.json --output coverage.html
 ```
 
 Python 的 `generate_unified_coverage_report(functional_paths=[...], output=...)` 同样生成
 自包含 HTML；`generate_unified_coverage_site(..., output_dir=...)` 生成站点。只有需要
 LCOV 源码行页面的站点才依赖 genhtml；单文件报告及仅 functional 的站点不要求该工具。
-站点输出必须为空或已有 XReactor 站点标记，不覆盖其他非空目录。
+站点输出必须为空或已有 Toffee 站点标记，不覆盖其他非空目录。
 LCOV 中引用的源文件必须在生成报告的环境中可读；框架交由 genhtml 决定显示路径，
 不会通过强行剥离目录前缀改变源码查找。
 

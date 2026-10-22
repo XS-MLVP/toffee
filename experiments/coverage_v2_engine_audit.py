@@ -16,9 +16,9 @@ from types import SimpleNamespace
 
 import xspcomm as x
 
-from xreactor import bits, ClockCycles, Execution, RisingEdge, RunLimit, XCommClockBackend, xtrigger
-from xreactor.ir import _evaluate_condition, signal_expr
-from xreactor.triggers import CompiledTrigger
+from toffee import bits, ClockCycles, Execution, RisingEdge, RunLimit, XCommClockBackend, xtrigger
+from toffee.ir import _evaluate_condition, signal_expr
+from toffee.triggers import CompiledTrigger
 from examples.coverage.declarative_protocol import ToyResponder
 from examples.coverage.trigger_bins import Completions, ProtocolCoverage
 

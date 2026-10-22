@@ -58,7 +58,7 @@
 活动中的异步 Driver 用 `await driver.aclose()` 关闭，或放进异步上下文：
 
 ```python
-from xreactor import AsyncSingleCycleDriver, Bundle, Execution
+from toffee import AsyncSingleCycleDriver, Bundle, Execution
 
 async with Execution(backend):
     async with AsyncSingleCycleDriver(
@@ -77,7 +77,7 @@ async with Execution(backend):
 固定阶段输入可直接使用框架模板，测试只需要提交业务请求：
 
 ```python
-from xreactor import AsyncMultiCycleDriver, DriveStage
+from toffee import AsyncMultiCycleDriver, DriveStage
 
 driver = AsyncMultiCycleDriver(
     clock,
@@ -99,7 +99,7 @@ driver = AsyncMultiCycleDriver(
 只属于这个示例接口：
 
 ```python
-from xreactor import ClockCycles, SyncDriver
+from toffee import ClockCycles, SyncDriver
 
 class ThreeCycleInput(SyncDriver[int]):
     def __init__(self, clock, data):

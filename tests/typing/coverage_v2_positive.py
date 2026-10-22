@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from typing import assert_type
 
-from xreactor.declarative import (
+from toffee.declarative import (
     Bin, BinRule, BoundPoint, CompiledGroup, CoverGroup, CoverPoint, CoverageSnapshot,
     Cross, FieldRef, Fields, SignalBinding, covergroup, coverpoint, wire,
 )

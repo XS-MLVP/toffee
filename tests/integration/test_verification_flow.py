@@ -7,7 +7,7 @@ import pytest
 
 from examples.transactions.pipeline import Response
 from examples.transactions import verification_flow as recipe
-from xreactor import CoverageDatabase, ScoreboardMismatch
+from toffee import CoverageDatabase, ScoreboardMismatch
 
 
 @pytest.mark.asyncio

@@ -37,7 +37,7 @@ Scoreboard 仍是独立检查组件；常规响应链由 Agent 在内部完成�
 ## 项目如何定义一个 Agent
 
 完整可运行的
-[AccumulatorAgent](https://github.com/Makiras/xreactor/blob/main/examples/transactions/reference_model.py)
+[AccumulatorAgent](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/reference_model.py)
 把 Driver、响应采样与匹配配置封装在构造函数中：
 
 ```python

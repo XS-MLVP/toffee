@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any, Mapping
 from uuid import uuid4
 
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CoverageDatabase, DriveStable, RisingEdge, on
+from toffee import Bin, CoverGroupDef, CoverPointDef, CoverageDatabase, DriveStable, RisingEdge, on
 
 
 @dataclass(frozen=True)
@@ -58,7 +58,7 @@ class ScenarioChecks:
 
     def status(self) -> dict[str, Any]:
         return {
-            "format": "xreactor-rtl-property-checks", "run_id": self.run_id,
+            "format": "toffee-rtl-property-checks", "run_id": self.run_id,
             "evidence_kind": self.evidence_kind,
             "failures": self.failures,
             "observer_errors": self.observer_errors,

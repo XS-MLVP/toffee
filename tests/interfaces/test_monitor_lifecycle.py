@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import (
+from toffee import (
     AsyncDriver, ClockCycles, Execution, FallingEdge,
     MonitorClosedError, ReadyValidMonitor, Role, SamplingMonitor, Scoreboard,
 )
@@ -90,7 +90,7 @@ async def test_failure_reaches_recv_once_at_lifecycle_boundary(simulation, sourc
         raise failure
 
     if source == "capture":
-        monkeypatch.setattr("xreactor.monitors.sample_data", broken)
+        monkeypatch.setattr("toffee.monitors.sample_data", broken)
     monitor = make_monitor(clock, decoder=broken if source == "decoder" else None)
     async with asyncio.timeout(2), Execution(backend) as execution:
         monitor.start(execution)

@@ -67,4 +67,4 @@
 - Backend 不能同时用于多个 active `Execution`；
 - Backend、XClock 和 DUT signal 不支持跨线程并发访问；
 - `Bundle` 和具体通道视图需要显式绑定；不存在通用 `Interface` 基类；
-- coverage JSON 使用 XReactor schema，不是 UCIS。
+- coverage JSON 使用 Toffee schema，不是 UCIS。

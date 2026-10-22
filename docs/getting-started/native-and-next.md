@@ -5,9 +5,9 @@
 
 ## 先确认加载的是哪个 绑定
 
-XReactor 不附带 xspcomm。原生后端需要 `XClock.StepHalf`、`GetHalfTick`、`GetPhase`、
+Toffee 不附带 xspcomm。原生后端需要 `XClock.StepHalf`、`GetHalfTick`、`GetPhase`、
 `XData` 和 `XTriggerEngine` 等接口。开发使用的提交、包版本、ABI 和协议版本以
-[依赖清单](https://github.com/Makiras/xreactor/blob/main/.github/native-dependencies.json)为准，
+[依赖清单](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json)为准，
 不要只按包名判断版本是否匹配。安装到当前 Python 环境后，先运行：
 
 ```bash
@@ -49,7 +49,7 @@ import pytest
 
 from examples.getting_started.test_accumulator import AccumulatorModel, make_pipeline_agent
 from examples.getting_started.toy_dut import TutorialDut
-from xreactor import Execution
+from toffee import Execution
 
 
 @pytest.mark.asyncio
@@ -106,8 +106,8 @@ python3 -m pytest -q examples/getting_started/native_lab.py
 | 等信号条件，处理显式周期超时 | [Trigger](../guides/triggers.md) |
 | 输出严格固定延迟，逐周期采样 | [Scoreboard 的关联与观察模式](../guides/scoreboard.md) |
 | 每次运行保存 seed、功能覆盖率和 pytest 报告 | [验证流程配方](../guides/verification-flow.md) |
-| 已有生成好的 DUT，想看项目环境组织 | [cache 环境说明](https://github.com/Makiras/xreactor/blob/main/examples/integration/cache/README.md)（有额外项目依赖） |
-| 把真实 DUT、模型、功能点和 RTL 行覆盖接起来 | [e203 环境说明](https://github.com/Makiras/xreactor/blob/main/examples/integration/e203/README.md)，先定向、再随机、最后读统一报告 |
+| 已有生成好的 DUT，想看项目环境组织 | [cache 环境说明](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/cache/README.md)（有额外项目依赖） |
+| 把真实 DUT、模型、功能点和 RTL 行覆盖接起来 | [e203 环境说明](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/e203/README.md)，先定向、再随机、最后读统一报告 |
 
 需要为本仓库做完整检查时，运行：
 

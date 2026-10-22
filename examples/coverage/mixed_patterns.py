@@ -1,11 +1,11 @@
 """One interface group with value points, a shared FSM, a cross and optional Python bins."""
 from __future__ import annotations
 
-from xreactor import ConditionMode, FSM, RisingEdge, State, pytrigger, xtrigger
-from xreactor.declarative import (
+from toffee import ConditionMode, FSM, RisingEdge, State, pytrigger, xtrigger
+from toffee.declarative import (
     Bin, CoverPoint, Cross, Fields, PatternCoverPoint, SignalCoverGroup, covergroup,
 )
-from xreactor.ir import signal_expr
+from toffee.ir import signal_expr
 from examples.coverage.declarative_protocol import ProtocolBundle
 
 

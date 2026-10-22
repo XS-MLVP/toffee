@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from xreactor import (
+from toffee import (
     Bin, CoverGroup, CoverGroupDef, CoverPointDef, CrossDef, CoverageDatabase,
     CoverageMergeError, CoverageSchemaError, IllegalBinError,
 )
@@ -126,7 +126,7 @@ def test_cross_cap_precedes_product_and_explicit_include_avoids_expansion(monkey
                    for name in ("a", "b", "c"))
     def forbidden_product(*args):
         pytest.fail("unbounded cross product was allocated")
-    monkeypatch.setattr("xreactor.coverage.product", forbidden_product)
+    monkeypatch.setattr("toffee.coverage.product", forbidden_product)
     with pytest.raises(CoverageSchemaError, match="max_auto_bins"):
         CoverGroupDef("cap", points, (CrossDef("abc", ("a", "b", "c"), max_auto_bins=10),))
     CoverGroupDef("explicit", points, (CrossDef("abc", ("a", "b", "c"),
@@ -304,7 +304,7 @@ def test_instance_merge_and_duplicate_database_instance_are_explicit():
 @pytest.mark.asyncio
 async def test_merge_without_optional_pattern_diagnostics_keeps_existing_summary():
     from types import SimpleNamespace
-    from xreactor import ClockCycles, Execution, MemoryBackend, RisingEdge
+    from toffee import ClockCycles, Execution, MemoryBackend, RisingEdge
 
     backend = MemoryBackend(object())
     left, right = definition().instantiate("dut"), definition().instantiate("dut")
@@ -340,7 +340,7 @@ def test_invalid_counts_and_missing_items_are_rejected():
 
 def test_symbolic_integer_exclusion_agrees_with_small_exhaustive_domains():
     import random
-    from xreactor._coverage_exclusions import _integer_empty
+    from toffee._coverage_exclusions import _integer_empty
     rng = random.Random(17)
     for _ in range(200):
         matcher = (Bin.masked(rng.randrange(16), rng.randrange(16), width=4).matcher

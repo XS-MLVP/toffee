@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from xreactor import (
+from toffee import (
     AllOf,
     AnyOf,
     AsyncioEventTrigger,

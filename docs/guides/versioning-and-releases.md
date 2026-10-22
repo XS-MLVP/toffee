@@ -1,8 +1,17 @@
 # 版本、CI 与发布
 
-XReactor 的版本来自 Git tag，正式版本使用 `vX.Y.Z`。维护者不需要在源码中重复修改
+Toffee 的版本来自 Git tag，正式版本使用 `vX.Y.Z`。维护者不需要在源码中重复修改
 版本字符串：例如 `v1.0.0` 构建为 `1.0.0`，后续未打 tag 的提交构建为开发版本。
 `setuptools-scm` 只参与构建，使用已安装的包不需要 Git 或该工具。
+
+## 首次迁入与手动标签
+
+Toffee 2 的首次迁入保留 XReactor 的提交历史，以手动标签 `v2.0.0` 标记源码版本。
+旧 `master` 与 `0.x` 标签保持原样，XReactor 的 `1.x` 标签保留在原仓库。
+首次迁入是直接推送，因此不满足下文发布工作流要求的“本仓库已合并 PR”来源校验；
+该标签触发的自动发布任务可能失败，但不会改变标签或源码。此次不发布 PyPI 包，
+也不以 GitHub Release 资产上传作为源码迁移的完成条件。
+后续通过 `main` 的正常 PR 继续使用现有版本与发布流程，版本从 `2.0.0` 递增。
 
 ## 提交与版本选择
 
@@ -39,7 +48,7 @@ PR 合并后，Version policy 工作流确认目标提交是 `main` 第一父链
 构建、行覆盖和功能检查按各项目 README 单独运行；框架 CI 通过不等于 DUT 功能
 覆盖关闭。已知 DUT 缺陷的复现结果仍应单独记录。
 
-固定依赖的提交负责可重复验证，包版本负责 XReactor 的用户接口。更新 xcomm 时，
+固定依赖的提交负责可重复验证，包版本负责 Toffee 的用户接口。更新 xcomm 时，
 在同一个 PR 更新 pin、能力要求及相关回归。Picker 是实际 DUT 的生成工具，不是
 纯 Python 包的运行依赖；项目生成的 DUT 仍需与它使用的 xcomm runtime 一致。
 
@@ -92,7 +101,7 @@ python3 scripts/release/verify_dist.py --manifest --verify-manifest
 git diff --check
 ```
 
-读取安装版本使用 `importlib.metadata.version("xreactor")`。发布时 CI 必须具有完整
+读取安装版本使用 `importlib.metadata.version("pytoffee")`。发布时 CI 必须具有完整
 Git 历史；源码包已经包含构建时确定的版本，在解包后重建不依赖原仓库。
-没有 Git 和源码包元数据的普通源码副本才使用 `0.1.0.dev0` fallback。
+没有 Git 和源码包元数据的普通源码副本才使用 `2.0.0.dev0` fallback。
 配置依据见 [setuptools-scm 文档](https://setuptools-scm.readthedocs.io/en/v9.2.0/usage/)。

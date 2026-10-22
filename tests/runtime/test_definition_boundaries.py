@@ -5,11 +5,11 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import (AllOf, AnyOf, ClockCycles, Execution, FSM, Hold, MemoryBackend,
+from toffee import (AllOf, AnyOf, ClockCycles, Execution, FSM, Hold, MemoryBackend,
                       RisingEdge, Sequence, SimTimeout, State, TaskComplete, WallTimeout,
                       Within, on, pytrigger, xtrigger)
-from xreactor.backend import BackendCapabilities, RunLimit, StopReason
-from xreactor.ir import BinaryExpr, ConstantExpr, SignalExpr, UnaryExpr
+from toffee.backend import BackendCapabilities, RunLimit, StopReason
+from toffee.ir import BinaryExpr, ConstantExpr, SignalExpr, UnaryExpr
 
 
 @pytest.mark.parametrize("kwargs,message", [

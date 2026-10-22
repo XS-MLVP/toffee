@@ -11,7 +11,7 @@ import argparse
 import asyncio
 from dataclasses import dataclass
 
-from xreactor import (
+from toffee import (
     Agent, AsyncDriver, ClockCycles, Execution, MemoryBackend,
     PythonPredicateTrigger, RisingEdge, SamplingMonitor,
     XCommClockBackend, XPhase,

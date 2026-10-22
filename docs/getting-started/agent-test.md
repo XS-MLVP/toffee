@@ -9,7 +9,7 @@
 
 <!-- executable-example: examples/getting_started/test_accumulator.py#agent_setup -->
 ```python
-from xreactor import Agent
+from toffee import Agent
 
 
 def make_agent(dut):

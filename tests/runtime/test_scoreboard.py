@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from xreactor import (
+from toffee import (
     CheckContext,
     Execution,
     MemoryBackend,
@@ -350,7 +350,7 @@ async def test_cancelled_accepted_record_is_ignored_and_close_is_idempotent():
 
 
 def test_dataclass_differences_stop_at_the_requested_limit():
-    from xreactor.scoreboard import structural_differences
+    from toffee.scoreboard import structural_differences
 
     differences = structural_differences(Request(1, 2), Request(3, 4), limit=1)
     assert len(differences) == 1 and differences[0].path == "tag"
@@ -986,7 +986,7 @@ async def test_completed_requests_are_not_retained_and_stats_are_cumulative():
 
 
 def test_default_mismatch_computes_differences_once(monkeypatch):
-    import xreactor.scoreboard as module
+    import toffee.scoreboard as module
     original = module.structural_differences
     calls = []
     def compare(*args, **kwargs):

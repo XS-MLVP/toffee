@@ -93,7 +93,7 @@ from .reactor import (
     Registration,
     Subscription,
     SubscriptionOverflowError,
-    XReactor,
+    Reactor,
 )
 from .subscriptions import (
     BoundSubscriptionSpec,
@@ -233,7 +233,7 @@ __all__ = [
     "XEventKind",
     "XExpr",
     "XPhase",
-    "XReactor",
+    "Reactor",
     "XCommClockBackend",
     "XTrigger",
     "XTransfer",

@@ -5,12 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import (
+from toffee import (
     Bin, ClockCycles, CoverGroupDef, CoverPointDef, Execution, MemoryBackend,
     Next, RisingEdge, Sequence, Wait, XCommClockBackend, pytrigger,
 )
-from xreactor.ir import ConstantExpr, signal_expr
-from xreactor.triggers import CompiledTrigger
+from toffee.ir import ConstantExpr, signal_expr
+from toffee.triggers import CompiledTrigger
 
 
 def group():
@@ -120,7 +120,7 @@ async def test_live_coverage_cannot_be_rebound_merged_or_shared():
         with pytest.raises(RuntimeError, match="already belongs"):
             async with Execution(MemoryBackend(object()), coverage=[candidate]):
                 pytest.fail("a live group cannot belong to two Executions")
-        from xreactor import CoverGroup, CoverageMergeError
+        from toffee import CoverGroup, CoverageMergeError
         independent = CoverGroup.from_report(candidate.report())
         with pytest.raises(CoverageMergeError, match="active coverage"):
             candidate.merge(independent)
@@ -297,7 +297,7 @@ async def test_failure_after_registration_releases_python_sampling_handle(monkey
 
 @pytest.mark.asyncio
 async def test_gate_clears_temporal_history_and_keeps_pattern_diagnostics(tmp_path):
-    from xreactor import CoverageDatabase, Iff, LogicValue, generate_unified_coverage_site
+    from toffee import CoverageDatabase, Iff, LogicValue, generate_unified_coverage_site
 
     backend = MemoryBackend(object())
     value, enabled = SimpleNamespace(value=LogicValue(1, 0, 8)), SimpleNamespace(value=1)
@@ -326,7 +326,7 @@ async def test_gate_clears_temporal_history_and_keeps_pattern_diagnostics(tmp_pa
 
 @pytest.mark.asyncio
 async def test_enum_pattern_shape_and_merge_of_python_and_native_evidence():
-    from xreactor import CoverGroup
+    from toffee import CoverGroup
 
     class Truth(IntEnum):
         TRUE = 1
@@ -366,7 +366,7 @@ async def test_enum_pattern_shape_and_merge_of_python_and_native_evidence():
 
 @pytest.mark.asyncio
 async def test_exhausted_pattern_capacity_is_marked_incomplete_in_html(tmp_path):
-    from xreactor import CoverageDatabase, Hold, generate_unified_coverage_site
+    from toffee import CoverageDatabase, Hold, generate_unified_coverage_site
 
     backend = MemoryBackend(object())
     pattern = CompiledTrigger("overlap", None, Sequence(Wait(True), Hold(True, cycles=4)), RisingEdge(backend.clock))

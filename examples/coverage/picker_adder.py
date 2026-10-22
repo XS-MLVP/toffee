@@ -8,12 +8,12 @@ import json
 from pathlib import Path
 import sys
 
-from xreactor import (
+from toffee import (
     Bundle, ClockCycles, ConditionMode, Execution, FSM, RisingEdge,
     Sequence, State, Wait, Within, XCommClockBackend, xtrigger,
 )
-from xreactor.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
-from xreactor.ir import signal_expr
+from toffee.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
+from toffee.ir import signal_expr
 from examples.coverage.declarative_protocol import Pin
 
 

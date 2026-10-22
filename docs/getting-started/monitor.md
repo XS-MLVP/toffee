@@ -24,7 +24,7 @@
 
 <!-- executable-example: examples/getting_started/test_accumulator.py#monitor_setup -->
 ```python
-from xreactor import PythonPredicateTrigger, RisingEdge, SamplingMonitor
+from toffee import PythonPredicateTrigger, RisingEdge, SamplingMonitor
 
 
 def make_response_monitor(dut):
@@ -61,7 +61,7 @@ def make_response_monitor(dut):
 
 <!-- executable-example: examples/getting_started/test_accumulator.py#monitor -->
 ```python
-from xreactor import Scoreboard
+from toffee import Scoreboard
 
 
 @pytest.mark.asyncio

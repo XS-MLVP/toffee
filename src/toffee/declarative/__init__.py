@@ -1,6 +1,6 @@
 """Class-based functional coverage declarations.
 
-Public names are scoped to this namespace. The existing xreactor coverage API
+Public names are scoped to this namespace. The existing toffee coverage API
 and its execution/counting implementation remain available.
 """
 from ..coverage import IllegalPolicy, OverlapPolicy

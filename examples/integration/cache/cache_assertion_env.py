@@ -17,7 +17,7 @@ def build_fatal_coverage(directory):
     directory = Path(directory)
     directory.mkdir(parents=True, exist_ok=True)
     source = Path(__file__).resolve().parents[1] / "verilator_fatal_coverage.cpp"
-    library = directory / "libxreactor_fatal_coverage.so"
+    library = directory / "libtoffee_fatal_coverage.so"
     subprocess.run([*shlex.split(os.environ.get("CXX", "c++")), "-std=c++17", "-shared", "-fPIC",
                     "-O2", str(source), "-ldl", "-o", str(library)],
                    check=True, capture_output=True, text=True)
@@ -28,9 +28,9 @@ def install_fatal_coverage(dut, library, output):
     package = Path(sys.modules[type(dut).__module__].__file__).resolve().parent
     model = package / ("libUT" + type(dut).__name__.removeprefix("DUT") + ".so")
     hook = ctypes.CDLL(str(library))
-    hook.xreactor_configure_fatal_coverage.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
-    hook.xreactor_configure_fatal_coverage.restype = ctypes.c_int
-    status = hook.xreactor_configure_fatal_coverage(os.fsencode(model), os.fsencode(output))
+    hook.toffee_configure_fatal_coverage.argtypes = [ctypes.c_char_p, ctypes.c_char_p]
+    hook.toffee_configure_fatal_coverage.restype = ctypes.c_int
+    status = hook.toffee_configure_fatal_coverage(os.fsencode(model), os.fsencode(output))
     if status:
         raise RuntimeError(f"fatal coverage hook cannot use {model}: ABI status {status}")
 
@@ -49,7 +49,7 @@ def assertion_run(script, arguments, *, library, output, message, line, hierarch
     (output / "rtl-assertion.log").write_text(log)
     assert result.returncode == -signal.SIGABRT, f"expected SIGABRT from RTL assertion, got {result.returncode}:\n{log}"
     assert "Assertion failed" in log and message in log, log
-    assert "xreactor: RTL coverage saved before fatal" in log, log
+    assert "toffee: RTL coverage saved before fatal" in log, log
     witness = next(json.loads(text.removeprefix("witness "))
                    for text in result.stdout.splitlines() if text.startswith("witness "))
     assert witness["violation"] is True, witness

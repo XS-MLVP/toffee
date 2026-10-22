@@ -7,7 +7,7 @@ from dataclasses import dataclass
 import json
 from pathlib import Path
 
-from xreactor.declarative import (
+from toffee.declarative import (
     Bin, CoverGroup, CoverPoint, Cross, IllegalPolicy, covergroup, coverpoint,
     Fields, wire,
 )
@@ -59,7 +59,7 @@ TRACE = tuple(PipelineSample(state, bool(index & 1))
 
 async def run_clocked(strategy: str) -> PipelineCoverage:
     import xspcomm
-    from xreactor import ClockCycles, Execution, RisingEdge, XCommClockBackend
+    from toffee import ClockCycles, Execution, RisingEdge, XCommClockBackend
     clock = xspcomm.XClock(lambda _: 0)
     backend = XCommClockBackend(clock)
     state = xspcomm.XData(8, xspcomm.XData.InOut)

@@ -4,7 +4,7 @@ import asyncio
 
 import xspcomm
 
-from xreactor import ClockCycles, Execution, XCommClockBackend
+from toffee import ClockCycles, Execution, XCommClockBackend
 
 
 async def main():

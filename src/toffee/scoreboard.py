@@ -14,7 +14,7 @@ from ._context import current_reactor
 from ._cleanup import raise_cleanup_errors
 from ._scoreboard_matching import Association, cycle_deadline
 from .execution import Execution
-from .reactor import XReactor
+from .reactor import Reactor
 from .triggers import FallingEdge
 from .interfaces import Transfer
 from .transfers import MISSING, TransferState, XTransfer
@@ -249,7 +249,7 @@ class Scoreboard(Generic[RequestT, ExpectedT, ActualT]):
         self._tasks: list[asyncio.Task[None]] = []
         self._monitor_started = False
         self._manage_monitor = True
-        self._monitor_consumer_reactor: XReactor | None = None
+        self._monitor_consumer_reactor: Reactor | None = None
         self._sealed = False
         self._checkpoint_tick = -1
         self._completed = 0

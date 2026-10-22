@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from xreactor import (
+from toffee import (
     AsyncDriver, ClockCycles, Execution, RisingEdge, Scoreboard,
     ScoreboardTimeoutError, Transfer, TransferState, XCommClockBackend,
 )

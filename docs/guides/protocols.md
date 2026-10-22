@@ -6,7 +6,7 @@
 ## ReadyValid
 
 ```python
-from xreactor import Bundle, ReadyValid, Role
+from toffee import Bundle, ReadyValid, Role
 
 producer = ReadyValid(
     clock=dut.clock,

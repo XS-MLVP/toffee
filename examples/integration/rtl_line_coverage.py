@@ -138,7 +138,7 @@ def main():
     new = [key for key, count in execution.items() if count and not before[key]]
     remaining = [key for key, count in execution.items() if not count]
     report = {
-        "format": "xreactor-verilator-execution-comparison/v1", "top": args.top,
+        "format": "toffee-verilator-execution-comparison/v1", "top": args.top,
         "scope": {"rtl": [{"path": path, "sha256": hashlib.sha256(Path(path).read_bytes()).hexdigest()}
                            for path in sorted(rtl)],
                   "baseline_databases": baseline_files, "added_databases": added_files,

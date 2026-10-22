@@ -1,7 +1,12 @@
-# XReactor 用户手册
+# Toffee 用户手册
+
+**本文档对应 `main` 分支的 Toffee 2。Toffee Legacy（旧版）位于
+[`master` 分支](https://github.com/XS-MLVP/toffee/tree/master)。**
+Toffee 2 由 XReactor 迁入，与 Legacy 的 API 不兼容。已有项目请先阅读
+[迁移指南](guides/toffee-v2-migration.md)，根据所用版本选择文档和安装方式。
 
 写硬件测试，通常要做三件事：给设计送输入、等待结果、判断结果是否正确。
-XReactor 帮你把这些工作写成 Python 测试，并在需要时拆成可复用的组件。
+Toffee 帮你把这些工作写成 Python 测试，并在需要时拆成可复用的组件。
 
 如果第一次接触验证框架，从[入门教程](getting-started/index.md)开始。
 你会用同一个累加器逐步练习，不必先学完 asyncio，也不必先搭好 RTL 仿真环境。

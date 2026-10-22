@@ -3,7 +3,7 @@ import pytest
 from examples.transactions.reference_model import (
     AccumulatorAgent, AccumulatorDut, AccumulatorModel, Command, Result,
 )
-from xreactor import Execution
+from toffee import Execution
 
 
 @pytest.mark.asyncio

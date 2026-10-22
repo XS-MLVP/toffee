@@ -40,7 +40,7 @@ def test_counter(dut, n):
     dut.count = n
 '''
 # Keep this source a normal user test: the fixture owns the DUT and calls
-# Finish(); it never imports XReactor's collector or emits a receipt.
+# Finish(); it never imports Toffee's collector or emits a receipt.
 
 
 def points(path):
@@ -117,7 +117,7 @@ def test_duplicate_worker_native_receipt_is_rejected(tmp_path):
     (tmp_path / "test_user.sv").write_text("module DUT;\nwire toggle;\nendmodule\n")
     text = NATIVE.replace("range(1, 41)", "range(1, 3)") + '''
 def test_duplicate():
-    from xreactor._native_coverage import NativeCollector
+    from toffee._native_coverage import NativeCollector
     original = NativeCollector.finish
     def duplicated(self):
         records = original(self)
@@ -159,7 +159,7 @@ def test_factory(factory, n):
 def test_native_batch_boundaries_match_one_shot_merge(tmp_path, batch):
     (tmp_path / "test_user.sv").write_text("module DUT;\nwire toggle;\nendmodule\n")
     text = NATIVE.replace("def test_counter(dut, n):", "def test_counter(dut, n, request):")
-    text = text.replace("    dut.count = n", f"    request.config._xreactor_managed_coverage.coverage.native.batch = {batch}\n    dut.count = n")
+    text = text.replace("    dut.count = n", f"    request.config._toffee_managed_coverage.coverage.native.batch = {batch}\n    dut.count = n")
     output, _ = run_cli(tmp_path, text, options=("--native-coverage-tool", TOOL))
     native, = output.glob("native/*/coverage.dat")
     measured = points(native)

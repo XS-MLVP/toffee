@@ -1,4 +1,4 @@
-"""Functional verification for the generated Cache through xreactor.
+"""Functional verification for the generated Cache through toffee.
 
 This is intentionally more than a binding smoke test.  It supplies a backing
 memory/MMIO model, checks architectural results against a byte-addressed
@@ -27,7 +27,7 @@ except ImportError:
     except ImportError:
         from __init__ import DUTCacheSignalCFG
 
-from xreactor import (
+from toffee import (
     Agent,
     AnyOf,
     Bin,

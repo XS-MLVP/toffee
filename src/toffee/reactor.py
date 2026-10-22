@@ -56,7 +56,7 @@ class Subscription:
     _on_stop: Callable[[BaseException | None], None] | None = None
 
 
-class XReactor:
+class Reactor:
     def __init__(
         self,
         backend: SimulationBackend,
@@ -77,7 +77,7 @@ class XReactor:
 
     def register(self, trigger: XTrigger[Any]) -> Registration:
         if self._closed:
-            raise RuntimeError("XReactor is closed")
+            raise RuntimeError("Reactor is closed")
         trigger = self._resolve_sample(trigger)
         self._check_phase_support(trigger)
         loop = asyncio.get_running_loop()
@@ -101,7 +101,7 @@ class XReactor:
 
     def subscribe(self, spec: BoundSubscriptionSpec) -> Subscription:
         if self._closed:
-            raise RuntimeError("XReactor is closed")
+            raise RuntimeError("Reactor is closed")
         trigger = self._resolve_sample(spec.trigger)
         self._check_phase_support(trigger)
         handle = self.backend.arm(trigger)
@@ -118,7 +118,7 @@ class XReactor:
         self._next_subscription_id += 1
         subscription.task = asyncio.create_task(
             self._run_subscription(subscription),
-            name=f"xreactor-subscription-{subscription.subscription_id}",
+            name=f"toffee-subscription-{subscription.subscription_id}",
         )
         subscription.task.add_done_callback(
             lambda task, sub=subscription: self._subscription_done(sub, task)

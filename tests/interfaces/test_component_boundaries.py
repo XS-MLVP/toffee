@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import (
+from toffee import (
     Agent, AsyncDriver, AsyncSingleCycleDriver, Bundle, ClockCycles, Execution,
     FallingEdge, MemoryBackend, MonitorClosedError, ReadyValidMonitor, Role,
     SamplingMonitor, SyncDriver, RisingEdge, ReadyValid, drive_ready_valid,

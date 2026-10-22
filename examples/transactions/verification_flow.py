@@ -9,7 +9,7 @@ from pathlib import Path
 import platform
 
 from examples.transactions.pipeline import Input, Response, ToyPipeline
-from xreactor import (
+from toffee import (
     Agent, Bin, CoverageDatabase, CoverGroupDef, CoverPointDef, Execution,
     generate_unified_coverage_report,
 )

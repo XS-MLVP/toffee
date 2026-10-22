@@ -22,7 +22,7 @@ Backend 与 DUT 状态继续保留。
 `dut.Step(...)` 完成初始化。进入 Execution 时，原生 XEngine 独占对应的 XClock，
 直到退出时完成注册清理并释放。作用域内（包括暂停期间）调用 `dut.Step`、
 `clock.Step`、`RawStep`、`StepHalf` 或 `Reset` 会立即抛出错误；旧的
-`AStep`、`ANext`、`ACondition`、`RunStep` 也不可混用，请用 xreactor Trigger 等待。
+`AStep`、`ANext`、`ACondition`、`RunStep` 也不可混用，请用 toffee Trigger 等待。
 不同 Backend 包装同一个 XClock，也不能同时接管它。
 
 正常退出、测试体异常或启动失败后，时钟恢复手动控制。释放不会推进或复位时钟；
@@ -48,7 +48,7 @@ finally:
 ```python
 import pytest
 
-from xreactor import Execution, XCommClockBackend
+from toffee import Execution, XCommClockBackend
 
 
 @pytest.fixture(scope="session")

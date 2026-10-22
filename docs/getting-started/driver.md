@@ -14,7 +14,7 @@ Driver 就是这段**项目输入规则**的封装。
 
 <!-- executable-example: examples/getting_started/test_accumulator.py#driver_setup -->
 ```python
-from xreactor import Bundle, SyncSingleCycleDriver
+from toffee import Bundle, SyncSingleCycleDriver
 
 
 def encode_operand(operand):

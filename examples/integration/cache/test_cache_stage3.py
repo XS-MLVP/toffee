@@ -2,7 +2,7 @@
 import json
 import pytest
 
-from xreactor import Execution, FallingEdge, XCommClockBackend
+from toffee import Execution, FallingEdge, XCommClockBackend
 from examples.integration.cache.cache_internal_coverage import CacheStage3Observer
 from examples.integration.cache.cache_module_env import initialize_module, load_module, ModuleCycles
 

@@ -8,7 +8,7 @@ from typing import Any
 
 
 current_domain: ContextVar[CallbackDomain | None] = ContextVar(
-    "xreactor_callback_domain", default=None,
+    "toffee_callback_domain", default=None,
 )
 _observers: dict[asyncio.AbstractEventLoop, _LoopObserver] = {}
 _MISSING = object()

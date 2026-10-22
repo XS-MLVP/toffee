@@ -15,7 +15,7 @@ on:
         default: ""
       artifact-name:
         type: string
-        default: xreactor-dist
+        default: toffee-dist
 
 permissions:
   contents: read
@@ -137,8 +137,8 @@ jobs:
       - name: Rebuild from the source distribution without Git metadata
         run: |
           mkdir -p "$RUNNER_TEMP/sdist-source" "$RUNNER_TEMP/sdist-wheel"
-          tar -xf dist/xreactor-*.tar.gz -C "$RUNNER_TEMP/sdist-source"
-          source_dir=("$RUNNER_TEMP"/sdist-source/xreactor-*)
+          tar -xf dist/pytoffee-*.tar.gz -C "$RUNNER_TEMP/sdist-source"
+          source_dir=("$RUNNER_TEMP"/sdist-source/pytoffee-*)
           python -m build --wheel "${source_dir[0]}" --outdir "$RUNNER_TEMP/sdist-wheel"
           original=(dist/*.whl)
           rebuilt=("$RUNNER_TEMP"/sdist-wheel/*.whl)
@@ -148,13 +148,13 @@ jobs:
           python -m venv "$RUNNER_TEMP/wheel-test"
           "$RUNNER_TEMP/wheel-test/bin/python" -m pip install --no-index dist/*.whl
           "$RUNNER_TEMP/wheel-test/bin/python" -m pip check
-          "$RUNNER_TEMP/wheel-test/bin/python" -I -c 'from importlib.metadata import version; from importlib.resources import files; import xreactor; assert files("xreactor").joinpath("templates/unified_coverage.html").is_file(); print(version("xreactor"), xreactor.__file__)'
+          "$RUNNER_TEMP/wheel-test/bin/python" -I -c 'from importlib.metadata import version; from importlib.resources import files; import toffee; assert files("toffee").joinpath("templates/unified_coverage.html").is_file(); print(version("pytoffee"), toffee.__file__)'
       - name: Record exact tested build provenance
         env:
           EXPECTED_VERSION: ${{ inputs.expected-version }}
         run: python scripts/release/verify_dist.py --expected-version "$EXPECTED_VERSION" --manifest --verify-manifest
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ inputs.artifact-name || 'xreactor-dist' }}
+          name: ${{ inputs.artifact-name || 'toffee-dist' }}
           path: dist/*
           if-no-files-found: error

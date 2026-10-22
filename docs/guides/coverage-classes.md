@@ -1,7 +1,7 @@
 # 用类定义覆盖模型
 
 小模型可以直接使用 `CoverGroupDef`，见[功能覆盖率](coverage.md)。
-模型较大、多个模块需要复用分桶规则时，可以用 `xreactor.declarative` 中的类声明。
+模型较大、多个模块需要复用分桶规则时，可以用 `toffee.declarative` 中的类声明。
 两种写法使用相同的计数、合并和报告机制，不需要换一套运行器。
 
 ## 样本、覆盖点和覆盖组
@@ -13,7 +13,7 @@
 
 ```python
 from dataclasses import dataclass
-from xreactor.declarative import Bin, CoverGroup, CoverPoint, Cross, covergroup, coverpoint
+from toffee.declarative import Bin, CoverGroup, CoverPoint, Cross, covergroup, coverpoint
 
 
 @dataclass(frozen=True)
@@ -69,8 +69,8 @@ assert coverage.state.count(StatePoint.path) == 1
 如果已有绑定好的 `dut.state`、`dut.taken` 和 `clock`，可以这样接线：
 
 ```python
-from xreactor import RisingEdge
-from xreactor.declarative import Fields, wire
+from toffee import RisingEdge
+from toffee.declarative import Fields, wire
 
 fields = Fields(Sample)
 coverage.bind(
@@ -109,6 +109,6 @@ python3 -m examples.coverage.declarative_pipeline --backend manual
 python3 -m examples.coverage.declarative_pipeline --backend native --output-dir output/classes
 ```
 
-源码见 [declarative_pipeline.py](https://github.com/Makiras/xreactor/blob/main/examples/coverage/declarative_pipeline.py)。
+源码见 [declarative_pipeline.py](https://github.com/XS-MLVP/toffee/blob/main/examples/coverage/declarative_pipeline.py)。
 按请求编号统计延迟和乱序，见[事务覆盖](coverage-transactions.md)；
 直接识别跨周期条件，见[时序覆盖](coverage-patterns.md)。

@@ -2,7 +2,7 @@
 from types import SimpleNamespace
 
 import pytest
-from xreactor import Bundle, LogicValue
+from toffee import Bundle, LogicValue
 
 
 class Signal:

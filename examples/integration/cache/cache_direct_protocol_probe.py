@@ -1,4 +1,4 @@
-"""Minimal synchronous control for xreactor-vs-DUT protocol isolation."""
+"""Minimal synchronous control for toffee-vs-DUT protocol isolation."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ try:
 except ImportError:
     from __init__ import DUTCacheSignalCFG
 
-from cache_functional_xreactor import (
+from cache_functional_toffee import (
     CMD_READ,
     CMD_READ_LAST,
     get,
@@ -116,7 +116,7 @@ def main(artifacts: Path) -> None:
         assert len(upstream_responses) == 1
 
         # Repeat the async verifier's critical overlap without asyncio or
-        # XReactor: return the first refill beat, then accept another read while
+        # Toffee: return the first refill beat, then accept another read while
         # the remaining seven beats are still in flight.
         first_addr = 0x0028_04E8
         second_addr = 0x0028_04C8

@@ -4,8 +4,8 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import Bundle, BundleValue, Field, LogicValue, PackedArray, PackedLayout, PackedView, split_packed
-from xreactor.signals import read_bool, sample_signal, signal_width, write_signal
+from toffee import Bundle, BundleValue, Field, LogicValue, PackedArray, PackedLayout, PackedView, split_packed
+from toffee.signals import read_bool, sample_signal, signal_width, write_signal
 
 
 def test_packed_layout_extensions_require_a_width_implementation():

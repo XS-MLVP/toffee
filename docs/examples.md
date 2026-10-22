@@ -19,7 +19,7 @@ python3 -m pytest -q examples/getting_started
 
 ## Trigger
 
-[basic_execution.py](https://github.com/Makiras/xreactor/blob/main/examples/triggers/basic_execution.py) 演示：
+[basic_execution.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/basic_execution.py) 演示：
 
 - `Execution`；
 - `RisingEdge` 和 `FallingEdge`；
@@ -32,7 +32,7 @@ PYTHONPATH=src python3 examples/triggers/basic_execution.py
 
 ## 采样与持续订阅
 
-[subscription.py](https://github.com/Makiras/xreactor/blob/main/examples/triggers/subscription.py)
+[subscription.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/subscription.py)
 示范在采样时 capture 不可变数据，再在 async handler 中处理：
 
 ```bash
@@ -41,7 +41,7 @@ python3 examples/triggers/subscription.py
 
 ## 事务检查
 
-[scoreboard.py](https://github.com/Makiras/xreactor/blob/main/examples/transactions/scoreboard.py)
+[scoreboard.py](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/scoreboard.py)
 演示协议无关的 Driver/Monitor、固定延迟响应和带预算的 finish：
 
 ```bash
@@ -84,7 +84,7 @@ python3 -m pytest -q -s examples/transactions/test_pipeline_coverage.py
 
 ## 功能覆盖率
 
-[functional_coverage.py](https://github.com/Makiras/xreactor/blob/main/examples/coverage/functional_coverage.py) 演示 coverpoint、bin、
+[functional_coverage.py](https://github.com/XS-MLVP/toffee/blob/main/examples/coverage/functional_coverage.py) 演示 coverpoint、bin、
 cross、JSON 输出和覆盖率检查。
 
 ```bash
@@ -104,8 +104,8 @@ Verilator 和原生绑定，不加入普通教程的默认测试收集。
 
 | 目标 | 入口 | 关注的框架功能 |
 | --- | --- | --- |
-| 将输入变为多条下游命令，检查路由/地址/数据/错误 | [e203 构建与使用](https://github.com/Makiras/xreactor/blob/main/examples/integration/e203/README.md) | Bundle 快照、接受后更新模型、Scoreboard 上下文、coverage、pytest 执行结果、LCOV/HTML、失败产物 |
-| 验证 refill、读写 mask、replacement、MMIO 和 probe/release | [Cache 构建与使用](https://github.com/Makiras/xreactor/blob/main/examples/integration/cache/README.md) | 项目 SyncDriver、Monitor、CoherenceAgent 多拍组装、Scoreboard、参考内存、coverage 与后台清理 |
+| 将输入变为多条下游命令，检查路由/地址/数据/错误 | [e203 构建与使用](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/e203/README.md) | Bundle 快照、接受后更新模型、Scoreboard 上下文、coverage、pytest 执行结果、LCOV/HTML、失败产物 |
+| 验证 refill、读写 mask、replacement、MMIO 和 probe/release | [Cache 构建与使用](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/cache/README.md) | 项目 SyncDriver、Monitor、CoherenceAgent 多拍组装、Scoreboard、参考内存、coverage 与后台清理 |
 | 验证 submit、流水、乱序、取消及截止周期 | [流水场景](guides/pipeline-examples.md)、[Agent/模型](guides/agents-and-reference-models.md) | AsyncDriver、SingleCycle 类、Agent、FIFO/key/固定延迟、finish，支持 memory/原生两种后端 |
 
 e203 和 Cache 的 README 都从构建、只跑定向、增加随机 seed，到查看报告逐步展开。

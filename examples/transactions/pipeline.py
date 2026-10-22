@@ -11,7 +11,7 @@ import asyncio
 from collections import defaultdict
 from dataclasses import dataclass
 
-from xreactor import (
+from toffee import (
     AsyncDriver, ClockCycles, Execution, MemoryBackend, Scoreboard,
     Transfer, XCommClockBackend, XEvent, XEventKind, XPhase,
 )

@@ -1,6 +1,6 @@
 # 公共 API 索引
 
-所有常用对象都从 `xreactor` 顶层导出。
+所有常用对象都从 `toffee` 顶层导出。
 
 第一次使用请先阅读[从零开始的教程](../getting-started/index.md)。按需求查找：
 
@@ -87,7 +87,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | `generate_unified_coverage_site` | 多页 functional + LCOV 报告 |
 | `generate_unified_coverage_report` | 单文件统一报告 |
 
-以上名称从 `xreactor` 导入。用类组织覆盖模型时，从 `xreactor.declarative` 导入：
+以上名称从 `toffee` 导入。用类组织覆盖模型时，从 `toffee.declarative` 导入：
 
 | API | 用途 |
 | --- | --- |
@@ -154,9 +154,9 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | `XExpr`, `SequenceSpec`, `FsmSpec` | 编译表达式及时序规格；优先用装饰器与构造函数声明 |
 | `XSubscriptionSpec`, `BoundSubscriptionSpec` | @on 声明与绑定结果；见[订阅](../guides/subscriptions.md) |
 | `Subscription`, `SubscriptionOverflowError` | 运行订阅句柄和 lossless 队列溢出 |
-| `XReactor`, `Registration` | 组件层的事件注册、分发和取消，由 Execution 管理 |
+| `Reactor`, `Registration` | 组件层的事件注册、分发和取消，由 Execution 管理 |
 | `BackendHandle`, `BackendHit` | 后端 arm/disarm 身份及命中记录 |
 | `ScoreboardMode`, `ScoreboardError` | 直接/异步检查模式和 DUT 检查异常基类 |
 
-顶层导出以 `src/xreactor/__init__.py` 的 __all__ 为准。常见路径、示例与回归的对应关系见
+顶层导出以 `src/toffee/__init__.py` 的 __all__ 为准。常见路径、示例与回归的对应关系见
 [功能索引](feature-map.md)，具体支持边界见[行为与限制](semantics-and-limitations.md)。

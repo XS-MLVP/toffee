@@ -5,12 +5,12 @@ import argparse
 import asyncio
 import json
 
-from xreactor import (
+from toffee import (
     ClockCycles, ConditionMode, Execution, FSM, IllegalPolicy, Hold, RisingEdge,
     Sequence, State, Wait, Within, xtrigger,
 )
-from xreactor.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
-from xreactor.ir import signal_expr
+from toffee.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
+from toffee.ir import signal_expr
 from examples.coverage.declarative_protocol import ProtocolBundle, RequestDriver, ToyResponder
 
 

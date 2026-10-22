@@ -19,7 +19,7 @@ python3 examples/transactions/pipeline.py
 ```
 
 默认运行六个成功场景，打印接受、响应和逐周期采样记录。
-完整代码在 [pipeline.py](https://github.com/Makiras/xreactor/blob/main/examples/transactions/pipeline.py)。
+完整代码在 [pipeline.py](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/pipeline.py)。
 它包含替身、Driver、Monitor、Scoreboard 连接和清理，可以直接运行。
 
 | 想验证的行为 | 单独运行的参数 | 关键机制 |

@@ -3,7 +3,7 @@ import asyncio
 import pytest
 
 from examples.transactions import reference_model as example
-from xreactor import ScoreboardMismatch
+from toffee import ScoreboardMismatch
 
 
 def test_reference_model_is_unit_testable_without_execution():

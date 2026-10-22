@@ -16,7 +16,7 @@ std::string coverage_path;
 bool saving = false;
 }
 
-extern "C" int xreactor_configure_fatal_coverage(const char* model, const char* output) {
+extern "C" int toffee_configure_fatal_coverage(const char* model, const char* output) {
     // Use the already loaded DUT's own coverage implementation and ABI;
     // linking another Verilator runtime would create a separate counter set.
     void* handle = dlopen(model, RTLD_NOW | RTLD_NOLOAD);
@@ -34,7 +34,7 @@ void vl_fatal(const char* filename, int line, const char* hierarchy, const char*
     if (original_fatal && !saving) {
         saving = true;
         write_coverage(context(), coverage_path);
-        std::fprintf(stderr, "xreactor: RTL coverage saved before fatal\n");
+        std::fprintf(stderr, "toffee: RTL coverage saved before fatal\n");
         std::fflush(stderr);
     }
     if (original_fatal) original_fatal(filename, line, hierarchy, message);

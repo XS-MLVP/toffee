@@ -6,7 +6,7 @@ the input action and observation source with project-specific code in a DUT test
 
 import asyncio
 
-from xreactor import (
+from toffee import (
     AsyncDriver, ClockCycles, Execution, MemoryBackend, Scoreboard,
     RisingEdge, SamplingMonitor, XPhase,
 )

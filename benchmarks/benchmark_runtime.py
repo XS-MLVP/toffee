@@ -1,4 +1,4 @@
-"""Reproducible microbenchmarks for the xreactor/xcomm scheduling boundary.
+"""Reproducible microbenchmarks for the toffee/xcomm scheduling boundary.
 
 Run with the same xspcomm build, simulator options and host load when comparing
 results.  The synthetic XClock callback intentionally performs no DUT work.
@@ -16,7 +16,7 @@ from typing import Callable
 
 import xspcomm
 
-from xreactor import (
+from toffee import (
     ClockCycles,
     FSM,
     RisingEdge,

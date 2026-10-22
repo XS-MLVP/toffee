@@ -14,7 +14,7 @@ Monitor 负责在指定时刻读信号，保存结果，再交给检查器处理
 可变 DUT 对象；框架不替调用方猜测复制方式。capture 不能是异步函数或返回 awaitable。
 
 ```python
-from xreactor import Bundle, Execution, RisingEdge, SamplingMonitor
+from toffee import Bundle, Execution, RisingEdge, SamplingMonitor
 
 outputs = Bundle(data=dut.data)
 monitor = SamplingMonitor(

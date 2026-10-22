@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from xreactor import (
+from toffee import (
     Bundle, ClockCycles, DriveStable, Execution, FallingEdge,
     RisingEdge, SamplingMonitor,  XPhase,
 )

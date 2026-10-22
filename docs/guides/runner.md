@@ -1,25 +1,25 @@
 # 运行测试与汇总覆盖率
 
-先确认测试能由 pytest 单独运行，再用 `xreactor run` 收集覆盖率和生成报告。
+先确认测试能由 pytest 单独运行，再用 `toffee run` 收集覆盖率和生成报告。
 在源码仓库中安装运行依赖：
 
 ```bash
 python3 -m pip install -e '.[runner]'
-xreactor run tests/ --workers 8 --output output/regression-001
+toffee run tests/ --workers 8 --output output/regression-001
 ```
 
-`python3 -m xreactor run` 与 `xreactor run` 等价。
+`python3 -m toffee run` 与 `toffee run` 等价。
 pytest 负责运行测试和 fixture，pytest-xdist 把测试分给独立进程，
-XReactor 负责收集、合并和生成覆盖率报告。测试里不需要自己创建收集器。
+Toffee 负责收集、合并和生成覆盖率报告。测试里不需要自己创建收集器。
 
 ## 选择用例和进程数
 
 ```bash
 # 只运行名称中含有 prediction 的测试。
-xreactor run tests/ --workers 8 --output output/prediction-001 -k prediction
+toffee run tests/ --workers 8 --output output/prediction-001 -k prediction
 
 # 单进程诊断，仍然使用相同的收集和报告流程。
-xreactor run tests/ --workers 1 --output output/serial-001
+toffee run tests/ --workers 1 --output output/serial-001
 ```
 
 `-k`、`-m`、`-q` 和 `--tb=short` 等参数会传给 pytest。
@@ -29,7 +29,7 @@ xreactor run tests/ --workers 1 --output output/serial-001
 ## 功能覆盖率怎样收集
 
 按平常的方式创建 covergroup，并在观察到事件时采样即可。
-XReactor 会在测试清理完成后收集该测试创建的组，最后合并各进程的结果。
+Toffee 会在测试清理完成后收集该测试创建的组，最后合并各进程的结果。
 在模块或 session fixture 中创建的共享组，会在进程退出时收集一次。
 
 合并会累加计数，并保留零命中的 bin。定义、实例名和采样规则必须兼容，
@@ -39,7 +39,7 @@ XReactor 会在测试清理完成后收集该测试创建的组，最后合并�
 再删除已经成功合并的中间文件。需要最终功能覆盖率数据库时，添加：
 
 ```bash
-xreactor run tests/ --workers 8 --output output/export-001 --export-coverage-json
+toffee run tests/ --workers 8 --output output/export-001 --export-coverage-json
 ```
 
 如果旧测试中仍调用 `write_json()`，那些文件还会照常生成。
@@ -53,7 +53,7 @@ xreactor run tests/ --workers 8 --output output/export-001 --export-coverage-jso
 import pytest
 
 
-@pytest.mark.xreactor_functional_coverage(False)
+@pytest.mark.toffee_functional_coverage(False)
 def test_coverage_definition():
     # 在这里测试分桶或合并规则，不计入正式功能覆盖率。
     ...
@@ -68,7 +68,7 @@ def test_coverage_definition():
 
 ### 在合并后增加项目检查
 
-项目插件可以实现 `pytest_xreactor_coverage(config, functional, native, pytest_exitstatus)`。
+项目插件可以实现 `pytest_toffee_coverage(config, functional, native, pytest_exitstatus)`。
 这个 hook 在主进程合并完成后、提交报告前调用一次，适合检查项目要求或输出小型摘要。
 参数中的合并结果只供读取，不应修改。
 
@@ -83,7 +83,7 @@ Picker/Verilator 适配器从 fixture 中查找提供 `SetCoverage`、`GetCovMet
 
 fixture 仍负责初始化 DUT 和调用 `Finish()`。运行器不接管仿真时钟，也不关闭 backend。
 如果工厂会在测试中提前关闭并释放 DUT，需要在创建时通过
-`xreactor_register_dut` fixture 提供的回调登记它，避免清理时已经找不到对象。
+`toffee_register_dut` fixture 提供的回调登记它，避免清理时已经找不到对象。
 登记不会推进或关闭 DUT。
 
 每个进程先分批合并原生计数，主进程再按 DUT 构建身份合并。
@@ -95,7 +95,7 @@ fixture 仍负责初始化 DUT 和调用 `Finish()`。运行器不接管仿真�
 `verilator_coverage`。也可显式指定：
 
 ```bash
-xreactor run tests/ --output output/native-001 \
+toffee run tests/ --output output/native-001 \
   --native-coverage-tool /path/to/verilator_coverage
 ```
 

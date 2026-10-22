@@ -4,12 +4,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import (
+from toffee import (
     Bundle, ClockCycles, DriveStable, Execution, FallingEdge, MemoryBackend, RisingEdge,
     RunLimit, SimTimeout, Value, ValueChange, XCommClockBackend, XEventKind, pytrigger, xtrigger, FSM, State,
 )
-from xreactor.ir import BinaryExpr, BoundSignalExpr, ConstantExpr, SignalExpr, UnaryExpr, XExpr, signal_expr
-from xreactor.triggers import CompiledTrigger, XTrigger
+from toffee.ir import BinaryExpr, BoundSignalExpr, ConstantExpr, SignalExpr, UnaryExpr, XExpr, signal_expr
+from toffee.triggers import CompiledTrigger, XTrigger
 
 
 @pytest.fixture(params=["memory", "native"])
@@ -117,7 +117,7 @@ def test_native_backend_reports_incompatible_module(monkeypatch, missing_import)
             raise ImportError("module unavailable")
         return SimpleNamespace()
 
-    monkeypatch.setattr("xreactor.backend.importlib.import_module", incompatible)
+    monkeypatch.setattr("toffee.backend.importlib.import_module", incompatible)
     with pytest.raises(RuntimeError, match="requires xspcomm" if missing_import else "without.*API"):
         XCommClockBackend(clock)
 

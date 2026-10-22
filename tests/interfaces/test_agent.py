@@ -2,7 +2,7 @@ import asyncio
 
 import pytest
 
-from xreactor import Agent, Execution, MemoryBackend
+from toffee import Agent, Execution, MemoryBackend
 
 
 class Monitor:

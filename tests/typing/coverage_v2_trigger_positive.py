@@ -1,9 +1,9 @@
 from typing import assert_type
 
-from xreactor import bits, RisingEdge, TriggerDefinition, XExpr
-from xreactor.ir import signal_expr
-from xreactor.declarative import Bin, BinRule, BoundPoint, PatternBin
-from xreactor.triggers import CompiledTrigger
+from toffee import bits, RisingEdge, TriggerDefinition, XExpr
+from toffee.ir import signal_expr
+from toffee.declarative import Bin, BinRule, BoundPoint, PatternBin
+from toffee.triggers import CompiledTrigger
 from examples.coverage.declarative_protocol import ProtocolBundle
 from examples.coverage.trigger_bins import (
     Completions, ProtocolCoverage, accepted, roundtrip,
@@ -29,9 +29,9 @@ def observe(pins: ProtocolBundle) -> int:
     return coverage.completions.count(Completions.tag_one)
 
 
-from xreactor.decorators import PythonTriggerDefinition
-from xreactor.declarative import FieldRef
-from xreactor.triggers import PythonPredicateTrigger
+from toffee.decorators import PythonTriggerDefinition
+from toffee.declarative import FieldRef
+from toffee.triggers import PythonPredicateTrigger
 from examples.coverage.mixed_patterns import InterfaceWithPython, PythonRequests, pins as live_fields, python_request
 
 mixed = InterfaceWithPython(instance="typing.mixed")

@@ -4,7 +4,7 @@ import asyncio
 
 import pytest
 
-from xreactor import (
+from toffee import (
     ClockCycles, Execution, FallingEdge, MemoryBackend, RisingEdge, RunResult,
     StopReason, XPhase, on,
 )

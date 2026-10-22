@@ -30,7 +30,7 @@ input-only 句柄的接受就是完成，不需要伪造响应，也不进入 re
 ## 直接检查
 
 ```python
-from xreactor import Scoreboard
+from toffee import Scoreboard
 
 scoreboard = Scoreboard("prediction")
 scoreboard.check(expected=wanted, actual=prediction)
@@ -175,7 +175,7 @@ falling 检查发现缺失时，elapsed_cycles 为 4.5。这包含了截止采�
 python3 examples/transactions/scoreboard.py
 ```
 
-源码见 [scoreboard.py](https://github.com/Makiras/xreactor/blob/main/examples/transactions/scoreboard.py)。
+源码见 [scoreboard.py](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/scoreboard.py)。
 
 连续输入、FIFO/固定延迟/乱序 key 匹配，以及漏响应、迟到与关联错误的可运行演示，
 见[流水输入与阶段重叠示例](pipeline-examples.md)。

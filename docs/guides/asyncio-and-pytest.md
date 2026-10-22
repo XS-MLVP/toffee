@@ -1,6 +1,6 @@
 # asyncio 与 pytest
 
-XReactor 使用当前正在运行的 asyncio event loop，可以和 HTTP client/server、Queue、
+Toffee 使用当前正在运行的 asyncio event loop，可以和 HTTP client/server、Queue、
 Timer 以及其他异步任务同时运行。
 
 本页主要面向宿主集成和组件开发。日常验证使用 Driver 提交、Monitor/Scoreboard 的
@@ -16,7 +16,7 @@ asyncio 仍是唯一运行 Python Task 和回调的调度器。Execution 观察�
 ```python
 import pytest
 
-from xreactor import Execution, RisingEdge
+from toffee import Execution, RisingEdge
 
 
 @pytest.mark.asyncio
@@ -101,7 +101,7 @@ Queue 或普通 Task，仿真时间保持不变。已经启动持续 Monitor/Sco
 `TaskComplete` 把普通任务结果包装为 XEvent，并用 shield 保护原任务：
 
 ```python
-from xreactor import AnyOf, TaskComplete, WallTimeout, XEventKind
+from toffee import AnyOf, TaskComplete, WallTimeout, XEventKind
 
 # reference_task 由外层创建并负责最终 await 或取消。
 event = await AnyOf(TaskComplete(reference_task), WallTimeout(2.0))

@@ -11,7 +11,7 @@
 - 每次接受还会在 **两周期后**给出一个响应；本页先读 `total`，第 5 步再检查响应。
 
 这里没有背压或 ready/valid 握手。`enable` 是这个练习 DUT 的明确输入规则，
-不是 XReactor 对硬件协议的假设。把它保持为 1 两个上升沿，就会接受两次。
+不是 Toffee 对硬件协议的假设。把它保持为 1 两个上升沿，就会接受两次。
 
 仓库提供 `examples/getting_started/toy_dut.py`，你可以直接使用 `TutorialDut()`。
 它是 Python 写的教学替身，无需编译 RTL；初学时不用先理解它如何实现后端。
@@ -38,7 +38,7 @@
 import pytest
 
 from examples.getting_started.toy_dut import TutorialDut
-from xreactor import ClockCycles, Execution
+from toffee import ClockCycles, Execution
 
 
 @pytest.mark.asyncio

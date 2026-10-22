@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 
-from xreactor import (
+from toffee import (
     ClockCycles,
     DriveStable,
     FallingEdge,
@@ -21,7 +21,7 @@ from xreactor import (
     pytrigger,
     xtrigger,
 )
-from xreactor.backend import BackendCapabilities, RunLimit
+from toffee.backend import BackendCapabilities, RunLimit
 
 
 class Signal:

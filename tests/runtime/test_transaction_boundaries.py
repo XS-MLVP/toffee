@@ -5,10 +5,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from xreactor import Execution, LogicValue, MemoryBackend, Scoreboard, ScoreboardMismatch, XTransfer
-from xreactor.external import external_event
-from xreactor.scoreboard import ScoreboardMode, structural_differences
-from xreactor.transfers import MISSING, TransferState
+from toffee import Execution, LogicValue, MemoryBackend, Scoreboard, ScoreboardMismatch, XTransfer
+from toffee.external import external_event
+from toffee.scoreboard import ScoreboardMode, structural_differences
+from toffee.transfers import MISSING, TransferState
 
 
 @dataclass

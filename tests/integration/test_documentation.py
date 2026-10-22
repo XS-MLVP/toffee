@@ -40,7 +40,7 @@ def test_user_documentation_links_point_to_existing_files():
         for target in LINK.findall(page.read_text()):
             url = urlsplit(target.strip('<>'))
             if url.scheme or url.netloc:
-                prefix = '/Makiras/xreactor/blob/main/'
+                prefix = '/XS-MLVP/toffee/blob/main/'
                 if url.netloc == 'github.com' and url.path.startswith(prefix):
                     path = ROOT / unquote(url.path.removeprefix(prefix))
                     assert path.exists(), (page, target)
@@ -52,5 +52,5 @@ def test_user_documentation_links_point_to_existing_files():
 def test_user_documentation_has_no_abandoned_branch_or_machine_paths():
     for page in user_pages():
         text = page.read_text()
-        for obsolete in ('/blob/draft/', '/tmp/xreactor', '/home/xyl/'):
+        for obsolete in ('/blob/draft/', '/tmp/toffee', '/home/xyl/'):
             assert obsolete not in text, (page, obsolete)

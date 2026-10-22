@@ -4,16 +4,16 @@ import asyncio
 
 import pytest
 
-from xreactor import (
+from toffee import (
     ClockCycles, ConditionMode, Execution, FallingEdge, FSM, RisingEdge, Sequence, State,
     Wait, Within, xtrigger, CoverGroup as CoreGroup, CoverGroupDef,
     CoverPointDef, Iff, CrossDef,
 )
-from xreactor.coverage import PatternMatcher, BinSpec
-from xreactor.declarative import (
+from toffee.coverage import PatternMatcher, BinSpec
+from toffee.declarative import (
     Bin, DefinitionError, SignalCoverGroup, TemporalCoverPoint, covergroup,
 )
-from xreactor.ir import signal_expr, program_to_dict
+from toffee.ir import signal_expr, program_to_dict
 from examples.coverage.declarative_protocol import ProtocolBundle, ToyResponder
 from examples.coverage.trigger_bins import ProtocolCoverage, Completions, checked_tag_one, roundtrip, run
 

@@ -9,7 +9,7 @@ except ImportError:
     except ImportError:
         from __init__ import DUTCacheSignalCFG
 
-from xreactor import (
+from toffee import (
     ClockCycles,
     FallingEdge,
     RisingEdge,
@@ -69,7 +69,7 @@ async def test_cache():
     assert ready.source is dut.io_in_req_ready
     assert accepted.value is True
     print(
-        "Cache memory-direct xreactor passed:",
+        "Cache memory-direct toffee passed:",
         {
             "ready_tick": ready.tick,
             "xtrigger_tick": accepted.tick,

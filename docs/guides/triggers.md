@@ -61,7 +61,7 @@ await ValueChange(dut.response, sample=RisingEdge(dut.clock))
 `XEventKind.TIMEOUT`，**不会自动抛异常**。要让等待超时使测试失败，应显式处理结果：
 
 ```python
-from xreactor import AnyOf, RisingEdge, SimTimeout, Value, XEventKind
+from toffee import AnyOf, RisingEdge, SimTimeout, Value, XEventKind
 
 event = await AnyOf(
     Value(dut.result, wanted, sample=RisingEdge(clock)),

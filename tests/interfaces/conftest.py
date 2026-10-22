@@ -1,6 +1,6 @@
 import pytest
 
-from xreactor import MemoryBackend, XCommClockBackend
+from toffee import MemoryBackend, XCommClockBackend
 
 
 @pytest.fixture(params=["memory", "native"])

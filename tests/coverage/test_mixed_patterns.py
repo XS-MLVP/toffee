@@ -5,12 +5,12 @@ import asyncio
 
 import pytest
 
-from xreactor import ClockCycles, ConditionMode, Execution, RisingEdge, pytrigger
-from xreactor.coverage import CoverGroup as CoreGroup
-from xreactor.declarative import (
+from toffee import ClockCycles, ConditionMode, Execution, RisingEdge, pytrigger
+from toffee.coverage import CoverGroup as CoreGroup
+from toffee.declarative import (
     Bin, DefinitionError, Iff, PatternCoverPoint, SignalCoverGroup, covergroup,
 )
-from xreactor.ir import program_from_dict, program_to_dict
+from toffee.ir import program_from_dict, program_to_dict
 from examples.coverage.declarative_protocol import ProtocolBundle, ToyResponder
 from examples.coverage.mixed_patterns import (
     InterfaceCoverage, InterfaceWithPython, PythonRequests, pins, python_request,
@@ -173,7 +173,7 @@ def test_shared_python_predicate_runs_once_per_sample(engine, strategy):
 
 
 def test_parameterized_pytrigger_remains_awaitable_and_can_sample_value_coverage():
-    from xreactor.declarative import CoverGroup, CoverPoint, Fields, wire
+    from toffee.declarative import CoverGroup, CoverPoint, Fields, wire
     from dataclasses import dataclass
     @dataclass(frozen=True)
     class Snapshot:

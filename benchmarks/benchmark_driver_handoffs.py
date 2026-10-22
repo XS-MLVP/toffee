@@ -9,7 +9,7 @@ import time
 
 import xspcomm
 
-from xreactor import ClockCycles, Execution, SyncDriver, XCommClockBackend
+from toffee import ClockCycles, Execution, SyncDriver, XCommClockBackend
 
 
 class Input(SyncDriver[int]):

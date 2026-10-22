@@ -8,7 +8,7 @@ from .test_native import NATIVE, TOOL
 def test_synthetic_groups_do_not_contribute_to_measured_bins(tmp_path):
     output, _ = run_cli(tmp_path, '''
 import pytest
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 def group():
     return CoverGroupDef('events', (CoverPointDef('v', {'zero': Bin.values(0), 'one': Bin.values(1)}),)).instantiate('dut')
 @pytest.fixture
@@ -19,7 +19,7 @@ def synthetic():
     g.sample({'v': 1})
 def test_real():
     group().sample({'v': 0})
-@pytest.mark.xreactor_functional_coverage(False)
+@pytest.mark.toffee_functional_coverage(False)
 def test_synthetic(synthetic):
     synthetic.sample({'v': 1})
 ''', workers=2, options=('--export-coverage-json',))
@@ -31,15 +31,15 @@ def test_synthetic(synthetic):
 def test_project_hook_receives_merged_memory_once_without_json(tmp_path):
     (tmp_path/'conftest.py').write_text('''
 from pathlib import Path
-def pytest_xreactor_coverage(config, functional, native, pytest_exitstatus):
+def pytest_toffee_coverage(config, functional, native, pytest_exitstatus):
     assert pytest_exitstatus == 0 and native == []
     assert functional['groups'][0]['samples'] == 4
-    target = Path(config.getoption('xreactor_output'))/'project-summary.txt'
+    target = Path(config.getoption('toffee_output'))/'project-summary.txt'
     with target.open('x') as stream: stream.write('checked once')
 ''')
     text = '''
 import pytest
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 @pytest.mark.parametrize('n', range(4))
 def test_event(n):
     g = CoverGroupDef('events', (CoverPointDef('v', {'one': Bin.values(1)}),)).instantiate('dut')
@@ -53,7 +53,7 @@ def test_event(n):
 
 def test_project_rejection_keeps_inputs_and_fails(tmp_path):
     (tmp_path/'conftest.py').write_text('''
-def pytest_xreactor_coverage(config, functional, native, pytest_exitstatus):
+def pytest_toffee_coverage(config, functional, native, pytest_exitstatus):
     raise ValueError('rejected domain contract')
 ''')
     output, _ = run_cli(tmp_path, 'def test_ok(): pass\n', expected=1)
@@ -64,7 +64,7 @@ def pytest_xreactor_coverage(config, functional, native, pytest_exitstatus):
 
 def test_auxiliary_group_is_not_a_second_measurement_or_schema_conflict(tmp_path):
     text = '''
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 def test_groups():
     measured=CoverGroupDef('full', (CoverPointDef('v', {'zero': Bin.values(0), 'one': Bin.values(1)}),)).instantiate('dut')
     measured.sample({'v':0})
@@ -81,7 +81,7 @@ def test_groups():
 @pytest.mark.skipif(TOOL is None, reason='requires Verilator coverage processor')
 def test_functional_exclusion_does_not_disable_native_dut_collection(tmp_path):
     (tmp_path/'test_user.sv').write_text('module DUT;\nwire toggle;\nendmodule\n')
-    output, _ = run_cli(tmp_path, NATIVE+'\npytestmark = pytest.mark.xreactor_functional_coverage(False)\n',
+    output, _ = run_cli(tmp_path, NATIVE+'\npytestmark = pytest.mark.toffee_functional_coverage(False)\n',
                         workers=2, options=('--native-coverage-tool', TOOL))
     manifest = json.loads((output/'manifest.json').read_text())
     native, = [row for row in manifest['artifacts'] if row['kind']=='native']
@@ -94,10 +94,10 @@ def test_factory_registers_exports_before_early_finish_and_release(tmp_path):
     (tmp_path/'test_user.sv').write_text('module DUT;\nwire toggle;\nendmodule\n')
     text=NATIVE.split('@pytest.fixture')[0]+'''
 @pytest.fixture
-def factory(xreactor_register_dut):
+def factory(toffee_register_dut):
     def create():
         dut=DUT()
-        xreactor_register_dut(dut)
+        toffee_register_dut(dut)
         return dut
     return create
 def test_early_close(factory):

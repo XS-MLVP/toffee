@@ -44,7 +44,7 @@ mkdocs build --strict
 
 ```bash
 python3 -m pytest -q --require-xspcomm \
-  --cov=xreactor --cov-branch \
+  --cov=toffee --cov-branch \
   --cov-report=json:output/python-coverage/coverage.json \
   --cov-report=html:output/python-coverage/html
 ```

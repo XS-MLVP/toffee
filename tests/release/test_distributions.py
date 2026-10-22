@@ -14,15 +14,15 @@ from scripts.release import verify_dist as distribution
 @pytest.fixture
 def packages(tmp_path: Path):
     def create(*, wheel_version="0.1.0", source_version="0.1.0", template=True):
-        with zipfile.ZipFile(tmp_path / "xreactor.whl", "w") as wheel:
-            wheel.writestr("xreactor.dist-info/METADATA",
-                           f"Name: xreactor\nVersion: {wheel_version}\n")
+        with zipfile.ZipFile(tmp_path / "pytoffee.whl", "w") as wheel:
+            wheel.writestr("pytoffee.dist-info/METADATA",
+                           f"Name: pytoffee\nVersion: {wheel_version}\n")
             if template:
-                wheel.writestr("xreactor/templates/unified_coverage.html", "template")
-        with tarfile.open(tmp_path / "xreactor.tar.gz", "w:gz") as archive:
+                wheel.writestr("toffee/templates/unified_coverage.html", "template")
+        with tarfile.open(tmp_path / "pytoffee.tar.gz", "w:gz") as archive:
             for name, contents in {
-                "xreactor/PKG-INFO": f"Name: xreactor\nVersion: {source_version}\n",
-                "xreactor/src/xreactor/templates/unified_coverage.html": "template",
+                "toffee/PKG-INFO": f"Name: pytoffee\nVersion: {source_version}\n",
+                "toffee/src/toffee/templates/unified_coverage.html": "template",
             }.items():
                 data = contents.encode()
                 item = tarfile.TarInfo(name)
@@ -56,7 +56,7 @@ def test_existing_release_can_only_be_completed_with_identical_assets(packages, 
     directory = packages()
     existing = tmp_path / "published"
     existing.mkdir()
-    original = directory / "xreactor.whl"
+    original = directory / "pytoffee.whl"
     (existing / original.name).write_bytes(original.read_bytes())
     distribution.verify_existing_assets(directory, existing)
     (existing / original.name).write_bytes(b"different build")

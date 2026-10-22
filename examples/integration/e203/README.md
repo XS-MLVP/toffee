@@ -7,17 +7,17 @@
 ## 构建与运行
 
 需要 Picker、Verilator、C++ 编译器、当前 xspcomm，以及提供 `genhtml` 的 lcov。
-在 XReactor 仓库根目录执行，替换本机工具路径：
+在 Toffee 仓库根目录执行，替换本机工具路径：
 
 ```bash
 python3 -m pip install -e '.[test]'
 export PICKER_ROOT=/path/to/picker
 export PICKER_BIN="$PICKER_ROOT/build/bin/picker"
-BUILD_THREADS=8 examples/integration/e203/build_xreactor.sh
+BUILD_THREADS=8 examples/integration/e203/build_toffee.sh
 examples/integration/e203/run_pytest.sh
 ```
 
-生成目录默认 `output/xreactor_e203`，输出默认 `output/e203-verification`。
+生成目录默认 `output/toffee_e203`，输出默认 `output/e203-verification`。
 旧生成包若缺少 `XTriggerEngine.ClearExecutionState`，更新 Picker 使用的 xspcomm 后
 重新构建 DUT；只安装 Python 框架不能更新生成包内的 native binding。
 
@@ -68,12 +68,12 @@ E203_SEED=0x1234 E203_RANDOM_COUNT=500 E203_ARTIFACT_DIR=output/e203-seed-0x1234
 | 检查器故障回归 | 错指令/错误位/命令地址、漏命令/响应、额外输出，以及背压时改值或撤回 valid、接受前响应 |
 | 外部取消 | 接受前、等待 ICB 响应、输出受阻三个阶段，检查任务、watcher、backend ownership 和驱动 valid 清理 |
 
-`e203_xreactor_env.py` 将项目时序集中在 `E203Harness`；`IfuReferenceModel.predict()`
+`e203_toffee_env.py` 将项目时序集中在 `E203Harness`；`IfuReferenceModel.predict()`
 只计算期望，`accept()` 在输入真正接受后更新模型状态。输入用 Bundle 驱动，响应同步
 采样为快照，Scoreboard 同时比较命令序列、指令及错误，并携带接受/响应时刻。
 该 harness 的 `finish()` 是项目的有限尾部检查，不是异步 Scoreboard 的通用 `finish()`。
 
-`test_e203_xreactor.py` 集中组织所有测试：1 项主 campaign、1 项超时恢复、4 项数据模式、
+`test_e203_toffee.py` 集中组织所有测试：1 项主 campaign、1 项超时恢复、4 项数据模式、
 4 项周期边界、10 项故障回归和 3 项取消检查；没有按 feature 拆出新文件。
 模型、DUT command 记录和不可变 `FetchTransaction` 供比较和覆盖率共同使用，覆盖采样不回读引脚。
 
@@ -112,7 +112,7 @@ examples/integration/e203/run_pytest.sh -k 'checker_rejects_faults or external_c
 运行目录，显式传入各份产物，不要重复输入同一文件：
 
 ```bash
-xreactor-coverage-report \
+toffee-coverage-report \
   --functional output/e203-directed/functional-coverage.json \
   --functional output/e203-seed-0x1234/functional-coverage.json \
   --output output/e203-combined.html
@@ -159,7 +159,7 @@ pytest 的最终结果以原生报告和退出码为准；需要机器可读结�
 
 ```bash
 python3 examples/integration/e203/benchmark_coverage.py \
-  --dut-dir output/xreactor_e203 --random-count 500 --repeats 9 --json
+  --dut-dir output/toffee_e203 --random-count 500 --repeats 9 --json
 ```
 
 运行报告与覆盖数据留在本地产物目录，不纳入 Git。验证范围由本例的配置、

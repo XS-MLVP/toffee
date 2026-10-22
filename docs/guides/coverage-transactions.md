@@ -4,13 +4,13 @@
 前者只需观察连续采样，后者还要记住请求，并按编号找回对应响应。
 不要把这两件事混成一个计数。
 
-本页使用[请求与响应示例](https://github.com/Makiras/xreactor/blob/main/examples/coverage/declarative_protocol.py)，
+本页使用[请求与响应示例](https://github.com/XS-MLVP/toffee/blob/main/examples/coverage/declarative_protocol.py)，
 沿用[类声明](coverage-classes.md)中的写法。
 
 ## 观察连续采样
 
 ```python
-from xreactor.declarative import Bin, CoverPoint, OverlapPolicy, coverpoint
+from toffee.declarative import Bin, CoverPoint, OverlapPolicy, coverpoint
 
 
 @coverpoint(overlap=OverlapPolicy.ALLOW)
@@ -31,8 +31,8 @@ class ReadyPoint(CoverPoint[bool]):
 组的采样条件不一定是每个时钟沿，也可以是一个 Sequence：
 
 ```python
-from xreactor import RisingEdge, Sequence, Wait, Within, xtrigger
-from xreactor.ir import signal_expr
+from toffee import RisingEdge, Sequence, Wait, Within, xtrigger
+from toffee.ir import signal_expr
 
 
 @xtrigger(sample=RisingEdge("clock"))

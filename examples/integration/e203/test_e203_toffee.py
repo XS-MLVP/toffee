@@ -8,8 +8,8 @@ from pathlib import Path
 
 import pytest
 
-import e203_xreactor_env as env
-from e203_xreactor_env import (
+import e203_toffee_env as env
+from e203_toffee_env import (
     E203Harness,
     FetchRequest,
     convert_line_coverage,
@@ -17,7 +17,7 @@ from e203_xreactor_env import (
     load_generated_dut,
     run_campaign,
 )
-from xreactor import (
+from toffee import (
     Execution,
     ScoreboardMismatch,
     XCommClockBackend,
@@ -32,7 +32,7 @@ REPOSITORY = Path(__file__).resolve().parents[3]
 @pytest.mark.asyncio
 async def test_e203_reference_stress_and_coverage() -> None:
     generated = Path(
-        os.environ.get("E203_DUT_DIR", REPOSITORY / "output" / "xreactor_e203")
+        os.environ.get("E203_DUT_DIR", REPOSITORY / "output" / "toffee_e203")
     ).resolve()
     artifacts = Path(
         os.environ.get(
@@ -150,7 +150,7 @@ async def test_e203_missing_response_times_out() -> None:
     """A permanently delayed ICB response must fail with execution context."""
 
     generated = Path(
-        os.environ.get("E203_DUT_DIR", REPOSITORY / "output" / "xreactor_e203")
+        os.environ.get("E203_DUT_DIR", REPOSITORY / "output" / "toffee_e203")
     ).resolve()
     artifacts = Path(
         os.environ.get(
@@ -190,7 +190,7 @@ async def test_e203_missing_response_times_out() -> None:
 @pytest.fixture
 def native_case(tmp_path, monkeypatch):
     """Keep each focused test's artifacts and inspect native cleanup before Finish."""
-    generated = Path(os.environ.get("E203_DUT_DIR", REPOSITORY / "output/xreactor_e203"))
+    generated = Path(os.environ.get("E203_DUT_DIR", REPOSITORY / "output/toffee_e203"))
     DUT = load_generated_dut(generated)
     dut = DUT(coverage_filename=str(tmp_path / "verilator-coverage.dat"))
     closed = []

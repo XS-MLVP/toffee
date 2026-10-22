@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import sys
 
-from xreactor import FallingEdge, RisingEdge, as_xdata
+from toffee import FallingEdge, RisingEdge, as_xdata
 
 
 _native_runtime = None

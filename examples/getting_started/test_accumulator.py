@@ -15,7 +15,7 @@ def test_addition():
 import pytest
 
 from examples.getting_started.toy_dut import TutorialDut
-from xreactor import ClockCycles, Execution
+from toffee import ClockCycles, Execution
 
 
 @pytest.mark.asyncio
@@ -60,7 +60,7 @@ async def test_accumulator_cases(operands, expected):
 # endregion
 
 # region driver_setup
-from xreactor import Bundle, SyncSingleCycleDriver
+from toffee import Bundle, SyncSingleCycleDriver
 
 
 def encode_operand(operand):
@@ -96,7 +96,7 @@ async def test_driver_restores_idle():
 # endregion
 
 # region monitor_setup
-from xreactor import PythonPredicateTrigger, RisingEdge, SamplingMonitor
+from toffee import PythonPredicateTrigger, RisingEdge, SamplingMonitor
 
 
 def make_response_monitor(dut):
@@ -116,7 +116,7 @@ def make_response_monitor(dut):
 # endregion
 
 # region monitor
-from xreactor import Scoreboard
+from toffee import Scoreboard
 
 
 @pytest.mark.asyncio
@@ -141,7 +141,7 @@ async def test_delayed_response_snapshot():
 # endregion
 
 # region agent_setup
-from xreactor import Agent
+from toffee import Agent
 
 
 def make_agent(dut):
@@ -210,7 +210,7 @@ async def test_model_checks_wraparound(accumulator):
 # endregion
 
 # region pipeline_setup
-from xreactor import AsyncSingleCycleDriver
+from toffee import AsyncSingleCycleDriver
 
 
 def make_pipeline_agent(dut, *, response_timeout_cycles=3):
@@ -275,7 +275,7 @@ async def test_two_batches_and_withdrawn_input():
 # endregion
 
 # region coverage
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CoverageDatabase
+from toffee import Bin, CoverGroupDef, CoverPointDef, CoverageDatabase
 
 
 @pytest.mark.asyncio

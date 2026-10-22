@@ -25,7 +25,7 @@ import pytest
 
 from examples.getting_started.test_accumulator import AccumulatorModel, make_pipeline_agent
 from examples.getting_started.toy_dut import TutorialDut
-from xreactor import Execution
+from toffee import Execution
 
 
 @pytest.mark.asyncio

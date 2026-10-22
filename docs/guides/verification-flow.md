@@ -5,8 +5,8 @@
 Agent 内部连接响应 Scoreboard。组件边界与有状态模型接入见[Agent 与 reference model](agents-and-reference-models.md)。
 
 可运行源码：
-[组合实现](https://github.com/Makiras/xreactor/blob/main/examples/transactions/verification_flow.py)、
-[pytest 用例及 fixture](https://github.com/Makiras/xreactor/blob/main/examples/transactions/test_pipeline_coverage.py)。
+[组合实现](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/verification_flow.py)、
+[pytest 用例及 fixture](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/test_pipeline_coverage.py)。
 
 ```bash
 python3 -m pytest -q -s examples/transactions/test_pipeline_coverage.py

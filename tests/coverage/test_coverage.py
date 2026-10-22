@@ -8,7 +8,7 @@ import unittest
 import warnings
 import pytest
 
-from xreactor import (
+from toffee import (
     Bin,
     CoverGroup,
     CoverageDatabase,

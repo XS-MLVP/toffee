@@ -4,7 +4,7 @@
 这页说明数据运算、未知值和资源释放中容易遇到的问题。
 安装见[原生后端与项目 DUT](../getting-started/native-and-next.md)，
 所需提交、包版本、ABI 和协议版本以
-[依赖清单](https://github.com/Makiras/xreactor/blob/main/.github/native-dependencies.json)为准。
+[依赖清单](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json)为准。
 
 ## 逻辑运算和数据位运算不是一回事
 
@@ -13,8 +13,8 @@
 不要用 Python 的 `and`、`or`、`not` 代替可编译条件。
 
 ```python
-from xreactor import bits
-from xreactor.ir import signal_expr
+from toffee import bits
+from toffee.ir import signal_expr
 
 data = signal_expr(pins.data)
 negative = data.as_signed() < 0

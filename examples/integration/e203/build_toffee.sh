@@ -3,7 +3,7 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PICKER_BIN="${PICKER_BIN:-picker}"
-OUT_DIR="${E203_DUT_DIR:-${PROJECT_ROOT}/output/xreactor_e203}"
+OUT_DIR="${E203_DUT_DIR:-${PROJECT_ROOT}/output/toffee_e203}"
 BUILD_THREADS="${BUILD_THREADS:-0}"
 
 if [[ -z "${E203_FILELIST:-}" ]]; then

@@ -5,8 +5,8 @@ from types import MappingProxyType, SimpleNamespace
 
 import pytest
 
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CrossDef, CoverageDatabase, CoverageSchemaError, Iff, LogicValue
-from xreactor.coverage import BinKind, BinSpec, DefaultMatcher, IllegalBinError, ValueMatcher
+from toffee import Bin, CoverGroupDef, CoverPointDef, CrossDef, CoverageDatabase, CoverageSchemaError, Iff, LogicValue
+from toffee.coverage import BinKind, BinSpec, DefaultMatcher, IllegalBinError, ValueMatcher
 
 
 def point(name="value", **kwargs):

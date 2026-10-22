@@ -12,15 +12,15 @@ import json
 from pathlib import Path
 from typing import Protocol
 
-from xreactor import (
+from toffee import (
     Bundle, BundleValue, ClockCycles, Execution, MemoryBackend, RisingEdge, SamplingMonitor,
     Sequence, SignalDriver, Transfer, Wait, Within, XCommClockBackend, XPhase, xtrigger,
 )
-from xreactor.declarative import (
+from toffee.declarative import (
     Bin, CoverGroup, CoverPoint, Cross, Fields, Iff, OverlapPolicy,
     covergroup, coverpoint, wire,
 )
-from xreactor.ir import signal_expr
+from toffee.ir import signal_expr
 
 
 class Pin(Protocol):

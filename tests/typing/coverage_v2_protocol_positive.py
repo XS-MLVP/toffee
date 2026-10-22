@@ -1,7 +1,7 @@
 from typing import assert_type
 
-from xreactor import Transfer
-from xreactor.declarative import BinRule, BoundPoint, FieldRef, Fields, SignalBinding, wire
+from toffee import Transfer
+from toffee.declarative import BinRule, BoundPoint, FieldRef, Fields, SignalBinding, wire
 from examples.coverage.declarative_protocol import (
     CompletedTransaction, CycleSnapshot, ProtocolBundle, ReadyPoint,
     RequestCycleCoverage, TransactionCollector, TransactionCoverage,

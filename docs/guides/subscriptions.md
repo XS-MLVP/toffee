@@ -5,7 +5,7 @@
 ```python
 import asyncio
 
-from xreactor import Execution, RisingEdge, on
+from toffee import Execution, RisingEdge, on
 
 snapshots = asyncio.Queue()
 

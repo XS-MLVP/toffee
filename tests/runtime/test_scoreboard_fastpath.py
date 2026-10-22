@@ -3,8 +3,8 @@ from dataclasses import dataclass, field
 from random import Random
 
 import pytest
-import xreactor.scoreboard as module
-from xreactor import Scoreboard, ScoreboardMismatch
+import toffee.scoreboard as module
+from toffee import Scoreboard, ScoreboardMismatch
 
 
 @dataclass

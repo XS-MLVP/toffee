@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from xreactor import Execution, FallingEdge, RisingEdge, XCommClockBackend, as_xdata
+from toffee import Execution, FallingEdge, RisingEdge, XCommClockBackend, as_xdata
 from examples.integration.cache.cache_internal_coverage import CacheStage2Observer
 from examples.integration.cache.cache_module_env import load_module
 from examples.integration.cache.cache_assertion_env import assertion_run, record_assertion_checks
@@ -132,7 +132,7 @@ import json
 import sys
 resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
 from test_cache_stage2 import load_stage2
-from xreactor import as_xdata
+from toffee import as_xdata
 from examples.integration.cache.cache_assertion_env import install_fatal_coverage
 dut = load_stage2()()
 dut.InitClock("clock")

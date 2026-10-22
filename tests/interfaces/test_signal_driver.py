@@ -1,6 +1,6 @@
 import unittest
 
-from xreactor import ClockCycles, Execution, MemoryBackend, SignalDriver
+from toffee import ClockCycles, Execution, MemoryBackend, SignalDriver
 
 
 class Signal:

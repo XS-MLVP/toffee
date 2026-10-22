@@ -7,9 +7,9 @@ import json
 
 import pytest
 
-from xreactor import CoverGroup as CoreGroup, ClockCycles, Execution, RisingEdge, XCommClockBackend
-from xreactor.coverage import CoverGroupDef, CoverageDatabase, IllegalBinError
-from xreactor.declarative import (
+from toffee import CoverGroup as CoreGroup, ClockCycles, Execution, RisingEdge, XCommClockBackend
+from toffee.coverage import CoverGroupDef, CoverageDatabase, IllegalBinError
+from toffee.declarative import (
     Bin, CoverGroup, CoverPoint, CoverageFragment, CoverageReferenceError, Cross,
     DefinitionError, FieldRef, Fields, Iff, IllegalPolicy, SampleTypeError, covergroup, wire,
     OverlapPolicy,
@@ -402,7 +402,7 @@ def test_native_python_and_manual_statistics_match(model):
 
 
 def test_native_does_not_enter_python_transaction_validation(monkeypatch):
-    import xreactor.declarative._runtime as runtime
+    import toffee.declarative._runtime as runtime
     def unexpected(*args):
         raise AssertionError("native sampling entered the Python transaction path")
     monkeypatch.setattr(runtime, "_validated_snapshot", unexpected)

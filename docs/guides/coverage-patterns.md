@@ -6,13 +6,13 @@
 
 ## 一个请求响应例子
 
-下面的定义来自[完整示例](https://github.com/Makiras/xreactor/blob/main/examples/coverage/trigger_bins.py)。
+下面的定义来自[完整示例](https://github.com/XS-MLVP/toffee/blob/main/examples/coverage/trigger_bins.py)。
 `ProtocolBundle` 把已经绑定的请求、响应和时钟放在一起，不是另一种信号包装。
 
 ```python
-from xreactor import RisingEdge, Sequence, Wait, Within, xtrigger
-from xreactor.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
-from xreactor.ir import signal_expr
+from toffee import RisingEdge, Sequence, Wait, Within, xtrigger
+from toffee.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
+from toffee.ir import signal_expr
 from examples.coverage.declarative_protocol import ProtocolBundle
 
 

@@ -10,8 +10,8 @@ import json
 
 import pytest
 
-import cache_functional_xreactor as cache
-from xreactor import BundleValue, ScoreboardMismatch
+import cache_functional_toffee as cache
+from toffee import BundleValue, ScoreboardMismatch
 
 
 @pytest.fixture

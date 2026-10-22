@@ -13,7 +13,7 @@ import time
 from typing import Callable
 from types import SimpleNamespace
 
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CrossDef, RisingEdge, Sequence, Wait, Within, xtrigger
+from toffee import Bin, CoverGroupDef, CoverPointDef, CrossDef, RisingEdge, Sequence, Wait, Within, xtrigger
 
 
 @xtrigger(sample=RisingEdge("clock"))
@@ -108,7 +108,7 @@ def _measure(operation: Callable[[int], int], iterations: int, repeats: int) -> 
 
 def measure_native(cycles: int, repeats: int) -> dict:
     import xspcomm
-    from xreactor import ClockCycles, Execution, RisingEdge, XCommClockBackend
+    from toffee import ClockCycles, Execution, RisingEdge, XCommClockBackend
 
     async def run(mode):
         clock = xspcomm.XClock(lambda _: 0)

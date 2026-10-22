@@ -6,7 +6,7 @@ from examples.transactions.pipeline import Input, Response
 from examples.transactions.reference_model import (
     AccumulatorAgent, AccumulatorDut, AccumulatorModel, Command, Result,
 )
-from xreactor import (
+from toffee import (
     Agent, AsyncSingleCycleDriver, ClockCycles, Execution, RisingEdge, SamplingMonitor,
     Scoreboard, ScoreboardMismatch, SyncSingleCycleDriver, PythonPredicateTrigger,
 )

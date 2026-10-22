@@ -8,7 +8,7 @@ import pytest
 from examples.transactions.pipeline import (
     Input, QueuedStages, Response, drive_stages, run_responses, run_stages,
 )
-from xreactor import (
+from toffee import (
     AsyncSingleCycleDriver, ClockCycles, Execution, ScoreboardMismatch, ScoreboardTimeoutError,
     SyncDriver, TransferState,
 )

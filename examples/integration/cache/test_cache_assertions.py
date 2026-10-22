@@ -75,7 +75,7 @@ def test_full_cache_rtl_assertions(tmp_path, fatal_coverage_library, fault, mess
     script = r'''
 import json, resource, sys
 resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
-import cache_functional_xreactor as cache
+import cache_functional_toffee as cache
 from examples.integration.cache.cache_assertion_env import install_fatal_coverage
 dut = cache.DUTCacheSignalCFG()
 cache.prepare_dut(dut)

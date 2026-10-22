@@ -11,7 +11,7 @@ from ._asyncio_observer import CallbackDomain, current_domain
 from ._cleanup import raise_cleanup_errors
 from .backend import RunLimit, SimulationBackend
 from .events import XPhase
-from .reactor import XReactor
+from .reactor import Reactor
 from .reactor import Subscription
 from .subscriptions import BoundSubscriptionSpec
 from .triggers import DriveStable, FallingEdge, PhaseTrigger, RisingEdge
@@ -82,9 +82,9 @@ class Execution:
         self.quantum_ms = quantum_ms
         self.budget_check_interval = budget_check_interval
         self.max_settle_rounds = max_settle_rounds
-        self.reactor: XReactor | None = None
+        self.reactor: Reactor | None = None
         self._pump_task: asyncio.Task[None] | None = None
-        self._context_token: Token[XReactor | None] | None = None
+        self._context_token: Token[Reactor | None] | None = None
         self._domain: CallbackDomain | None = None
         self._domain_token: Token[CallbackDomain | None] | None = None
         self._delivery_context: Context | None = None
@@ -98,7 +98,7 @@ class Execution:
             raise RuntimeError("Execution cannot be entered twice")
         self.backend.acquire(self)
         try:
-            self.reactor = XReactor(
+            self.reactor = Reactor(
                 self.backend, default_sample=self.default_sample
             )
             self._domain = CallbackDomain(self.max_settle_rounds)

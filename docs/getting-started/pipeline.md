@@ -24,7 +24,7 @@
 
 <!-- executable-example: examples/getting_started/test_accumulator.py#pipeline_setup -->
 ```python
-from xreactor import AsyncSingleCycleDriver
+from toffee import AsyncSingleCycleDriver
 
 
 def make_pipeline_agent(dut, *, response_timeout_cycles=3):

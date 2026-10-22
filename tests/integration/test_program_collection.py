@@ -3,9 +3,9 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import ClockCycles, Execution, RisingEdge, RunLimit, XCommClockBackend, xtrigger
-from xreactor.ir import signal_expr
-from xreactor.triggers import CompiledTrigger
+from toffee import ClockCycles, Execution, RisingEdge, RunLimit, XCommClockBackend, xtrigger
+from toffee.ir import signal_expr
+from toffee.triggers import CompiledTrigger
 from examples.coverage.declarative_protocol import ToyResponder
 from examples.coverage.trigger_bins import Completions, ProtocolCoverage, checked_tag_one, roundtrip
 
@@ -148,8 +148,8 @@ async def test_cached_sequence_and_fsm_roots_are_remapped_and_reused(native, def
 
 @pytest.mark.asyncio
 async def test_failed_coverage_attach_rolls_back_source_cache_and_bin_nodes(native, monkeypatch):
-    from xreactor import Bin, CoverGroupDef, CoverPointDef
-    from xreactor._coverage_runtime import _Collector
+    from toffee import Bin, CoverGroupDef, CoverPointDef
+    from toffee._coverage_runtime import _Collector
 
     toy = ToyResponder(engine="xcomm")
     live = ProtocolCoverage(instance="live")

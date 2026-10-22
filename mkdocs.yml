@@ -1,6 +1,6 @@
-site_name: XReactor
+site_name: Toffee
 site_description: Asyncio-native Python hardware verification framework
-repo_url: https://github.com/Makiras/xreactor
+repo_url: https://github.com/XS-MLVP/toffee
 theme:
   name: readthedocs
 nav:

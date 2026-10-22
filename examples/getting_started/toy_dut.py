@@ -6,7 +6,7 @@ The DUT sums input history, independently of the incremental reference model.
 Faults are only for the debugging exercises.
 """
 
-from xreactor import MemoryBackend, XCommClockBackend, XPhase
+from toffee import MemoryBackend, XCommClockBackend, XPhase
 
 
 class Signal:

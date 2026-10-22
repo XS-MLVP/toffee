@@ -6,8 +6,8 @@ import json
 
 import pytest
 
-from xreactor import CoverGroup as CoreGroup, CoverageMergeError, Transfer, XEvent, XEventKind, XPhase, pytrigger, RisingEdge
-from xreactor.declarative import Bin, CoverGroup, CoverPoint, DefinitionError, Fields, covergroup, wire
+from toffee import CoverGroup as CoreGroup, CoverageMergeError, Transfer, XEvent, XEventKind, XPhase, pytrigger, RisingEdge
+from toffee.declarative import Bin, CoverGroup, CoverPoint, DefinitionError, Fields, covergroup, wire
 from examples.coverage.declarative_protocol import (
     CycleSnapshot, RequestSnapshot, ResponseSnapshot, RequestCycleCoverage, ReadyPoint,
     ToyResponder, TransactionCollector, TransactionCoverage, bind_pin_coverage, run,

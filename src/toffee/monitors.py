@@ -11,7 +11,7 @@ from ._cleanup import raise_cleanup_errors
 from .data import sample_data
 from .events import XEvent
 from .interfaces import ReadyValid, Role, Transfer
-from .reactor import Registration, Subscription, XReactor
+from .reactor import Registration, Subscription, Reactor
 from .execution import Execution
 from .subscriptions import BoundSubscriptionSpec
 from .triggers import RisingEdge, XTrigger
@@ -51,7 +51,7 @@ class _SubscriptionMonitor(Monitor[T], Generic[T]):
         self.capacity = capacity
         self._queue: asyncio.Queue[Transfer[T]] = asyncio.Queue(capacity)
         self._subscription: Subscription | None = None
-        self._reactor: XReactor | None = None
+        self._reactor: Reactor | None = None
         self._available = asyncio.Event()
         self._closed = False
         self._failure: BaseException | None = None
@@ -72,7 +72,7 @@ class _SubscriptionMonitor(Monitor[T], Generic[T]):
         self._subscription._on_stop = self._stopped
         return self
 
-    def _spec(self, reactor: XReactor) -> BoundSubscriptionSpec:
+    def _spec(self, reactor: Reactor) -> BoundSubscriptionSpec:
         raise NotImplementedError
 
     def _discard_pending(self) -> None:
@@ -188,7 +188,7 @@ class SamplingMonitor(_SubscriptionMonitor[T]):
         self.trigger = trigger
         self.capture = capture
 
-    def _spec(self, reactor: XReactor) -> BoundSubscriptionSpec:
+    def _spec(self, reactor: Reactor) -> BoundSubscriptionSpec:
         def capture(event: XEvent) -> Transfer[T]:
             value = self.capture(event)
             if inspect.isawaitable(value):
@@ -223,7 +223,7 @@ class ReadyValidMonitor(_SubscriptionMonitor[T]):
         self.decoder = decoder
         self._candidates: dict[int, Registration] = {}
 
-    def _spec(self, reactor: XReactor) -> BoundSubscriptionSpec:
+    def _spec(self, reactor: Reactor) -> BoundSubscriptionSpec:
         def capture(event: XEvent) -> _Candidate:
             value = sample_data(self.interface.bits)
             rising = reactor.register(RisingEdge(self.interface.clock))

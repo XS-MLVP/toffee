@@ -22,7 +22,7 @@
 
 <!-- executable-example: examples/getting_started/test_accumulator.py#coverage -->
 ```python
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CoverageDatabase
+from toffee import Bin, CoverGroupDef, CoverPointDef, CoverageDatabase
 
 
 @pytest.mark.asyncio
@@ -92,7 +92,7 @@ Coverage JSON: /.../test_result_coverage0/functional.json
 把上一条命令实际打印出的 JSON 路径复制到下面引号中；这里的路径是占位符，需要替换：
 
 ```bash
-xreactor-coverage-report --functional '/实际打印的路径/functional.json' --output tutorial-coverage.html
+toffee-coverage-report --functional '/实际打印的路径/functional.json' --output tutorial-coverage.html
 ```
 
 在浏览器打开仓库根目录的 `tutorial-coverage.html`，查看三个 bin 的命中数。

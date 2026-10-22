@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from xreactor import Execution, MemoryBackend, RisingEdge, Value, xtrigger
+from toffee import Execution, MemoryBackend, RisingEdge, Value, xtrigger
 
 
 class Signal:

@@ -26,7 +26,7 @@ def distributions(directory: Path, expected: str | None = None) -> tuple[str, li
         if len(metadata) != 1:
             raise ValueError("Wheel must contain exactly one package metadata file")
         wheel_meta = BytesParser().parsebytes(wheel.read(metadata[0]))
-        if "xreactor/templates/unified_coverage.html" not in wheel.namelist():
+        if "toffee/templates/unified_coverage.html" not in wheel.namelist():
             raise ValueError("Wheel is missing the coverage report template")
     with tarfile.open(archives[0]) as archive:
         metadata = [item for item in archive.getmembers()
@@ -36,12 +36,12 @@ def distributions(directory: Path, expected: str | None = None) -> tuple[str, li
         stream = archive.extractfile(metadata[0])
         assert stream is not None
         source_meta = BytesParser().parsebytes(stream.read())
-        if not any(name.endswith("/src/xreactor/templates/unified_coverage.html")
+        if not any(name.endswith("/src/toffee/templates/unified_coverage.html")
                    for name in archive.getnames()):
             raise ValueError("Source distribution is missing the coverage report template")
     version = wheel_meta["Version"]
-    if wheel_meta["Name"] != "xreactor" or source_meta["Name"] != "xreactor":
-        raise ValueError("Distribution package name must be xreactor")
+    if wheel_meta["Name"] != "pytoffee" or source_meta["Name"] != "pytoffee":
+        raise ValueError("Distribution package name must be pytoffee")
     if not version or version != source_meta["Version"] or (expected and version != expected):
         raise ValueError(f"Package versions disagree: wheel={version}, "
                          f"sdist={source_meta['Version']}, expected={expected}")
@@ -85,7 +85,7 @@ def verify_existing_release(directory: Path, tag: str) -> None:
         raise ValueError(f"Cannot inspect existing release: {response.stderr.strip()}")
     if not json.loads(response.stdout)["assets"]:
         return
-    with tempfile.TemporaryDirectory(prefix="xreactor-release-assets-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="toffee-release-assets-") as temporary:
         subprocess.run(["gh", "release", "download", tag, "--repo", repository,
                         "--dir", temporary], check=True)
         verify_existing_assets(directory, Path(temporary))

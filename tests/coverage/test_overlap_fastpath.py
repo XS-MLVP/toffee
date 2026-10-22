@@ -1,8 +1,8 @@
 """Exact-bin overlap optimization preserves pairs, order and policy failures."""
 from random import Random
 import pytest
-import xreactor.coverage as module
-from xreactor import Bin, CoverPointDef
+import toffee.coverage as module
+from toffee import Bin, CoverPointDef
 
 
 def original(named):

@@ -17,7 +17,7 @@ def run_cli(tmp_path, text, *, workers=1, options=(), expected=0, output_name="a
     test.write_text(text)
     output = tmp_path / output_name
     env = dict(os.environ, PYTHONPATH=str(SOURCE), PYTEST_DISABLE_PLUGIN_AUTOLOAD="1")
-    result = subprocess.run([sys.executable, "-m", "xreactor", "run", str(test),
+    result = subprocess.run([sys.executable, "-m", "toffee", "run", str(test),
         "--workers", str(workers), "--output", str(output), "-q", *options],
         cwd=tmp_path, env=env, text=True, capture_output=True, timeout=60)
     assert result.returncode == expected, result.stdout + result.stderr
@@ -26,7 +26,7 @@ def run_cli(tmp_path, text, *, workers=1, options=(), expected=0, output_name="a
 
 SAMPLE = '''
 import pytest
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CrossDef
+from toffee import Bin, CoverGroupDef, CoverPointDef, CrossDef
 definition = CoverGroupDef('events', (
     CoverPointDef('a', {'zero': Bin.values(0), 'one': Bin.values(1)}),
     CoverPointDef('b', {'zero': Bin.values(0), 'one': Bin.values(1)})),
@@ -70,7 +70,7 @@ def test_parallel_counts_and_provenance_match_serial_without_case_exports(tmp_pa
 def test_cross_does_not_invent_combinations_and_uses_merged_hit_threshold(tmp_path, workers):
     text = '''
 import pytest
-from xreactor import Bin, CoverGroupDef, CoverPointDef, CrossDef
+from toffee import Bin, CoverGroupDef, CoverPointDef, CrossDef
 definition = CoverGroupDef('cross-events', (
     CoverPointDef('a', {'zero': Bin.values(0), 'one': Bin.values(1)}),
     CoverPointDef('b', {'zero': Bin.values(0), 'one': Bin.values(1)})),
@@ -118,7 +118,7 @@ def test_failure_is_preserved_as_failure_with_diagnostic_coverage(tmp_path):
 def test_session_and_module_groups_are_collected_once_after_final_teardown(tmp_path):
     text = '''
 import pytest
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 @pytest.fixture(scope='session')
 def group():
     yield CoverGroupDef('session', (CoverPointDef('a', {'one': Bin.values(1)}),)).instantiate('session')
@@ -150,7 +150,7 @@ def test_collection_only_creates_no_measurement_directory(tmp_path):
 def test_incompatible_schema_rejected_and_inputs_retained(tmp_path):
     text = '''
 import pytest
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 @pytest.mark.parametrize('n', [0, 1])
 def test_changed(n):
     g = CoverGroupDef('changed', (CoverPointDef('a', {str(n): Bin.values(n)}),)).instantiate('same')
@@ -182,7 +182,7 @@ def test_async_fixture_groups_are_captured_without_explicit_export(tmp_path):
     text = '''
 import pytest
 import pytest_asyncio
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 @pytest_asyncio.fixture
 async def group():
     yield CoverGroupDef('async', (CoverPointDef('a', {'one': Bin.values(1)}),)).instantiate('dut')
@@ -205,7 +205,7 @@ def test_collection_error_never_becomes_committed_empty_coverage(tmp_path, worke
 def test_corrupt_worker_checkpoint_is_rejected(tmp_path):
     text = SAMPLE + '''
 def test_corrupt():
-    import xreactor._pytest as plugin
+    import toffee._pytest as plugin
     from pathlib import Path
     original = plugin._WorkerCoverage.finish
     def finish(self, status):
@@ -222,7 +222,7 @@ def test_corrupt():
 def test_report_write_failure_keeps_inputs_uncommitted(tmp_path):
     text = SAMPLE + '''
 def test_break_renderer():
-    import xreactor._pytest as plugin
+    import toffee._pytest as plugin
     def broken(*args, **kwargs):
         raise OSError('injected publication failure')
     plugin.render_unified_coverage_html = broken
@@ -236,7 +236,7 @@ def test_break_renderer():
 def test_cleanup_failure_preserves_commit_and_can_recover_without_remerging(tmp_path, monkeypatch):
     text = SAMPLE + '''
 def test_break_cleanup():
-    import xreactor._pytest as plugin
+    import toffee._pytest as plugin
     def broken(*args, **kwargs):
         raise OSError('injected cleanup failure')
     plugin.shutil.rmtree = broken
@@ -247,7 +247,7 @@ def test_break_cleanup():
     assert 'injected cleanup failure' in manifest['cleanup_error']
     assert (output / '_workers').exists()
     from types import SimpleNamespace
-    import xreactor._pytest as plugin
+    import toffee._pytest as plugin
     owner = plugin._ExecutionCoverage.__new__(plugin._ExecutionCoverage)
     owner.root, owner.keep = output, False
     def no_merge():
@@ -263,7 +263,7 @@ def test_break_cleanup():
 def test_preconfigured_conftest_group_is_captured_without_registration(tmp_path):
     (tmp_path / 'conftest.py').write_text('''
 import pytest
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 group = CoverGroupDef('global', (CoverPointDef('a', {'one': Bin.values(1)}),)).instantiate('dut')
 @pytest.fixture(scope='session')
 def shared(): return group

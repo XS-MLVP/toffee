@@ -1,7 +1,7 @@
 # 功能点、场景与跨用例覆盖
 
 功能点来自设计要求，case 提供激励。两者是多对多关系：同一个功能点可以由不同 case、
-不同 seed 共同覆盖，一个 case 也可以贡献多个功能点。XReactor 不要求给测试声明功能
+不同 seed 共同覆盖，一个 case 也可以贡献多个功能点。Toffee 不要求给测试声明功能
 标签；覆盖由环境中的实际采样产生，pytest 负责测试执行与通过/失败结果。
 
 ## 从要求到可观测场景
@@ -38,7 +38,7 @@
 
 ## 多个 case 共同贡献覆盖
 
-可运行示例 [test_pipeline_coverage.py](https://github.com/Makiras/xreactor/blob/main/examples/transactions/test_pipeline_coverage.py)
+可运行示例 [test_pipeline_coverage.py](https://github.com/XS-MLVP/toffee/blob/main/examples/transactions/test_pipeline_coverage.py)
 使用同一个环境和同一个 `pipeline.output` 覆盖实例：
 
 | case | 实际观测到的响应 tag | 单次覆盖 |
@@ -55,7 +55,7 @@ python3 -m pytest -q -s examples/transactions/test_pipeline_coverage.py
 `functional.json` 传给同一个报告命令，下面的 run-a/run-b 替换为实际目录：
 
 ```bash
-xreactor-coverage-report \
+toffee-coverage-report \
   --functional run-a/functional.json \
   --functional run-b/functional.json \
   --output output/coverage.html --site output/coverage-site
@@ -68,7 +68,7 @@ xreactor-coverage-report \
 Python 中可以在汇总阶段检查目标：
 
 ```python
-from xreactor import CoverageDatabase
+from toffee import CoverageDatabase
 
 combined = CoverageDatabase.read_json("run-a/functional.json")
 combined.merge(CoverageDatabase.read_json("run-b/functional.json"))
@@ -103,8 +103,8 @@ metadata，报告可直接回答哪些运行贡献了命中；原生计数没有
 
 ## 项目计划保留什么
 
-[e203](https://github.com/Makiras/xreactor/blob/main/examples/integration/e203/verification_plan.json)
-和 [Cache](https://github.com/Makiras/xreactor/blob/main/examples/integration/cache/verification_plan.json)
+[e203](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/e203/verification_plan.json)
+和 [Cache](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/cache/verification_plan.json)
 的计划保留 `scope` 与 `requirements`：设计范围、源码基线、稳定 ID、行为要求、观察点、
 必需场景和检查依据。它们是设计评审材料，不是 pytest 输入，不按测试标签生成完成率。
 现有检查代码的位置可以作为阅读线索，但不决定覆盖归属。

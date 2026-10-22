@@ -9,7 +9,7 @@ from pathlib import Path
 import statistics
 from tempfile import TemporaryDirectory
 
-from e203_xreactor_env import directed_requests, load_generated_dut, run_campaign
+from e203_toffee_env import directed_requests, load_generated_dut, run_campaign
 
 
 async def _run_once(DUT: type, coverage_file: Path, count: int, enabled: bool) -> float:

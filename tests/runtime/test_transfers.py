@@ -5,7 +5,7 @@ from functools import wraps
 
 import pytest
 
-from xreactor import TransferState, XEvent, XEventKind, XPhase, XTransfer
+from toffee import TransferState, XEvent, XEventKind, XPhase, XTransfer
 
 
 def async_test(function):

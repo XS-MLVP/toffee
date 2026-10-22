@@ -6,8 +6,8 @@ from types import SimpleNamespace
 import pytest
 import pytest_asyncio
 
-import cache_functional_xreactor as cache
-from xreactor import Execution, FallingEdge, RisingEdge, ReadyValidMonitor, Scoreboard, Value, XCommClockBackend
+import cache_functional_toffee as cache
+from toffee import Execution, FallingEdge, RisingEdge, ReadyValidMonitor, Scoreboard, Value, XCommClockBackend
 from examples.integration.cache.cache_internal_coverage import CacheInternalObserver
 
 

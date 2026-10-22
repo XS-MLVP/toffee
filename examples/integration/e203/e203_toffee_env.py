@@ -1,4 +1,4 @@
-"""XReactor verification environment for ``e203_ifu_ift2icb``.
+"""Toffee verification environment for ``e203_ifu_ift2icb``.
 
 The environment deliberately models the protocol at transaction level while
 driving all pins through memory-direct XData.  Its reference model predicts
@@ -20,7 +20,7 @@ import sys
 import time
 from typing import Any
 
-from xreactor import (
+from toffee import (
     Bin,
     Bundle,
     CheckContext,
@@ -73,7 +73,7 @@ def load_generated_dut(directory: str | Path) -> type:
     init = root / "__init__.py"
     if not init.is_file():
         raise FileNotFoundError(
-            f"generated e203 package not found at {init}; run build_xreactor.sh"
+            f"generated e203 package not found at {init}; run build_toffee.sh"
         )
     module_name = f"_picker_e203_generated_{abs(hash(str(root)))}"
     module = sys.modules.get(module_name)

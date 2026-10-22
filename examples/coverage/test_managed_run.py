@@ -1,7 +1,7 @@
-"""xreactor run examples/coverage/test_managed_run.py --workers 2"""
+"""toffee run examples/coverage/test_managed_run.py --workers 2"""
 import pytest
 
-from xreactor import Bin, CoverGroupDef, CoverPointDef
+from toffee import Bin, CoverGroupDef, CoverPointDef
 
 
 @pytest.mark.parametrize("value", [0, 1, 0, 1])

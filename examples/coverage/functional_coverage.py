@@ -4,7 +4,7 @@ import argparse
 import asyncio
 from types import SimpleNamespace
 
-from xreactor import (Bin, ClockCycles, CoverageDatabase, CoverGroupDef, CoverPointDef,
+from toffee import (Bin, ClockCycles, CoverageDatabase, CoverGroupDef, CoverPointDef,
                       CrossDef, Execution, MemoryBackend, RisingEdge, XCommClockBackend,
                       Sequence, Wait, Within, xtrigger)
 

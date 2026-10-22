@@ -5,12 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from xreactor import (
+from toffee import (
     bits, ClockCycles, Execution, FSM, RisingEdge, Sequence, State, Wait, Within,
     XCommClockBackend, xtrigger,
 )
-from xreactor.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
-from xreactor.ir import BoolType, expression_type, program_from_dict, program_to_dict, signal_expr
+from toffee.declarative import Bin, SignalCoverGroup, TemporalCoverPoint, covergroup
+from toffee.ir import BoolType, expression_type, program_from_dict, program_to_dict, signal_expr
 
 
 @pytest.fixture

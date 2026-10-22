@@ -6,8 +6,8 @@ from contextvars import ContextVar
 from typing import Any
 from weakref import WeakSet
 
-_sink: ContextVar[Any] = ContextVar("xreactor_coverage_capture", default=None)
-_suspended: ContextVar[bool] = ContextVar("xreactor_coverage_capture_suspended", default=False)
+_sink: ContextVar[Any] = ContextVar("toffee_coverage_capture", default=None)
+_suspended: ContextVar[bool] = ContextVar("toffee_coverage_capture_suspended", default=False)
 _live: WeakSet[Any] = WeakSet()
 
 

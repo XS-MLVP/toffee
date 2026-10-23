@@ -3,7 +3,8 @@
 Toffee 2 基于 XReactor 1.1.0 的实现迁入，提供驱动、监视、参考模型、结果检查和覆盖率。
 **Toffee Legacy（旧版）的实现与提交历史保留在
 [`master`](https://github.com/XS-MLVP/toffee/tree/master)；新实现位于 `main`。**
-两代实现的安装包名都是 `pytoffee`，Python 导入名都是 `toffee`，但 API 与运行语义不兼容。
+旧版安装包名为 `pytoffee`，新版为 `uc-toffee`；Python 导入名都为 `toffee`，但 API 与运行语义不兼容。
+两代实现应放在不同的虚拟环境中。
 旧验证环境需要按本文调整运行作用域、信号绑定、模型接线和采样语义。
 
 本次迁移基线为 [XReactor 1.1.0 `3017293`](https://github.com/XS-MLVP/xreactor/tree/3017293a7597c39adbae883e15d63d727bcbf6ae)
@@ -28,7 +29,7 @@ Toffee 2 暂未发布到 PyPI，请从 `main` 或 `v2.0.0` 标签安装。
 ## 从 XReactor 1.1 迁入
 
 Python 导入由 `xreactor` 改为 `toffee`，命令由 `xreactor`、`xreactor-coverage-report`
-改为 `toffee`、`toffee-coverage-report`；分发包名为 `pytoffee`。
+改为 `toffee`、`toffee-coverage-report`；分发包名为 `uc-toffee`。
 底层公开类 `XReactor` 更名为 `Reactor`。项目中的 `pytest_xreactor_coverage` hook、
 `xreactor_register_dut` fixture 和 `xreactor_functional_coverage` marker 分别改用 `toffee` 前缀。
 框架自带的 runner 继续使用 pytest、pytest-asyncio 和 pytest-xdist，无需 `toffee-test`。

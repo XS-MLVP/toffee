@@ -15,8 +15,12 @@ cd toffee
 
 以下所有命令都在这个目录运行。不要进入 `src/` 或 `examples/` 再执行。
 
-分发包名是 `pytoffee`，Python 导入名是 `toffee`。Toffee 2 当前从源码安装；
-PyPI 上的旧包不等同于这条新主线。需要固定版本时可检出 `v2.0.0` 标签。
+分发包名是 `uc-toffee`，Python 导入名是 `toffee`。正式包发布后，可以用
+`python3 -m pip install "uc-toffee[runner]"` 安装；它会自动安装 `uc-xcomm>=1.1,<2`，
+由后者提供 `xspcomm` 原生绑定。旧 `pytoffee` 对应 Legacy，不是这条新主线。
+
+下面从源码安装，以便运行仓库中的教程。首次发布需要先发布 `uc-xcomm`；
+开发未发布版本时，按[贡献指南](https://github.com/XS-MLVP/toffee/blob/main/CONTRIBUTING.md)准备固定提交的原生依赖。
 
 ## 安装到独立的 Python 环境
 
@@ -48,4 +52,5 @@ python3 -c 'import toffee; print(toffee.__file__)'
 | 后续提示 `No module named examples` / `file not found` | 回到仓库根目录，使用文档中的 `python3 -m pytest ...` |
 
 先继续 [1. 第一次 PASS 和 FAIL](first-test.md)。
-需要原生 XClock 时再看 [接入 native](native-and-next.md)，不必在这里被 绑定 构建挡住。
+需要使用原生 XClock 时再看 [接入 native](native-and-next.md)。匹配的预编译包无需本地编译；
+其他环境安装 `uc-xcomm` 源码包时，需要系统提供 C++20 编译器、CMake 和 Python 开发头文件。

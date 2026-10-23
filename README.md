@@ -9,7 +9,9 @@ Toffee 是一个 Python 硬件验证框架。用 `async` / `await` 描述输入�
 
 ## 快速开始
 
-需要 **Python 3.11+**。在仓库根目录创建环境并从源码安装：
+需要 **Python 3.11+**。PyPI 分发名为 `uc-toffee`，导入名为 `toffee`，
+原生绑定由依赖 `uc-xcomm` 提供。正式包发布后可用 `pip install "uc-toffee[runner]"` 安装。
+下面在仓库根目录创建环境并从源码安装，以便运行仓库自带的例子：
 
 ```bash
 python3 -m venv .venv

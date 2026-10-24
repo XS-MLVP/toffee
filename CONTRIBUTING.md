@@ -35,6 +35,41 @@ Toffee 负责 Python API、仿真调度、验证组件和报告。
 运行 `python3 -m pytest -q tests/integration/test_documentation.py` 和 `mkdocs build --strict`。
 新增可运行示例时还要实际执行；已有覆盖模型片段由文档测试校验。
 
+## Wiki 自动同步
+
+Wiki 的内容来自 `main` 的 `docs/`，导航来自 `mkdocs.yml`。只需编辑这些源文件。
+**Documentation** 工作流校验链接、构建网站，导出页面及侧边栏，并上传预览产物。
+文档修改进入 `main` 并通过检查后，会同步到 `toffee.wiki.git`；PR 和其他分支只生成预览。
+Legacy `master` 不参与同步。Wiki 工作流独立于软件包发布检查，避免扩大其写权限。
+
+首次启用时，须在仓库设置中开启 Wiki，并在 GitHub Wiki 网页创建一次首页。
+同步使用自带的 `GITHUB_TOKEN`，只有发布任务拥有 `contents: write`，无需额外 secret。
+失败后可在 Actions 中选择 `main` 手动运行 **Documentation**。新文档已提交时，旧导出会跳过发布。
+
+本地验证和导出不需要安装原生依赖：
+
+```bash
+python3 -m pip install 'mkdocs>=1.6,<2'
+python3 -m unittest discover -s scripts/tests -v
+python3 scripts/docs.py check
+python3 -m mkdocs build --strict
+python3 scripts/docs.py wiki --output build/wiki-preview
+```
+
+导出目录须为空。页面、源码和图片链接转换为绝对 URL，代码示例保持原样。
+`manifest.json` 记录每个生成页面的 SHA-256。同步会更新生成页面，首次运行时替换初始化
+首页、侧边栏和页脚；其他手工内容会保留，同名冲突会报错。过期页面只有在仍符合旧清单时
+才被删除，存在手工改动时停止供检查。内容不变时不创建提交，推送不会强制覆盖历史。
+请将生成页面的修改提交到主仓库，避免下一次自动同步覆盖网页上的手工编辑。
+
+本地检查同步差异时，先克隆已初始化的 Wiki，再执行：
+
+```bash
+git clone https://github.com/XS-MLVP/toffee.wiki.git build/wiki-checkout
+python3 scripts/sync_wiki.py --export build/wiki-preview --checkout build/wiki-checkout
+git -C build/wiki-checkout diff
+```
+
 ## 提交前检查
 
 先准备 `uc-xcomm>=1.1,<2`，再安装开发依赖。开发跨仓库未发布修改时，

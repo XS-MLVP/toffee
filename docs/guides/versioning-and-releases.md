@@ -4,14 +4,13 @@ Toffee 的版本来自 Git tag，正式版本使用 `vX.Y.Z`。维护者不需�
 版本字符串：例如 `v1.0.0` 构建为 `1.0.0`，后续未打 tag 的提交构建为开发版本。
 `setuptools-scm` 只参与构建，使用已安装的包不需要 Git 或该工具。
 
-## 首次迁入与手动标签
+## 新版与 Legacy 的版本
 
-Toffee 2 的首次迁入保留 XReactor 的提交历史，以手动标签 `v2.0.0` 标记源码版本。
+Toffee 2 的 `main` 保留 XReactor 的提交历史，首次通过合并 PR 发布为 `v2.0.0`，
+对应 PyPI 分发包 `uc-toffee==2.0.0`。
 旧 `master` 与 `0.x` 标签保持原样，XReactor 的 `1.x` 标签保留在原仓库。
-首次迁入是直接推送，因此不满足下文发布工作流要求的“本仓库已合并 PR”来源校验；
-该标签触发的自动发布任务可能失败，但不会改变标签或源码。此次不发布 PyPI 包，
-也不以 GitHub Release 资产上传作为源码迁移的完成条件。
-后续通过 `main` 的正常 PR 继续使用现有版本与发布流程，版本从 `2.0.0` 递增。
+Legacy 的标签不参与新 `main` 的版本计算，旧 PyPI 项目 `pytoffee` 也不由新版流程发布。
+后续版本按合并 PR 的增量标签从 `2.0.0` 递增。
 
 ## 提交与版本选择
 
@@ -23,8 +22,9 @@ Toffee 2 的首次迁入保留 XReactor 的提交历史，以手动标签 `v2.0.
 | `release:minor` | 新增公共能力，保留已有调用方式 | 1.1.0 |
 | `release:major` | 移除接口或改变已有语义 | 2.0.0 |
 
-没有正式 tag 时从 `0.0.0` 计算增量。标签缺失或同时选择多个增量会使版本检查失败。
-版本工作流针对 `main` 运行；仓库默认分支仍为 Legacy `master`，本改动不切换默认分支。
+`main` 第一父链上没有正式 tag 时，首次版本固定为 `2.0.0`；后续才应用版本增量。
+每个 PR 仍须选择一个增量标签，缺失或同时选择多个增量会使版本检查失败。
+版本工作流针对仓库默认分支 `main` 运行；`master` 保留为 Legacy。
 
 PR 合并后，Version policy 工作流确认目标提交是 `main` 第一父链上的实际 PR 合并
 结果，再创建带注释的 tag。分支中的 tag、PR 内部提交和直接 push 不触发自动发布。
@@ -94,9 +94,8 @@ Version policy 使用 `repository_dispatch` 启动后续验证，因为由 `GITH
 不需要 PyPI API token。首次成功上传时创建项目；配置完成前，PyPI job 可以失败，
 补齐后重跑该 job 即可。已有版本不能用不同内容覆盖。
 
-`repository_dispatch` 使用仓库默认分支上的工作流；Legacy `master` 仍为默认分支时，
-迁移后的自动 dispatch 发布尚未完整启用。启用时需由维护者安排默认分支迁移，
-本 PR 保留当前默认分支与 Legacy 内容。
+`repository_dispatch` 使用仓库默认分支上的工作流，因此默认分支须保持为 `main`。
+Legacy `master` 的源码和旧 `pytoffee` 发布配置独立保留。
 
 ## 首次启用与失败恢复
 

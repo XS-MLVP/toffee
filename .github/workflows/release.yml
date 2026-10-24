@@ -102,3 +102,25 @@ jobs:
           files: release-assets/*
           fail_on_unmatched_files: true
           overwrite_files: false
+
+  pypi:
+    needs: [resolve, publish]
+    runs-on: ubuntu-24.04
+    environment:
+      name: pypi
+      url: https://pypi.org/p/uc-toffee
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-dist-${{ needs.resolve.outputs.tag }}
+          path: verified-assets
+      - name: Select the verified Python distributions
+        run: |
+          mkdir dist
+          cp verified-assets/*.whl verified-assets/*.tar.gz dist/
+      - name: Publish with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true

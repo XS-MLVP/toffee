@@ -56,10 +56,27 @@ def test_bumps_from_the_latest_release(repository, bump, expected):
     assert policy.next_tag(bump, base="main") == expected
 
 
-def test_first_release_and_retry_do_not_create_extra_versions(repository):
-    assert policy.next_tag("minor", base="main") == "v0.1.0"
-    policy.git("tag", "-a", "v0.1.0", "-m", "first release")
-    assert policy.next_tag("minor", base="main") == "v0.1.0"
+@pytest.mark.parametrize("bump", policy.BUMPS)
+def test_first_release_and_retry_do_not_create_extra_versions(repository, bump):
+    assert policy.next_tag(bump, base="main") == "v2.0.0"
+    policy.git("tag", "-a", "v2.0.0", "-m", "first release")
+    assert policy.next_tag(bump, base="main") == "v2.0.0"
+
+
+@pytest.mark.parametrize("bump,expected", [("patch", "v2.0.1"), ("minor", "v2.1.0"),
+                                          ("major", "v3.0.0")])
+def test_legacy_history_does_not_determine_new_line_versions(repository, bump, expected):
+    policy.git("checkout", "-q", "--orphan", "master")
+    repository("legacy")
+    policy.git("tag", "v0.1.0")
+    policy.git("tag", "v0.3.1")
+    legacy = policy.git("rev-parse", "HEAD")
+    policy.git("checkout", "-q", "main")
+    assert policy.next_tag(bump, base="main") == "v2.0.0"
+    policy.git("tag", "-a", "v2.0.0", "-m", "first release")
+    repository("next release")
+    assert policy.next_tag(bump, base="main") == expected
+    assert policy.git("rev-parse", "master", "v0.1.0", "v0.3.1").splitlines() == [legacy] * 3
 
 
 def test_side_branch_tags_are_ignored_and_cannot_be_released(repository):
@@ -68,7 +85,7 @@ def test_side_branch_tags_are_ignored_and_cannot_be_released(repository):
     side = repository("side")
     policy.git("tag", "v99.0.0")
     policy.git("checkout", "-q", "main")
-    assert policy.next_tag("minor", base="main") == "v0.1.0"
+    assert policy.next_tag("minor", base="main") == "v2.0.0"
     with pytest.raises(ValueError, match="first-parent"):
         policy.next_tag("minor", side, "main")
     assert policy.git("rev-parse", "HEAD") == main_sha
@@ -78,7 +95,7 @@ def test_rejects_a_conflicting_tag_and_an_out_of_order_commit(repository):
     original = policy.git("rev-parse", "HEAD")
     policy.git("checkout", "-qb", "topic")
     repository("side")
-    policy.git("tag", "v0.1.0")
+    policy.git("tag", "v2.0.0")
     policy.git("checkout", "-q", "main")
     with pytest.raises(ValueError, match="already exists"):
         policy.next_tag("minor", base="main")

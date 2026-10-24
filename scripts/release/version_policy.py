@@ -64,14 +64,15 @@ def next_tag(bump: str, commit: str = "HEAD", base: str = "origin/main") -> str:
         raise ValueError(f"Multiple release tags already point to {sha}: {existing}")
     if existing:
         return existing[0]  # Retry dispatch without creating another version.
-    current = (0, 0, 0)
+    # Legacy tags belong to a separate history; the new Toffee line starts at 2.0.0.
+    following = (2, 0, 0)
     if releases:
         current, previous, _ = max(releases)
         if subprocess.run(["git", "merge-base", "--is-ancestor", previous, sha]).returncode:
             raise ValueError(f"{sha} does not descend from latest release {previous}")
-    major, minor, patch = current
-    following = {"patch": (major, minor, patch + 1),
-                 "minor": (major, minor + 1, 0), "major": (major + 1, 0, 0)}[bump]
+        major, minor, patch = current
+        following = {"patch": (major, minor, patch + 1),
+                     "minor": (major, minor + 1, 0), "major": (major + 1, 0, 0)}[bump]
     tag = "v" + ".".join(map(str, following))
     if tag in git("tag", "--list", tag).splitlines():
         raise ValueError(f"{tag} already exists outside the release history")

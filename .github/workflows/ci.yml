@@ -61,14 +61,25 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build lcov verilator
-          python -m pip install 'swig>=4.2,<5' '.[test]'
-      - name: Install pinned native backend
-        run: python -m pip install ./_deps/xcomm
+          python -m pip install 'build>=1,<2'
+      - name: Build pinned native backend
+        # This wheel is reused by another runner during isolated installation.
+        run: python -m build --wheel ./_deps/xcomm --outdir native-wheel -Ccmake.define.XSPCOMM_NATIVE=OFF
         env:
           BUILD_XSPCOMM_SWIG: python
           XSPCOMM_BUILD_WHEEL: "1"
           CMAKE_BUILD_PARALLEL_LEVEL: "2"
-          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_XSPCOMM: ${{ steps.native.outputs.package_version }}
+          SETUPTOOLS_SCM_PRETEND_VERSION_FOR_UC_XCOMM: ${{ steps.native.outputs.package_version }}
+      - name: Install Toffee with the pinned dependency
+        run: |
+          python -m pip install native-wheel/*.whl '.[test]'
+          python -m pip check
+      - uses: actions/upload-artifact@v4
+        if: matrix.python-version == '3.12'
+        with:
+          name: ${{ inputs.artifact-name || 'toffee-dist' }}-native-cp312
+          path: native-wheel/*.whl
+          if-no-files-found: error
       - name: Require the tested package, native ABI and coverage protocol
         env:
           EXPECTED_PACKAGE_VERSION: ${{ steps.native.outputs.package_version }}
@@ -78,7 +89,7 @@ jobs:
           python - <<'PY'
           from importlib.metadata import version
           import os, xspcomm
-          assert version('xspcomm') == os.environ['EXPECTED_PACKAGE_VERSION']
+          assert version('uc-xcomm') == os.environ['EXPECTED_PACKAGE_VERSION']
           assert xspcomm.version() == os.environ['EXPECTED_PACKAGE_VERSION']
           assert xspcomm.abi_version() == int(os.environ['EXPECTED_NATIVE_ABI'])
           assert xspcomm.XTriggerEngine.CoverageVersion() == int(os.environ['EXPECTED_COVERAGE_PROTOCOL'])
@@ -111,7 +122,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: python -m pip install '.[docs]'
+      - run: python -m pip install 'mkdocs>=1.6'
       - run: mkdocs build --strict
 
   package:
@@ -137,18 +148,22 @@ jobs:
       - name: Rebuild from the source distribution without Git metadata
         run: |
           mkdir -p "$RUNNER_TEMP/sdist-source" "$RUNNER_TEMP/sdist-wheel"
-          tar -xf dist/pytoffee-*.tar.gz -C "$RUNNER_TEMP/sdist-source"
-          source_dir=("$RUNNER_TEMP"/sdist-source/pytoffee-*)
+          tar -xf dist/uc_toffee-*.tar.gz -C "$RUNNER_TEMP/sdist-source"
+          source_dir=("$RUNNER_TEMP"/sdist-source/uc_toffee-*)
           python -m build --wheel "${source_dir[0]}" --outdir "$RUNNER_TEMP/sdist-wheel"
           original=(dist/*.whl)
           rebuilt=("$RUNNER_TEMP"/sdist-wheel/*.whl)
           test "$(basename "${original[0]}")" = "$(basename "${rebuilt[0]}")"
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ inputs.artifact-name || 'toffee-dist' }}-native-cp312
+          path: native-wheel
       - name: Install the wheel in an isolated environment
         run: |
           python -m venv "$RUNNER_TEMP/wheel-test"
-          "$RUNNER_TEMP/wheel-test/bin/python" -m pip install --no-index dist/*.whl
+          "$RUNNER_TEMP/wheel-test/bin/python" -m pip install --no-index --find-links=native-wheel dist/*.whl
           "$RUNNER_TEMP/wheel-test/bin/python" -m pip check
-          "$RUNNER_TEMP/wheel-test/bin/python" -I -c 'from importlib.metadata import version; from importlib.resources import files; import toffee; assert files("toffee").joinpath("templates/unified_coverage.html").is_file(); print(version("pytoffee"), toffee.__file__)'
+          "$RUNNER_TEMP/wheel-test/bin/python" -I -c 'from importlib.metadata import version; from importlib.resources import files; import toffee; assert files("toffee").joinpath("templates/unified_coverage.html").is_file(); print(version("uc-toffee"), toffee.__file__)'
       - name: Record exact tested build provenance
         env:
           EXPECTED_VERSION: ${{ inputs.expected-version }}

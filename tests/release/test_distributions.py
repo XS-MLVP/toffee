@@ -14,14 +14,14 @@ from scripts.release import verify_dist as distribution
 @pytest.fixture
 def packages(tmp_path: Path):
     def create(*, wheel_version="0.1.0", source_version="0.1.0", template=True):
-        with zipfile.ZipFile(tmp_path / "pytoffee.whl", "w") as wheel:
-            wheel.writestr("pytoffee.dist-info/METADATA",
-                           f"Name: pytoffee\nVersion: {wheel_version}\n")
+        with zipfile.ZipFile(tmp_path / "uc_toffee.whl", "w") as wheel:
+            wheel.writestr("uc_toffee.dist-info/METADATA",
+                           f"Name: uc-toffee\nVersion: {wheel_version}\n")
             if template:
                 wheel.writestr("toffee/templates/unified_coverage.html", "template")
-        with tarfile.open(tmp_path / "pytoffee.tar.gz", "w:gz") as archive:
+        with tarfile.open(tmp_path / "uc_toffee.tar.gz", "w:gz") as archive:
             for name, contents in {
-                "toffee/PKG-INFO": f"Name: pytoffee\nVersion: {source_version}\n",
+                "toffee/PKG-INFO": f"Name: uc-toffee\nVersion: {source_version}\n",
                 "toffee/src/toffee/templates/unified_coverage.html": "template",
             }.items():
                 data = contents.encode()
@@ -56,7 +56,7 @@ def test_existing_release_can_only_be_completed_with_identical_assets(packages, 
     directory = packages()
     existing = tmp_path / "published"
     existing.mkdir()
-    original = directory / "pytoffee.whl"
+    original = directory / "uc_toffee.whl"
     (existing / original.name).write_bytes(original.read_bytes())
     distribution.verify_existing_assets(directory, existing)
     (existing / original.name).write_bytes(b"different build")

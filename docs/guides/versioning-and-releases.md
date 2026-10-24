@@ -4,14 +4,13 @@ Toffee 的版本来自 Git tag，正式版本使用 `vX.Y.Z`。维护者不需�
 版本字符串：例如 `v1.0.0` 构建为 `1.0.0`，后续未打 tag 的提交构建为开发版本。
 `setuptools-scm` 只参与构建，使用已安装的包不需要 Git 或该工具。
 
-## 首次迁入与手动标签
+## 新版与 Legacy 的版本
 
-Toffee 2 的首次迁入保留 XReactor 的提交历史，以手动标签 `v2.0.0` 标记源码版本。
+Toffee 2 的 `main` 保留 XReactor 的提交历史，首次通过合并 PR 发布为 `v2.0.0`，
+对应 PyPI 分发包 `uc-toffee==2.0.0`。
 旧 `master` 与 `0.x` 标签保持原样，XReactor 的 `1.x` 标签保留在原仓库。
-首次迁入是直接推送，因此不满足下文发布工作流要求的“本仓库已合并 PR”来源校验；
-该标签触发的自动发布任务可能失败，但不会改变标签或源码。此次不发布 PyPI 包，
-也不以 GitHub Release 资产上传作为源码迁移的完成条件。
-后续通过 `main` 的正常 PR 继续使用现有版本与发布流程，版本从 `2.0.0` 递增。
+Legacy 的标签不参与新 `main` 的版本计算，旧 PyPI 项目 `pytoffee` 也不由新版流程发布。
+后续版本按合并 PR 的增量标签从 `2.0.0` 递增。
 
 ## 提交与版本选择
 
@@ -23,8 +22,9 @@ Toffee 2 的首次迁入保留 XReactor 的提交历史，以手动标签 `v2.0.
 | `release:minor` | 新增公共能力，保留已有调用方式 | 1.1.0 |
 | `release:major` | 移除接口或改变已有语义 | 2.0.0 |
 
-没有正式 tag 时从 `0.0.0` 计算增量。标签缺失或同时选择多个增量会使版本检查失败。
-版本工作流针对默认分支 `main` 运行。
+`main` 第一父链上没有正式 tag 时，首次版本固定为 `2.0.0`；后续才应用版本增量。
+每个 PR 仍须选择一个增量标签，缺失或同时选择多个增量会使版本检查失败。
+版本工作流针对仓库默认分支 `main` 运行；`master` 保留为 Legacy。
 
 PR 合并后，Version policy 工作流确认目标提交是 `main` 第一父链上的实际 PR 合并
 结果，再创建带注释的 tag。分支中的 tag、PR 内部提交和直接 push 不触发自动发布。
@@ -68,13 +68,34 @@ Tagged release 接受 tag push、Version policy 的 dispatch 或维护者手动�
 发布前再次核对清单、当前 tag、依赖、run ID 和文件集合。已有发布资产不覆盖；
 若已有文件与本次验证产物完全一致，可以补齐缺失资产；校验和不同则拒绝混合发布。
 发布中断时优先只重跑失败的发布 job，复用原 CI artifact。
-当前流程发布到 GitHub Releases，PyPI 发布尚未配置。
+GitHub Release 成功后，使用同一组 wheel 和源码包发布到 PyPI 的 `uc-toffee`。
+校验清单与原生依赖测试 wheel 保留为 CI/GitHub 资产，不上传到 `uc-toffee` 的 PyPI 项目。
 普通 CI 也保留分发包 artifact，便于提交评审；覆盖数据库、日志和源码覆盖 HTML
 继续作为本地产物，不上传。
 
 Version policy 使用 `repository_dispatch` 启动后续验证，因为由 `GITHUB_TOKEN`
 创建的 tag push 不会自动启动其他工作流，而 dispatch 支持这种调用。
 见 [GitHub 触发规则](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow)。
+
+## PyPI 配置
+
+先发布满足依赖范围的 `uc-xcomm`，再发布 `uc-toffee`。首次在
+[PyPI Publishing](https://pypi.org/manage/account/publishing/) 添加 pending GitHub publisher：
+
+| 字段 | 值 |
+| --- | --- |
+| Project name | `uc-toffee` |
+| Owner | `XS-MLVP` |
+| Repository | `toffee` |
+| Workflow filename | `release.yml` |
+| Environment | `pypi` |
+
+在 GitHub 创建同名 `pypi` 环境，并允许该环境从 `main` 或经过验证的发行标签部署。
+不需要 PyPI API token。首次成功上传时创建项目；配置完成前，PyPI job 可以失败，
+补齐后重跑该 job 即可。已有版本不能用不同内容覆盖。
+
+`repository_dispatch` 使用仓库默认分支上的工作流，因此默认分支须保持为 `main`。
+Legacy `master` 的源码和旧 `pytoffee` 发布配置独立保留。
 
 ## 首次启用与失败恢复
 
@@ -101,7 +122,7 @@ python3 scripts/release/verify_dist.py --manifest --verify-manifest
 git diff --check
 ```
 
-读取安装版本使用 `importlib.metadata.version("pytoffee")`。发布时 CI 必须具有完整
+读取安装版本使用 `importlib.metadata.version("uc-toffee")`。发布时 CI 必须具有完整
 Git 历史；源码包已经包含构建时确定的版本，在解包后重建不依赖原仓库。
 没有 Git 和源码包元数据的普通源码副本才使用 `2.0.0.dev0` fallback。
 配置依据见 [setuptools-scm 文档](https://setuptools-scm.readthedocs.io/en/v9.2.0/usage/)。

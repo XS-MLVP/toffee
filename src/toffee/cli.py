@@ -24,7 +24,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.workers < 1:
         parser.error("--workers must be positive")
     if find_spec("pytest") is None or args.workers > 1 and find_spec("xdist") is None:
-        parser.error('install the runner dependencies with pip install "pytoffee[runner]"')
+        parser.error('install the runner dependencies with pip install "uc-toffee[runner]"')
     if any(value.startswith(("-n", "--numprocesses", "--dist", "--tx", "--max-worker-restart"))
            for value in forwarded):
         parser.error("use --workers to select parallelism; the runner owns worker scheduling and restart policy")

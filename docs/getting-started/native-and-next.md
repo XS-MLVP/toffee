@@ -5,7 +5,7 @@
 
 ## 先确认加载的是哪个 绑定
 
-Toffee 不附带 xspcomm。原生后端需要 `XClock.StepHalf`、`GetHalfTick`、`GetPhase`、
+Toffee 通过常规依赖 `uc-xcomm` 安装 `xspcomm` 绑定。原生后端需要 `XClock.StepHalf`、`GetHalfTick`、`GetPhase`、
 `XData` 和 `XTriggerEngine` 等接口。开发使用的提交、包版本、ABI 和协议版本以
 [依赖清单](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json)为准，
 不要只按包名判断版本是否匹配。安装到当前 Python 环境后，先运行：

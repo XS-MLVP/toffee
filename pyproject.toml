@@ -3,7 +3,7 @@ requires = ["setuptools>=77", "setuptools-scm>=8,<10"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "pytoffee"
+name = "uc-toffee"
 dynamic = ["version"]
 description = "Asyncio-native simulation triggers backed by xcomm"
 readme = "README.md"
@@ -11,16 +11,13 @@ requires-python = ">=3.11"
 license = "MulanPSL-2.0"
 license-files = ["LICENSE"]
 authors = [{name = "XS-MLVP"}]
-dependencies = []
+dependencies = ["uc-xcomm>=1.1,<2"]
 
 [project.optional-dependencies]
 runner = [
     "pytest>=8",
     "pytest-asyncio>=0.23",
     "pytest-xdist>=3.6,<4",
-]
-native = [
-    "xspcomm>=0.3.0.dev3,<0.4",
 ]
 test = [
     "pytest>=8",

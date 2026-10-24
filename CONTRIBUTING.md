@@ -37,7 +37,15 @@ Toffee 负责 Python API、仿真调度、验证组件和报告。
 
 ## 提交前检查
 
-先安装开发依赖：
+先准备 `uc-xcomm>=1.1,<2`，再安装开发依赖。开发跨仓库未发布修改时，
+按 `.github/native-dependencies.json` 检出 xcomm 的固定提交，再运行：
+
+```bash
+SETUPTOOLS_SCM_PRETEND_VERSION_FOR_UC_XCOMM=1.1.0 \
+  python3 -m pip install /path/to/xcomm
+```
+
+这里的版本覆盖仅用于本地和 CI 验证目标依赖范围，不发布该测试包。随后安装开发依赖：
 
 ```bash
 python3 -m pip install -e '.[test,docs]'

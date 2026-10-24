@@ -1,6 +1,6 @@
 # Toffee
 
-[![PyPI: not published](https://img.shields.io/badge/pypi-not%20published-lightgrey?style=flat-square&logo=pypi&logoColor=white)](https://github.com/XS-MLVP/toffee/blob/main/docs/getting-started/installation.md)
+[![PyPI](https://img.shields.io/pypi/v/uc-toffee?style=flat-square&logo=pypi&logoColor=white)](https://pypi.org/project/uc-toffee/)
 [![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue?style=flat-square&logo=python&logoColor=white)](https://github.com/XS-MLVP/toffee/blob/main/docs/getting-started/installation.md)
 [![CI](https://img.shields.io/github/actions/workflow/status/XS-MLVP/toffee/ci.yml?branch=main&style=flat-square&label=CI&logo=github)](https://github.com/XS-MLVP/toffee/actions/workflows/ci.yml?query=branch%3Amain)
 [![License](https://img.shields.io/badge/license-MulanPSL--2.0-blue?style=flat-square)](https://github.com/XS-MLVP/toffee/blob/main/LICENSE)

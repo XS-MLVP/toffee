@@ -10,7 +10,8 @@ Toffee 2 基于 XReactor 1.1.0 的实现迁入，提供驱动、监视、参考�
 本次迁移基线为 [XReactor 1.1.0 `3017293`](https://github.com/XS-MLVP/xreactor/tree/3017293a7597c39adbae883e15d63d727bcbf6ae)
 和 [旧 Toffee `f57dd6f`](https://github.com/XS-MLVP/toffee/tree/f57dd6ffc295b9b8bad3e3b3ce040b8a849f5c91)。
 旧版本实际发布在 `0.x` 系列，本文使用“旧版”指代，不将其称为已发布的 1.x。
-Toffee 2 暂未发布到 PyPI，请从 `main` 或 `v2.0.0` 标签安装。
+Toffee 2 从 `2.0.0` 开始以 `uc-toffee` 分发，可用
+`python3 -m pip install "uc-toffee[runner]"` 安装。
 
 ## 旧项目如何选择
 
@@ -19,7 +20,7 @@ Toffee 2 暂未发布到 PyPI，请从 `main` 或 `v2.0.0` 标签安装。
 
 迁移到 Toffee 2 时：
 
-1. 建立独立的 Python 3.11+ 环境，从 `main` 或 `v2.0.0` 标签安装。
+1. 建立独立的 Python 3.11+ 环境，运行 `python3 -m pip install "uc-toffee[runner]"`。
 2. 按下表迁移测试入口、Bundle、Driver、Monitor 与参考模型接线。
 3. 根据采样和条件等待章节检查周期边界、事务完成条件与清理行为。
 4. 运行项目已有回归，验证结果后再更新项目依赖。

@@ -1,0 +1,119 @@
+name: Documentation
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "docs/**"
+      - "README*"
+      - "CONTRIBUTING.md"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - "scripts/docs.py"
+      - "scripts/sync_wiki.py"
+      - "scripts/tests/**"
+      - ".github/workflows/docs.yml"
+  push:
+    branches: [main, "docs/**"]
+    paths:
+      - "docs/**"
+      - "README*"
+      - "CONTRIBUTING.md"
+      - "mkdocs.yml"
+      - "pyproject.toml"
+      - "scripts/docs.py"
+      - "scripts/sync_wiki.py"
+      - "scripts/tests/**"
+      - ".github/workflows/docs.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: documentation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  documentation:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install documentation tools
+        run: python -m pip install 'mkdocs>=1.6,<2'
+      - name: Test documentation tooling
+        run: python -m unittest discover -s scripts/tests -v
+      - name: Check documentation links
+        run: python scripts/docs.py check
+      - name: Build documentation site
+        run: python -m mkdocs build --strict --site-dir build/docs-site
+      - name: Export Wiki pages
+        run: python scripts/docs.py wiki --output build/wiki-export
+      - name: Upload documentation preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: toffee-documentation
+          if-no-files-found: error
+          path: |
+            build/docs-site
+            build/wiki-export
+
+  sync-wiki:
+    name: Sync GitHub Wiki
+    needs: [documentation]
+    if: >-
+      github.repository == 'XS-MLVP/toffee' &&
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: wiki-sync
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: toffee-documentation
+          path: build
+      # GitHub requires an initial page created through the Wiki web UI.
+      # Specifying ref avoids querying the REST API for the separate Wiki repo.
+      - name: Checkout initialized Wiki
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository }}.wiki
+          ref: master
+          path: wiki-checkout
+      - name: Sync generated pages and push changes
+        env:
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          if ! git diff --quiet "$SOURCE_SHA" FETCH_HEAD -- docs/ "README*" CONTRIBUTING.md mkdocs.yml pyproject.toml scripts/docs.py scripts/sync_wiki.py scripts/tests/ .github/workflows/docs.yml; then
+            echo "Documentation has advanced; skipping this outdated export."
+            exit 0
+          fi
+          python scripts/sync_wiki.py --export build/wiki-export --checkout wiki-checkout
+          git -C wiki-checkout add --all
+          if git -C wiki-checkout diff --cached --quiet; then
+            echo "Wiki is already up to date."
+            exit 0
+          fi
+          git -C wiki-checkout config user.name 'github-actions[bot]'
+          git -C wiki-checkout config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C wiki-checkout commit -m "Sync documentation from $SOURCE_SHA"
+          git -C wiki-checkout push origin HEAD:master

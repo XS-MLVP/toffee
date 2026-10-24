@@ -1,5 +1,12 @@
 # Toffee
 
+[![PyPI: not published](https://img.shields.io/badge/pypi-not%20published-lightgrey?style=flat-square&logo=pypi&logoColor=white)](https://github.com/XS-MLVP/toffee/blob/main/docs/getting-started/installation.md)
+[![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12-blue?style=flat-square&logo=python&logoColor=white)](https://github.com/XS-MLVP/toffee/blob/main/docs/getting-started/installation.md)
+[![CI](https://img.shields.io/github/actions/workflow/status/XS-MLVP/toffee/ci.yml?branch=main&style=flat-square&label=CI&logo=github)](https://github.com/XS-MLVP/toffee/actions/workflows/ci.yml?query=branch%3Amain)
+[![License](https://img.shields.io/badge/license-MulanPSL--2.0-blue?style=flat-square)](https://github.com/XS-MLVP/toffee/blob/main/LICENSE)
+[![Docs](https://img.shields.io/badge/docs-Guide-0A7EA4?style=flat-square)](https://github.com/XS-MLVP/toffee/blob/main/docs/index.md)
+[![GitHub Stars](https://img.shields.io/github/stars/XS-MLVP/toffee?style=social)](https://github.com/XS-MLVP/toffee/tree/main)
+
 Toffee 是一个 Python 硬件验证框架。用 `async` / `await` 描述输入时序与条件等待，
 用 pytest 运行测试，再通过参考模型、结果检查和覆盖率构建完整的验证环境。
 
@@ -47,19 +54,19 @@ async def test_one_input_and_idle():
         dut.close()
 ```
 
-这个用例已包含在[示例文件](examples/getting_started/test_accumulator.py)中，可以直接运行：
+这个用例已包含在[示例文件](https://github.com/XS-MLVP/toffee/blob/main/examples/getting_started/test_accumulator.py)中，可以直接运行：
 
 ```bash
 python3 -m pytest -q examples/getting_started/test_accumulator.py::test_one_input_and_idle
 ```
 
-预期得到 `1 passed`。继续阅读[累加器教程](docs/getting-started/index.md)，
+预期得到 `1 passed`。继续阅读[累加器教程](https://github.com/XS-MLVP/toffee/blob/main/docs/getting-started/index.md)，
 逐步加入边界测试、Driver、Monitor、参考模型与覆盖率。
 
 ## 用于项目验证
 
 接入真实 RTL 时，使用 Picker 生成的 DUT Python 包，通过 `XCommClockBackend`
-连接 xspcomm 的时钟与信号。具体准备和依赖要求见[真实 DUT 接入指南](docs/getting-started/native-and-next.md)。
+连接 xspcomm 的时钟与信号。具体准备和依赖要求见[真实 DUT 接入指南](https://github.com/XS-MLVP/toffee/blob/main/docs/getting-started/native-and-next.md)。
 
 测试增多后，用 `toffee run` 并行执行并汇总覆盖率。例如，运行整个入门示例目录：
 
@@ -68,15 +75,15 @@ toffee run examples/getting_started --workers 4
 ```
 
 终端会显示本次运行的产物目录；有覆盖数据时会生成 `coverage.html`。
-将示例路径换成项目测试目录即可运行自己的回归，更多选项见[回归运行指南](docs/guides/runner.md)。
+将示例路径换成项目测试目录即可运行自己的回归，更多选项见[回归运行指南](https://github.com/XS-MLVP/toffee/blob/main/docs/guides/runner.md)。
 
 ## 文档
 
-- [入门教程](docs/getting-started/index.md)：从一条断言到完整的验证环境。
-- [操作指南](docs/guides/index.md)：接入 DUT、组织组件、采集覆盖率和运行回归。
-- [接口参考](docs/reference/index.md)：API、命令行参数和行为限制。
-- [原理说明](docs/explanation/index.md)：仿真调度、资源归属与覆盖率含义。
-- [可运行示例](docs/examples.md) · [参与开发](CONTRIBUTING.md)
+- [入门教程](https://github.com/XS-MLVP/toffee/blob/main/docs/getting-started/index.md)：从一条断言到完整的验证环境。
+- [操作指南](https://github.com/XS-MLVP/toffee/blob/main/docs/guides/index.md)：接入 DUT、组织组件、采集覆盖率和运行回归。
+- [接口参考](https://github.com/XS-MLVP/toffee/blob/main/docs/reference/index.md)：API、命令行参数和行为限制。
+- [原理说明](https://github.com/XS-MLVP/toffee/blob/main/docs/explanation/index.md)：仿真调度、资源归属与覆盖率含义。
+- [可运行示例](https://github.com/XS-MLVP/toffee/blob/main/docs/examples.md) · [参与开发](https://github.com/XS-MLVP/toffee/blob/main/CONTRIBUTING.md)
 
 ## Toffee Legacy
 

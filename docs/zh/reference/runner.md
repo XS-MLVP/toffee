@@ -45,12 +45,50 @@ python3 -m toffee run [Toffee 选项] [pytest 参数]
 不同 DUT 构建的原生计数不互相合并；同一构建最终保留一份 `coverage.dat`。
 合并保留零点、toggle 及其他原生计数，并核对输出计数等于输入之和。
 
+<a id="uncertain-outcome"></a>
+
+## UNCERTAIN：证据不足，结论待定
+
+```python
+import pytest
+
+@pytest.mark.uncertain(reason="消费者合同尚未确认", reference="design-note/7")
+def test_contract(dut):
+    # 正常执行已有激励与检查，不跳过断言。
+    assert dut.output == expected
+```
+
+- `reason` 必须为非空字符串。`reference` 是可选的非空字符串，由项目解释；Toffee
+  不要求缺陷编号、残余登记表或特定编号格式。
+- 各阶段正常完成、断言都通过时，判定为 **UNCERTAIN**，不计入 PASS。执行进度显示
+  黄色 `U`，详细模式显示 `UNCERTAIN`，session 摘要单列数量和原因。
+- 断言失败仍是 FAIL；setup/teardown 出错仍是 ERROR；被跳过的用例仍是 SKIP。
+  UNCERTAIN 不能隐藏真实错误，不能与 `xfail` 标记叠加。
+- 支持测试、类/模块及 `pytest.param` 标记；最近一层声明生效。单进程和 xdist 的
+  数量、原因与引用相同。
+- `manifest.json.tests` 包含 `UNCERTAIN` 计数，`manifest.json.uncertain` 保存最终
+  判为 UNCERTAIN 的 `{nodeid, reason, reference?}`。覆盖率照常收集、合并和提交。
+- **UNCERTAIN 本身不改变 pytest 退出码**：只有 PASS/UNCERTAIN 且没有其他错误时
+  返回 0。退出码 0 只表示执行成功，不表示验证结论全部通过。
+
+`toffee run` 自动启用这项能力；直接使用 pytest 时显式加载插件：
+
+```bash
+python3 -m pytest -p toffee._pytest tests/
+```
+
+项目报告适配器可使用 `toffee.outcomes.phase_record(report)`、`report_status(report)`
+和 `case_status(phases)` 复用判定，不应再复制一份 UNCERTAIN 规则。
+底层 pytest 的阶段 `outcome` 仍是标准 passed/failed/skipped；Toffee 的分类由标记
+元数据和完整阶段结果推导。未接入该分类的第三方 pytest 报告器可能仍显示标准结果。
+
 ## 状态与退出行为
 
 | 情况 | 结果 |
 | --- | --- |
 | 测试执行完整，产物全部写好并校验 | manifest 为 `committed`；测试判定仍由 `pytest_exitstatus` 和测试计数表示 |
 | 测试断言失败，但执行和收集完整 | 仍可提交诊断报告，命令返回非零 |
+| 只有 PASS/UNCERTAIN，无其他错误 | 测试数量区分两者，命令返回 0；覆盖率可正常提交 |
 | 收集中断、输入损坏、收集不完整或 worker 崩溃 | manifest 为 `incomplete`，保留可用输入；最终产物可能不齐全 |
 | 产物已提交，仅中间文件清理失败 | 保持 `committed`，记录 `cleanup_error`，命令返回非零 |
 
@@ -58,6 +96,9 @@ Runner 通常返回 pytest 的退出码；覆盖收集或清理失败会把原�
 CLI 参数错误返回 2，CLI 捕获到键盘中断时返回 130。
 初始化阶段失败不保证已经创建 manifest；以命令退出和错误输出为准。
 Runner 只回收本轮中间文件，不自动删除历史运行目录。
+
+UNCERTAIN 与 `state="incomplete"` 不同：前者是执行完成但验证证据不足；后者是执行或
+产物收集未完成。崩溃、缺阶段或缺收据不能改标 UNCERTAIN。
 
 ## 项目扩展接口
 

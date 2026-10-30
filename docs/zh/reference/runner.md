@@ -74,7 +74,7 @@ def test_contract(dut):
 `toffee run` 自动启用这项能力；直接使用 pytest 时显式加载插件：
 
 ```bash
-python3 -m pytest -p toffee._pytest tests/
+python3 -m pytest -p toffee._pytest_plugin tests/
 ```
 
 项目报告适配器可使用 `toffee.outcomes.phase_record(report)`、`report_status(report)`

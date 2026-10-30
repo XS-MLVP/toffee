@@ -32,7 +32,7 @@ class XTrigger(Generic[E]):
         return self._wait().__await__()
 
     async def _wait(self) -> E:
-        from ._context import current_reactor
+        from ._reactor_context import current_reactor
 
         reactor = current_reactor()
         registration = reactor.register(self)

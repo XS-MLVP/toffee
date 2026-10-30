@@ -17,7 +17,7 @@
 | quick start 可运行 | counter 与 Agent fixture 两条路线进入默认 pytest；从 Markdown 原文提取到临时目录的两个测试也通过 |
 | 不遗漏既有公共能力 | 对照 __all__ 的 125 个导出，API 索引全部收录；15 个功能族在 feature-map 关联主要场景和行为回归，低层声明/句柄单列供组件开发者查询 |
 | 补齐场景和行为边界 | 补充 Field/bind_tree、packed 位序/空洞、被动 Monitor、Sync/Async 连接、callable idle、覆盖率门控/cross/目标/reset、pytest 中断与报告集成 |
-| 精简代码 | 清理错误展开、去重及原始异常保留集中到私有 _cleanup；Agent/Execution 不再各写一套，Driver/Monitor/Scoreboard 复用同一逻辑 |
+| 精简代码 | 清理错误展开、去重及原始异常保留集中到私有 _cleanup_errors；Agent/Execution 不再各写一套，Driver/Monitor/Scoreboard 复用同一逻辑 |
 | 精简测试 | 双后端时钟与 ToyPipeline fixture 各保留一份；Monitor 的关闭、交付容量、单等待取消与异步迭代用共同参数化契约，保留协议候选/采样专属回归 |
 | 功能实际得到验证 | 强制 native 全量、真实 genhtml 源码页、两种后端的模式边界/Driver idle、CLI 与生成报告均运行；不只检查文案或文件是否存在 |
 

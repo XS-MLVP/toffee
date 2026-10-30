@@ -1,3 +1,4 @@
+"""Context-local binding of the Reactor owned by an active Execution."""
 from __future__ import annotations
 
 from contextvars import ContextVar, Token

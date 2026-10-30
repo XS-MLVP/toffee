@@ -9,7 +9,7 @@ from typing import Any, Generic, TypeVar
 
 from .components import SignalDriver
 from ._driver_runtime import DriveControl
-from ._cleanup import raise_cleanup_errors
+from ._cleanup_errors import raise_cleanup_errors
 from .data import DataNode, drive_data, iter_data_leaves, normalize_data
 from .events import XEvent
 from .signals import as_xdata

@@ -83,7 +83,7 @@ def test_contract(dut):
 plugin explicitly:
 
 ```bash
-python3 -m pytest -p toffee._pytest tests/
+python3 -m pytest -p toffee._pytest_plugin tests/
 ```
 
 Project report adapters can reuse `toffee.outcomes.phase_record(report)`,

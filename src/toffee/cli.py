@@ -32,7 +32,7 @@ def main(argv: list[str] | None = None) -> int:
         datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid4().hex[:8])).resolve()
     if output.exists():
         parser.error(f"output must be a new directory: {output}")
-    command = [sys.executable, "-m", "pytest", "-p", "toffee._pytest",
+    command = [sys.executable, "-m", "pytest", "-p", "toffee._pytest_plugin",
                f"--toffee-output={output}"]
     if args.workers > 1:
         command += ["-p", "xdist", "-n", str(args.workers), "--dist=load",

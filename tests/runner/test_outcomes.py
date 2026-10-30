@@ -123,7 +123,7 @@ def test_contract():
     assert True
 ''')
     env = dict(os.environ, PYTHONPATH=str(SOURCE), PYTEST_DISABLE_PLUGIN_AUTOLOAD="1")
-    result = subprocess.run([sys.executable, "-m", "pytest", "-p", "toffee._pytest",
+    result = subprocess.run([sys.executable, "-m", "pytest", "-p", "toffee._pytest_plugin",
                              "-v", str(test)], cwd=tmp_path, env=env,
                             text=True, capture_output=True, timeout=30)
     assert result.returncode == 0, result.stdout + result.stderr

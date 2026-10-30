@@ -4,7 +4,7 @@ from collections.abc import Callable
 import inspect
 from typing import Any
 
-from ._context import current_reactor
+from ._reactor_context import current_reactor
 from .data import iter_data_leaves
 from .events import XEvent, XPhase
 from .signals import write_signal

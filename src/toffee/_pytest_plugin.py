@@ -1,4 +1,4 @@
-"""CLI-loaded pytest/xdist adaptation; no project-owned merge hooks required."""
+"""Pytest plugin entry point for managed runs, coverage, and outcome reporting."""
 from __future__ import annotations
 
 from collections import Counter
@@ -12,15 +12,15 @@ from typing import Any
 
 import pytest
 
-from ._artifacts import fingerprint, read_checked, write
+from ._runner_artifacts import fingerprint, read_checked, write
 from ._coverage_capture import capture, live_groups, suspended
-from ._native_coverage import NativeCollector, export_lcov, merge
+from ._verilator_coverage import NativeCollector, export_lcov, merge
 from .coverage import CoverageDatabase
 from .coverage_report import build_unified_coverage_model, parse_lcov, render_unified_coverage_html
 from .outcomes import case_status, phase_record
 
 
-pytest_plugins = ["toffee._outcomes"]
+pytest_plugins = ["toffee._pytest_outcomes"]
 
 
 class CoverageHooks:

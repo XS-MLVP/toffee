@@ -6,9 +6,9 @@ from contextlib import asynccontextmanager
 from contextvars import Context, Token, copy_context
 from typing import TYPE_CHECKING, Any, AsyncIterator, Coroutine, TypeVar
 
-from ._context import bind_reactor, current_reactor, reset_reactor
+from ._reactor_context import bind_reactor, current_reactor, reset_reactor
 from ._asyncio_observer import CallbackDomain, current_domain
-from ._cleanup import raise_cleanup_errors
+from ._cleanup_errors import raise_cleanup_errors
 from .backend import RunLimit, SimulationBackend
 from .events import XPhase
 from .reactor import Reactor

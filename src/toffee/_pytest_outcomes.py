@@ -1,4 +1,7 @@
-"""Pytest display and declaration support, independent of coverage collection."""
+"""Internal pytest hooks for outcome declarations and terminal reporting.
+
+Classification rules live in the public, pytest-independent ``toffee.outcomes``.
+"""
 from __future__ import annotations
 
 import pytest

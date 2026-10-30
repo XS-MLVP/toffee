@@ -10,8 +10,8 @@ from enum import Enum
 from typing import Any, Generic, Hashable, Literal, Protocol, Self, TypeVar
 
 from .events import LogicValue, XEvent, XPhase
-from ._context import current_reactor
-from ._cleanup import raise_cleanup_errors
+from ._reactor_context import current_reactor
+from ._cleanup_errors import raise_cleanup_errors
 from ._scoreboard_matching import Association, cycle_deadline
 from .execution import Execution
 from .reactor import Reactor

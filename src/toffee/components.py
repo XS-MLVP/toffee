@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Iterable
 from abc import ABC, abstractmethod
 from typing import Any, Generic, TypeVar
 
-from ._context import current_reactor
+from ._reactor_context import current_reactor
 from .events import XEvent
 from .interfaces import Transfer
 from .signals import as_xdata, signal_identity

@@ -1,4 +1,4 @@
-include LICENSE README.md CONTRIBUTING.md pyproject.toml mkdocs.yml
+include LICENSE README.md README.en.md CONTRIBUTING.md pyproject.toml mkdocs.yml requirements-docs.txt
 include .github/native-dependencies.json
 recursive-include src *.py *.html *.css
 recursive-include scripts *.py

@@ -18,26 +18,35 @@ Toffee 负责 Python API、仿真调度、验证组件和报告。
 
 ## 文档按读者目的组织
 
-文档采用 [Diátaxis](https://diataxis.fr/) 的四类划分：
+中文源文档放在 `docs/zh/`，英文放在 `docs/en/`，相对路径一一对应。新增或修改
+公共能力时，同一个 PR 更新两种语言；共享的可执行代码块保持一致，避免示例漂移。
+导航使用语言无关路径，英文标题配置在 `mkdocs.yml` 的 `nav_translations` 中。
+站点默认中文，提供 English 切换；缺失翻译不回退到中文，检查会直接失败。
+
+文档采用 [Diátaxis](https://diataxis.fr/) 的四类划分；下表以中文路径为例：
 
 | 类型 | 位置 | 写作要求 |
 | --- | --- | --- |
-| 教程 | `docs/getting-started/` | 带读者完成可复现的练习，给出命令与预期结果；逐步引入概念，减少分支选择 |
-| 操作指南 | `docs/guides/` | 开头说明目标和前提，围绕实际任务给步骤、验证方法和常见失败处理 |
-| 参考 | `docs/reference/` | 准确列出签名、默认值、单位、返回值、异常与限制；与实现逐项核对 |
-| 原理说明 | `docs/explanation/` | 解释原因、边界和取舍，通过具体场景建立概念之间的联系 |
+| 教程 | `docs/zh/getting-started/` | 带读者完成可复现的练习，给出命令与预期结果；逐步引入概念，减少分支选择 |
+| 操作指南 | `docs/zh/guides/` | 开头说明目标和前提，围绕实际任务给步骤、验证方法和常见失败处理 |
+| 参考 | `docs/zh/reference/` | 准确列出签名、默认值、单位、返回值、异常与限制；与实现逐项核对 |
+| 原理说明 | `docs/zh/explanation/` | 解释原因、边界和取舍，通过具体场景建立概念之间的联系 |
 
 一页主要解决一种阅读需求；需要其他类型的内容时链接过去，避免在操作步骤中展开长篇
 原理，或在教程中罗列所有参数。已有页面混合多种内容时逐步拆分，并尽量保留旧地址。
 例如，配置步骤留在 Execution 指南，默认值放在 Execution 参考，调度原因放在原理说明。
 
 新增页面须接入 `mkdocs.yml` 和相应目录入口。检查相对链接与页内锚点，
-运行 `python3 -m pytest -q tests/integration/test_documentation.py` 和 `mkdocs build --strict`。
+运行 `python3 scripts/docs.py check`、
+`python3 -m pytest -q tests/integration/test_documentation.py tests/integration/test_quickstart_tutorial.py`
+和 `mkdocs build --strict`。
 新增可运行示例时还要实际执行；已有覆盖模型片段由文档测试校验。
 
 ## Wiki 自动同步
 
-Wiki 的内容来自 `main` 的 `docs/`，导航来自 `mkdocs.yml`。只需编辑这些源文件。
+Wiki 的内容来自 `main` 的 `docs/zh/` 和 `docs/en/`，导航来自 `mkdocs.yml`。
+首页提供语言选择，页面名使用 `zh-` / `en-` 前缀，每页链接对应的另一语言版本。
+只需编辑这些源文件；功能与对应的双语文档应在同一个 PR 中提交。
 **Documentation** 工作流校验链接、构建网站，导出页面及侧边栏，并上传预览产物。
 文档修改进入 `main` 并通过检查后，会同步到 `toffee.wiki.git`；PR 和其他分支只生成预览。
 Legacy `master` 不参与同步。Wiki 工作流独立于软件包发布检查，避免扩大其写权限。
@@ -49,7 +58,7 @@ Legacy `master` 不参与同步。Wiki 工作流独立于软件包发布检查�
 本地验证和导出不需要安装原生依赖：
 
 ```bash
-python3 -m pip install 'mkdocs>=1.6,<2'
+python3 -m pip install -r requirements-docs.txt
 python3 -m unittest discover -s scripts/tests -v
 python3 scripts/docs.py check
 python3 -m mkdocs build --strict
@@ -115,7 +124,7 @@ BUILD_XSPCOMM_SWIG=python XSPCOMM_BUILD_WHEEL=1 \
 
 版本号由 Git tag 和 setuptools-scm 生成，不在源码中另写一份。
 针对 main 的 PR 需选择一个版本标签：`release:patch`、`release:minor` 或 `release:major`。
-具体选择和发布失败后的处理见[版本与发布](docs/guides/versioning-and-releases.md)。
+具体选择和发布失败后的处理见[版本与发布](docs/zh/guides/versioning-and-releases.md)。
 
 发布检查包括原生回归、严格文档构建、源码包重建和隔离安装。
 验证通过后发布的是同一组已检查产物，不另行构建一份替代。

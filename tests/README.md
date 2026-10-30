@@ -24,7 +24,7 @@ mkdocs build --strict
 | `typing/` | 公共 API 的类型正例和错误用法 |
 
 入门示例和流水线覆盖示例也在默认测试范围内。
-[功能索引](../docs/reference/feature-map.md)列出指南、示例和对应回归。
+[功能索引](../docs/zh/reference/feature-map.md)列出指南、示例和对应回归。
 
 ## 新增测试
 

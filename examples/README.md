@@ -1,6 +1,6 @@
 # 可运行示例
 
-第一次使用，先看[入门教程](../docs/getting-started/index.md)。
+第一次使用，先看[入门教程](../docs/zh/getting-started/index.md)。
 以下命令均在仓库根目录执行；先按 [README](../README.md) 安装测试依赖。
 
 ## 先运行纯 Python 例子
@@ -49,4 +49,4 @@ python3 -m examples.coverage.trigger_bins --engine xcomm --strategy native
 真实 DUT 的构建、端口绑定和初始化分别见 [Cache](integration/cache/README.md)
 和 [e203](integration/e203/README.md)，它们需要额外的项目依赖。
 
-[用户手册中的示例索引](../docs/examples.md)还列出了故障练习和报告用法。
+[用户手册中的示例索引](../docs/zh/examples.md)还列出了故障练习和报告用法。

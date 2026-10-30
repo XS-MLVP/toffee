@@ -210,7 +210,8 @@ assert snapshot.data.as_int() == 3
 
 快照叶子为保存位宽和 X/Z 的 `LogicValue`，`as_int()` 遇到未知位会报错。
 模型中的整数算法可以保留，边界处需要显式转换，并定义未知输入如何处理。
-原生条件当前使用无符号语义，负常量、隐式截断和 signed cast 不能直接沿用。
+原生表达式支持显式位宽与有符号/无符号类型；负常量、截断和类型转换须按
+[表达式与资源](expressions-and-resources.md)中的规则核对，不能直接沿用旧隐式行为。
 packed 数组和结构的迁移见[数据指南](data.md)。
 
 ## Driver Monitor 与参考模型迁移
@@ -409,7 +410,8 @@ coverage.assert_coverage(100.0)
 
 - 一个原生 Backend 对应一个 XClock 调度域。多个独立 Execution 可以共享宿主 loop，
   但不提供跨时钟域共同时间轴；旧多时钟用例须单独核对。
-- 原生 Expr 当前支持任意位宽无符号条件，不提供完整 signed 或算术表达式 IR。
+- 原生 Expr 支持任意位宽、显式有符号/无符号类型和已支持的算术运算；仍须核对
+  位宽、溢出及未知值规则，不等同于完整的 SystemVerilog 表达式兼容。
 - 普通 Sequence 和 FSM 等待采用非重叠匹配。coverage 的有界重叠模式不等于所有
   Trigger 都支持重叠，也不等于完整的时序断言系统。
 - Backend、XClock 与 DUT 信号由 Execution 所在线程访问，同一 Backend 不能同时

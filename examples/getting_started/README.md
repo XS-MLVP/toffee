@@ -1,6 +1,6 @@
 # 从零开始的累加器教程
 
-[学习路线](../../docs/getting-started/index.md) 配合一个持续扩展的主线文件阅读。
+[学习路线](../../docs/zh/getting-started/index.md) 配合一个持续扩展的主线文件阅读。
 命令均在仓库根目录执行，先安装 `python3 -m pip install -e '.[test]'`。
 
 ## 主线只看两个文件

@@ -13,7 +13,7 @@ LINK = re.compile(r"(?<!!)\[[^\]\n]+\]\(([^\s)]+)\)")
 
 def user_pages():
     return [ROOT / name for name in (
-        'README.md', 'CONTRIBUTING.md', 'tests/README.md',
+        'README.md', 'README.en.md', 'CONTRIBUTING.md', 'tests/README.md',
         'examples/README.md', 'benchmarks/README.md',
     )] + sorted((ROOT / 'docs').rglob('*.md'))
 
@@ -21,8 +21,9 @@ def user_pages():
 @pytest.mark.parametrize('name', (
     'coverage-classes.md', 'coverage-transactions.md', 'coverage-patterns.md',
 ))
-def test_first_coverage_definition_uses_the_real_public_api(name):
-    path = ROOT / 'docs/guides' / name
+@pytest.mark.parametrize('language', ('zh', 'en'))
+def test_first_coverage_definition_uses_the_real_public_api(name, language):
+    path = ROOT / 'docs' / language / 'guides' / name
     code = PYTHON.search(path.read_text())
     assert code is not None, path
     namespace = {'__name__': '__main__'}

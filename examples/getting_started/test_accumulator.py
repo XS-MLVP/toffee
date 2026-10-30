@@ -1,4 +1,4 @@
-"""Read from top to bottom alongside docs/getting-started.
+"""Read alongside docs/en/getting-started or docs/zh/getting-started.
 
 Each region is introduced by one lesson. Imports appear when first needed.
 Run one test with: python3 -m pytest -q <this-file>::<test-name>

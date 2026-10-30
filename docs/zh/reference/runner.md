@@ -49,12 +49,14 @@ python3 -m toffee run [Toffee 选项] [pytest 参数]
 
 ## UNCERTAIN：证据不足，结论待定
 
+以下 `dut` 和 `expected` 由项目 fixture 提供：
+
 ```python
 import pytest
 
-@pytest.mark.uncertain(reason="消费者合同尚未确认", reference="design-note/7")
-def test_contract(dut):
-    # 正常执行已有激励与检查，不跳过断言。
+@pytest.mark.uncertain(reason="Consumer contract has not been confirmed", reference="design-note/7")
+def test_contract(dut, expected):
+    # Run existing stimulus and checks; assertions are not skipped.
     assert dut.output == expected
 ```
 

@@ -45,6 +45,13 @@ coverage remain separate; neither becomes a combined score that replaces the tes
 not mean every test passed. A completely executed regression containing assertion failures can
 still produce useful diagnostic coverage, while preserving a nonzero test exit code.
 
+Some cases execute while the basis for key expectations, observation capabilities, or required
+combinations remains incomplete. Explicit **UNCERTAIN** declares insufficient evidence and excludes
+these cases from PASS. It is not an expected failure and does not skip checking: assertion failures
+and fixture errors retain their real results. UNCERTAIN itself changes neither exit codes nor
+coverage commit. Thus `state="committed"`, exit code zero, and complete verification success
+are three distinct conclusions.
+
 Crashes, incomplete collection, or corrupt inputs make aggregation incomplete. Available
 intermediate inputs help diagnosis but do not constitute a complete regression. Cleanup failure
 after commit is different: final artifacts remain, the manifest records `cleanup_error`, and the

@@ -8,8 +8,8 @@ from collections.abc import Awaitable, Callable, Hashable, Mapping
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar
 
-from ._context import current_reactor
-from ._cleanup import raise_cleanup_errors
+from ._reactor_context import current_reactor
+from ._cleanup_errors import raise_cleanup_errors
 from .components import Monitor
 from .events import XEvent
 from .scoreboard import Scoreboard, ScoreboardStatus

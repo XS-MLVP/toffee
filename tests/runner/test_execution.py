@@ -205,7 +205,7 @@ def test_collection_error_never_becomes_committed_empty_coverage(tmp_path, worke
 def test_corrupt_worker_checkpoint_is_rejected(tmp_path):
     text = SAMPLE + '''
 def test_corrupt():
-    import toffee._pytest as plugin
+    import toffee._pytest_plugin as plugin
     from pathlib import Path
     original = plugin._WorkerCoverage.finish
     def finish(self, status):
@@ -222,7 +222,7 @@ def test_corrupt():
 def test_report_write_failure_keeps_inputs_uncommitted(tmp_path):
     text = SAMPLE + '''
 def test_break_renderer():
-    import toffee._pytest as plugin
+    import toffee._pytest_plugin as plugin
     def broken(*args, **kwargs):
         raise OSError('injected publication failure')
     plugin.render_unified_coverage_html = broken
@@ -236,7 +236,7 @@ def test_break_renderer():
 def test_cleanup_failure_preserves_commit_and_can_recover_without_remerging(tmp_path, monkeypatch):
     text = SAMPLE + '''
 def test_break_cleanup():
-    import toffee._pytest as plugin
+    import toffee._pytest_plugin as plugin
     def broken(*args, **kwargs):
         raise OSError('injected cleanup failure')
     plugin.shutil.rmtree = broken
@@ -247,7 +247,7 @@ def test_break_cleanup():
     assert 'injected cleanup failure' in manifest['cleanup_error']
     assert (output / '_workers').exists()
     from types import SimpleNamespace
-    import toffee._pytest as plugin
+    import toffee._pytest_plugin as plugin
     owner = plugin._ExecutionCoverage.__new__(plugin._ExecutionCoverage)
     owner.root, owner.keep = output, False
     def no_merge():

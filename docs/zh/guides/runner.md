@@ -26,6 +26,17 @@ toffee run tests/ --workers 1 --output output/serial-001
 `--collect-only` 只列出测试，不创建测量目录。
 `--output` 指定的目录必须尚不存在，避免不同运行的结果混在一起。
 
+## 用例能运行，但证据还不充分
+
+用 `@pytest.mark.uncertain(reason="...")` 声明。已有激励和断言照常执行，只有原本会
+成功的用例才记作 UNCERTAIN；真实错误仍失败。运行进度显示 `U`，结束时可看到
+`1 passed, 2 uncertain` 这样的摘要，并逐条列出原因。需要关联项目条目时可附上
+`reference="..."`，Toffee 不规定其格式。
+
+这种状态不计为 PASS，但默认不改变退出码，也不妨碍覆盖率提交；所以退出码 0 不能
+替代阅读结果摘要。标记规则、manifest 字段以及直接 pytest 的加载方式见
+[Runner 参考](../reference/runner.md#uncertain-outcome)。
+
 ## 功能覆盖率怎样收集
 
 按[功能覆盖率指南](coverage.md)创建 covergroup，在观察到事件时采样。

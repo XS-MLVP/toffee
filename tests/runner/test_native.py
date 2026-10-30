@@ -117,7 +117,7 @@ def test_duplicate_worker_native_receipt_is_rejected(tmp_path):
     (tmp_path / "test_user.sv").write_text("module DUT;\nwire toggle;\nendmodule\n")
     text = NATIVE.replace("range(1, 41)", "range(1, 3)") + '''
 def test_duplicate():
-    from toffee._native_coverage import NativeCollector
+    from toffee._verilator_coverage import NativeCollector
     original = NativeCollector.finish
     def duplicated(self):
         records = original(self)

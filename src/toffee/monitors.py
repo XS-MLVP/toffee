@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, Generic, Self, TypeVar
 
 from .components import Monitor
-from ._cleanup import raise_cleanup_errors
+from ._cleanup_errors import raise_cleanup_errors
 from .data import sample_data
 from .events import XEvent
 from .interfaces import ReadyValid, Role, Transfer

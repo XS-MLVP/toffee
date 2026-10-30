@@ -495,7 +495,7 @@ finish 封口、排空并检查指定观察窗口，但不销毁 Agent 或 Monit
 和运行场景组织。新增 Agent fixture quick start，默认 pytest 同时执行框架回归和入门
 示例；功能索引连接指南、可运行代码与实际行为测试，顶层 125 个导出全部有 API 入口。
 
-私有清理错误处理合并到 _cleanup，Monitor 共用关闭/交付契约和双后端 fixture，保留
+私有清理错误处理合并到 _cleanup_errors，Monitor 共用关闭/交付契约和双后端 fixture，保留
 特有协议采样及各类 Driver 行为。新增窗口/Hold/FSM 优先级、callable idle、coverage
 门控/权重/reset 的针对性回归。实际 genhtml 验证发现单源码文件的自动 prefix 会导致
 失败，已删除该路径猜测并用真实工具覆盖，CI 安装 lcov。

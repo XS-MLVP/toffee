@@ -27,6 +27,18 @@ toffee run tests/ --workers 1 --output output/serial-001
 Options such as `-k`, `-m`, `-q`, and `--tb=short` pass through to pytest. `--collect-only` lists tests
 without creating a measurement directory. The `--output` path must not already exist, keeping runs separate.
 
+## Run a case whose evidence is not yet sufficient
+
+Declare `@pytest.mark.uncertain(reason="...")`. Existing stimulus and assertions still run.
+Only a case that would otherwise succeed becomes UNCERTAIN; real errors still fail. Progress
+shows `U`, the final summary separates counts such as `1 passed, 2 uncertain`, and reasons are
+listed individually. Add an optional `reference="..."` for a project entry; Toffee imposes no format.
+
+UNCERTAIN does not count as PASS, but by default it neither changes the exit code nor prevents
+coverage commit. An exit code of zero cannot replace reading the summary. See
+[Runner reference](../reference/runner.md#uncertain-outcome) for declaration rules, manifest fields,
+and explicit plugin loading with direct pytest.
+
 ## Collect functional coverage
 
 Create covergroups following the [coverage guide](coverage.md), and sample observed events.

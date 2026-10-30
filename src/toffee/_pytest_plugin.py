@@ -1,4 +1,4 @@
-"""CLI-loaded pytest/xdist adaptation; no project-owned merge hooks required."""
+"""Pytest plugin entry point for managed runs, coverage, and outcome reporting."""
 from __future__ import annotations
 
 from collections import Counter
@@ -12,11 +12,15 @@ from typing import Any
 
 import pytest
 
-from ._artifacts import fingerprint, read_checked, write
+from ._runner_artifacts import fingerprint, read_checked, write
 from ._coverage_capture import capture, live_groups, suspended
-from ._native_coverage import NativeCollector, export_lcov, merge
+from ._verilator_coverage import NativeCollector, export_lcov, merge
 from .coverage import CoverageDatabase
 from .coverage_report import build_unified_coverage_model, parse_lcov, render_unified_coverage_html
+from .outcomes import case_status, phase_record
+
+
+pytest_plugins = ["toffee._pytest_outcomes"]
 
 
 class CoverageHooks:
@@ -131,7 +135,7 @@ class _ExecutionCoverage:
         self.started: set[str] = set()
         self.errors: list[str] = []
         self.collection: list[str] | None = None
-        self.reports: dict[str, list[str]] = {}
+        self.reports: dict[str, dict[str, Any]] = {}
         self.coverage = None
         self.capture = None
         if self.worker is None:
@@ -233,13 +237,7 @@ class _ExecutionCoverage:
     def pytest_runtest_logreport(self, report):
         if self.worker:
             return
-        state = ("XFAIL" if report.skipped else "XPASS") if hasattr(report, "wasxfail") else (
-            "ERROR" if report.failed and report.when != "call" else
-            "XPASS" if report.failed and str(report.longrepr).startswith("[XPASS(strict)]") else
-            "FAIL" if report.failed else "SKIP" if report.skipped else
-            "PASS" if report.when == "call" else None)
-        if state is not None:
-            self.reports.setdefault(report.nodeid, []).append(state)
+        self.reports.setdefault(report.nodeid, {})[report.when] = phase_record(report)
 
     @pytest.hookimpl(optionalhook=True)
     def pytest_testnodedown(self, node, error):
@@ -341,16 +339,20 @@ class _ExecutionCoverage:
             render_unified_coverage_html(build_unified_coverage_model(functional=functional, line_coverage=lines,
                 title=f"Toffee coverage (test exit status {int(session.exitstatus)})"), report)
             artifacts.append(dict(kind="html", **fingerprint(report)))
-        counts = Counter(next((s for s in ("ERROR", "FAIL", "XPASS", "XFAIL", "SKIP", "PASS") if s in states), "ERROR")
-                         for states in self.reports.values())
+        counts = Counter(case_status(phases) for phases in self.reports.values())
         if self.collection is None or set(self.reports) != set(self.collection):
             raise ValueError("reported tests differ from collected tests")
+        if counts["INCOMPLETE"]:
+            raise ValueError("one or more tests did not finish every execution phase")
+        uncertain = [dict(nodeid=nodeid, **phases["call"]["uncertain"])
+                     for nodeid, phases in sorted(self.reports.items())
+                     if case_status(phases) == "UNCERTAIN"]
         self.config.hook.pytest_toffee_coverage(config=self.config, functional=functional,
             native=[row for row in artifacts if row["kind"] == "native"],
             pytest_exitstatus=int(session.exitstatus))
         manifest = dict(format="xreactor-execution", version=1, state="committed",
             finished_at=datetime.now(timezone.utc).isoformat(), pytest_exitstatus=int(session.exitstatus),
-            tests=dict(counts), workers=worker_metadata, coverage_complete=True,
+            tests=dict(counts), uncertain=uncertain, workers=worker_metadata, coverage_complete=True,
             functional_groups=len(database.groups), artifacts=artifacts,
             keep_coverage_inputs=self.keep, cleanup_complete=False)
         write(self.root / "manifest.json", manifest)

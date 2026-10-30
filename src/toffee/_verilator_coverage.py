@@ -1,4 +1,4 @@
-"""Private Picker/Verilator adapter for fixture-owned, automatically discovered DUTs."""
+"""Collect and merge Verilator coverage from fixture-owned Picker DUTs."""
 from __future__ import annotations
 
 from collections import defaultdict
@@ -15,7 +15,7 @@ import tempfile
 import weakref
 from typing import Any
 
-from ._artifacts import fingerprint, sync_directory
+from ._runner_artifacts import fingerprint, sync_directory
 
 _POINT = re.compile(rb"C '(.*)' ([0-9]+)\n?\Z")
 

@@ -16,10 +16,11 @@ BLOCK = re.compile(
 )
 
 
-def test_tutorial_excerpts_match_the_executed_source():
+@pytest.mark.parametrize("language", ("zh", "en"))
+def test_tutorial_excerpts_match_the_executed_source(language):
     included = set()
     regions = set()
-    for page in (ROOT / "docs/getting-started").glob("*.md"):
+    for page in (ROOT / "docs" / language / "getting-started").glob("*.md"):
         for name, region, code in BLOCK.findall(page.read_text()):
             path = ROOT / name
             assert path.is_relative_to(EXAMPLES), (page, path)

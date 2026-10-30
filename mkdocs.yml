@@ -2,67 +2,141 @@ site_name: Toffee
 site_description: Asyncio-native Python hardware verification framework
 repo_url: https://github.com/XS-MLVP/toffee
 theme:
-  name: readthedocs
+  name: material
+  language: zh
+  font: false
 nav:
-  - 首页: index.md
-  - 教程:
-      - 学习路线: getting-started/index.md
-      - 0. 准备环境: getting-started/installation.md
-      - 1. 第一次 PASS 和 FAIL: getting-started/first-test.md
-      - 2. 输入与时钟: getting-started/clock-and-input.md
-      - 3. 多组数据与边界: getting-started/more-cases.md
-      - 4. 提取 Driver: getting-started/driver.md
-      - 5. 延迟输出与 Monitor: getting-started/monitor.md
-      - 6. 组装 Agent: getting-started/agent-test.md
-      - 7. 模型与测试环境: getting-started/reference-model.md
-      - 8. 流水、多批次与取消: getting-started/pipeline.md
-      - 9. 看懂失败: getting-started/failures.md
-      - 10. 功能覆盖率: getting-started/coverage.md
-      - 选读：乱序响应: getting-started/out-of-order.md
-      - 选读：原生时钟与项目 DUT: getting-started/native-and-next.md
-  - 操作指南:
-      - 按任务查找: guides/index.md
-      - 仿真与事件:
-          - 配置 Execution 与 Backend: guides/execution-and-backend.md
-          - 等待 Trigger 与超时: guides/triggers.md
-          - 编译条件、Sequence 与 FSM: guides/compiled-triggers.md
-          - 持续订阅事件: guides/subscriptions.md
-          - 集成 asyncio 与 pytest: guides/asyncio-and-pytest.md
-      - 验证组件:
-          - 绑定信号与结构化数据: guides/data.md
-          - 编写 Driver: guides/drivers.md
-          - 采集 Monitor 输出: guides/monitors.md
-          - 接入 Agent 与参考模型: guides/agents-and-reference-models.md
-          - 使用 Scoreboard 检查事务: guides/scoreboard.md
-          - 使用协议视图: guides/protocols.md
-          - 流水输入与阶段重叠: guides/pipeline-examples.md
-      - 覆盖率与回归:
-          - 定义功能覆盖率: guides/coverage.md
-          - 用类定义覆盖模型: guides/coverage-classes.md
-          - 统计事务覆盖: guides/coverage-transactions.md
-          - 统计时序覆盖: guides/coverage-patterns.md
-          - 功能点与跨用例覆盖: guides/functional-points.md
-          - 组合验证环境: guides/verification-flow.md
-          - 运行测试与汇总覆盖率: guides/runner.md
-      - 迁移与维护:
-          - 迁移到 Toffee 2: guides/toffee-v2-migration.md
-          - 版本、CI 与发布: guides/versioning-and-releases.md
-      - 可运行示例: examples.md
-  - 参考:
-      - 参考目录: reference/index.md
-      - API 索引: reference/api.md
-      - Execution 参数与生命周期: reference/execution.md
-      - Runner 命令与产物: reference/runner.md
-      - 原生表达式与资源: guides/expressions-and-resources.md
-      - 行为与限制: reference/semantics-and-limitations.md
-      - 功能与回归索引: reference/feature-map.md
-  - 原理说明:
-      - 理解设计: explanation/index.md
-      - 仿真调度与资源归属: explanation/execution-model.md
-      - 检查、覆盖率与回归结果: explanation/coverage-results.md
+- 首页: index.md
+- 教程:
+  - 学习路线: getting-started/index.md
+  - 0. 准备环境: getting-started/installation.md
+  - 1. 第一次 PASS 和 FAIL: getting-started/first-test.md
+  - 2. 输入与时钟: getting-started/clock-and-input.md
+  - 3. 多组数据与边界: getting-started/more-cases.md
+  - 4. 提取 Driver: getting-started/driver.md
+  - 5. 延迟输出与 Monitor: getting-started/monitor.md
+  - 6. 组装 Agent: getting-started/agent-test.md
+  - 7. 模型与测试环境: getting-started/reference-model.md
+  - 8. 流水、多批次与取消: getting-started/pipeline.md
+  - 9. 看懂失败: getting-started/failures.md
+  - 10. 功能覆盖率: getting-started/coverage.md
+  - 选读：乱序响应: getting-started/out-of-order.md
+  - 选读：原生时钟与项目 DUT: getting-started/native-and-next.md
+- 操作指南:
+  - 按任务查找: guides/index.md
+  - 仿真与事件:
+    - 配置 Execution 与 Backend: guides/execution-and-backend.md
+    - 等待 Trigger 与超时: guides/triggers.md
+    - 编译条件、Sequence 与 FSM: guides/compiled-triggers.md
+    - 持续订阅事件: guides/subscriptions.md
+    - 集成 asyncio 与 pytest: guides/asyncio-and-pytest.md
+  - 验证组件:
+    - 绑定信号与结构化数据: guides/data.md
+    - 编写 Driver: guides/drivers.md
+    - 采集 Monitor 输出: guides/monitors.md
+    - 接入 Agent 与参考模型: guides/agents-and-reference-models.md
+    - 使用 Scoreboard 检查事务: guides/scoreboard.md
+    - 使用协议视图: guides/protocols.md
+    - 流水输入与阶段重叠: guides/pipeline-examples.md
+  - 覆盖率与回归:
+    - 定义功能覆盖率: guides/coverage.md
+    - 用类定义覆盖模型: guides/coverage-classes.md
+    - 统计事务覆盖: guides/coverage-transactions.md
+    - 统计时序覆盖: guides/coverage-patterns.md
+    - 功能点与跨用例覆盖: guides/functional-points.md
+    - 组合验证环境: guides/verification-flow.md
+    - 运行测试与汇总覆盖率: guides/runner.md
+  - 迁移与维护:
+    - 迁移到 Toffee 2: guides/toffee-v2-migration.md
+    - 版本、CI 与发布: guides/versioning-and-releases.md
+  - 可运行示例: examples.md
+- 参考:
+  - 参考目录: reference/index.md
+  - API 索引: reference/api.md
+  - Execution 参数与生命周期: reference/execution.md
+  - Runner 命令与产物: reference/runner.md
+  - 原生表达式与资源: guides/expressions-and-resources.md
+  - 行为与限制: reference/semantics-and-limitations.md
+  - 功能与回归索引: reference/feature-map.md
+- 原理说明:
+  - 理解设计: explanation/index.md
+  - 仿真调度与资源归属: explanation/execution-model.md
+  - 检查、覆盖率与回归结果: explanation/coverage-results.md
 markdown_extensions:
-  - tables
-  - fenced_code
-  - toc:
-      permalink: true
+- tables
+- fenced_code
+- toc:
+    permalink: true
 strict: true
+docs_dir: docs
+site_dir: build/docs-site
+plugins:
+- i18n:
+    docs_structure: folder
+    fallback_to_default: false
+    languages:
+    - locale: zh
+      default: true
+      name: 中文
+      build: true
+    - locale: en
+      name: English
+      build: true
+      nav_translations:
+        首页: Home
+        教程: Tutorials
+        学习路线: Learning path
+        0. 准备环境: 0. Prepare your environment
+        1. 第一次 PASS 和 FAIL: 1. Your first PASS and FAIL
+        2. 输入与时钟: 2. Inputs and clocks
+        3. 多组数据与边界: 3. More cases and boundaries
+        4. 提取 Driver: 4. Extract a Driver
+        5. 延迟输出与 Monitor: 5. Delayed output and a Monitor
+        6. 组装 Agent: 6. Assemble an Agent
+        7. 模型与测试环境: 7. Models and the test environment
+        8. 流水、多批次与取消: 8. Pipelines, batches, and cancellation
+        9. 看懂失败: 9. Understand failures
+        10. 功能覆盖率: 10. Functional coverage
+        选读：乱序响应: 'Optional: out-of-order responses'
+        选读：原生时钟与项目 DUT: 'Optional: native clocks and project DUTs'
+        操作指南: How-to guides
+        按任务查找: Find your task
+        仿真与事件: Simulation and events
+        配置 Execution 与 Backend: Configure Execution and Backend
+        等待 Trigger 与超时: Wait for triggers and timeouts
+        编译条件、Sequence 与 FSM: Compile conditions, Sequence, and FSM
+        持续订阅事件: Subscribe to events
+        集成 asyncio 与 pytest: Integrate asyncio and pytest
+        验证组件: Verification components
+        绑定信号与结构化数据: Bind signals and structured data
+        编写 Driver: Write a Driver
+        采集 Monitor 输出: Capture Monitor output
+        接入 Agent 与参考模型: Connect Agents and models
+        使用 Scoreboard 检查事务: Check transactions with Scoreboard
+        使用协议视图: Use protocol views
+        流水输入与阶段重叠: Pipeline input and overlap stages
+        覆盖率与回归: Coverage and regressions
+        定义功能覆盖率: Define functional coverage
+        用类定义覆盖模型: Declare coverage with classes
+        统计事务覆盖: Collect transaction coverage
+        统计时序覆盖: Collect temporal coverage
+        功能点与跨用例覆盖: Requirements and cross-case coverage
+        组合验证环境: Assemble a verification environment
+        运行测试与汇总覆盖率: Run tests and aggregate coverage
+        迁移与维护: Migration and maintenance
+        迁移到 Toffee 2: Migrate to Toffee 2
+        版本、CI 与发布: Versions, CI, and releases
+        可运行示例: Runnable examples
+        参考: Reference
+        参考目录: Reference index
+        API 索引: API index
+        Execution 参数与生命周期: Execution parameters and lifecycle
+        Runner 命令与产物: Runner commands and artifacts
+        原生表达式与资源: Native expressions and resources
+        行为与限制: Semantics and limitations
+        功能与回归索引: Features and regressions
+        原理说明: Explanation
+        理解设计: Understand the design
+        仿真调度与资源归属: Scheduling and resource ownership
+        检查、覆盖率与回归结果: Checking, coverage, and regression results
+- search: {}

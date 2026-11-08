@@ -693,6 +693,11 @@ class Bundle(MObject):
             The bundle itself.
         """
 
+        # Direct XData pins have no clock event of their own: take it from the DUT.
+        for signal_info in Bundle.dut_all_signals(dut):
+            if signal_info["signal"].event is None and hasattr(dut, "event"):
+                signal_info["signal"].event = dut.event
+
         if self.bound:
             warning("bundle is already bound, the previous bind will be overwritten")
             self.__unbind_all()
@@ -1526,12 +1531,17 @@ class Bundle(MObject):
             True if the signal is an instance of XPin, False otherwise.
         """
 
-        return (
-            signal is not None
-            and not isinstance(signal, DummySignal)
-            and hasattr(signal, "xdata")
-            and hasattr(signal, "event")
-        )
+        if signal is None or isinstance(signal, DummySignal):
+            return False
+
+        # picker >= 2.1 removed the XPin(xdata, event) wrapper: DUT pins are XData objects directly.
+        # Match by class name because each exported DUT package carries its own xspcomm copy.
+        signal_class = type(signal)
+        if signal_class.__name__ == "XData" and not hasattr(signal_class, "xdata"):
+            signal_class.xdata = property(lambda self: self)
+            signal_class.event = None
+
+        return hasattr(signal, "xdata") and hasattr(signal, "event")
 
     @staticmethod
     def dut_all_signals(dut):

@@ -4,6 +4,48 @@ A Trigger describes a wait condition. `await trigger` returns an `XEvent`.
 These snippets run inside an active Execution with project-provided clocks and signals.
 For a complete test, see the [clock tutorial](../getting-started/clock-and-input.md).
 
+## Combinational logic without clock advancement
+
+Use `Execution` for combinational tests too, rather than manually calling `RefreshComb()` inside it:
+
+```python
+from toffee import CombStable, Execution, XCommClockBackend
+
+backend = XCommClockBackend(dut)
+try:
+    async with Execution(backend):
+        dut.a.AsImmWrite()
+        dut.b.AsImmWrite()
+        dut.a.Set(1)
+        dut.b.Set(2)
+        event = await CombStable()
+        assert dut.sum.U() == 3
+finally:
+    backend.close()
+```
+
+This assumes a project-provided adder DUT. No `InitClock` or artificial clock signal is needed.
+For a runnable example without RTL, see [combinational.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/combinational.py).
+
+`CombStable(source=None)` requests evaluation and sampling after the current domain's ready work
+settles. It generates no edges and does not change the half-tick. It returns a `PhaseEvent` with
+kind `COMB_STABLE`. Requests in the same batch share an event; successive samples at the same tick
+have increasing `event.delta`, reset when the clock advances. An optional source must belong to
+the current Backend; normally use `CombStable()`. Evaluation preserves signal write modes:
+use `AsImmWrite()` for combinational inputs; edge-deferred writes are not committed early.
+
+Conditions accept `sample=CombStable()` or `Execution(default_sample=CombStable())`.
+Registering a condition requests one initial sample; an unsatisfied condition subsequently observes
+new explicit requests. `SamplingMonitor(CombStable(), ...)`, subscriptions, and bound coverage are
+passive: they request no evaluation and never advance time themselves. Drivers should
+`await CombStable()` after each batch of input writes. Use wall-time budgets for clockless waits,
+not a `SimTimeout` that cannot expire without clock advancement.
+
+Native support requires xcomm `CombinationalVersion() == 1`. Conditions, Sequence/FSM, and supported
+coverage models remain in the native engine without an implicit Python fallback. `@pytrigger`
+and explicitly selected Python coverage retain their Python semantics. `DriveStable(clock)` still
+means the post-falling-edge drive window; it is not an alias for `CombStable()`.
+
 ## Clocks
 
 Express ordinary test waits in cycles; let Drivers and Monitors encapsulate precise drive and sample timing:

@@ -10,6 +10,10 @@ Toffee depends on `uc-xcomm`, which provides `xspcomm`. The backend requires API
 Use the commit, package, ABI, and protocol versions from the
 [dependency manifest](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json), not the package name alone.
 
+Combinational events require `XTriggerEngine.CombinationalVersion() == 1`.
+CI uses the native commit in the dependency manifest and checks the combinational protocol.
+An older wheel with the same package name does not provide this capability.
+
 ```bash
 python3 examples/getting_started/check_native.py
 ```
@@ -25,6 +29,7 @@ python3 examples/getting_started/check_native.py
 The script prints the loaded binding's path and should end with:
 
 ```text
+native combinational: tick=0, delta=1
 native clock: tick=2, phase=RISING_STABLE
 ```
 

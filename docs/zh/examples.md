@@ -30,6 +30,13 @@ python3 -m pytest -q examples/getting_started
 PYTHONPATH=src python3 examples/triggers/basic_execution.py
 ```
 
+[combinational.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/combinational.py)
+演示无时钟的 `Execution` 与 `CombStable()`；连续三次求值保持 tick=0，delta 依次为 1、2、3：
+
+```bash
+python3 examples/triggers/combinational.py
+```
+
 ## 采样与持续订阅
 
 [subscription.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/subscription.py)

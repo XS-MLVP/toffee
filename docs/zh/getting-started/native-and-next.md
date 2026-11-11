@@ -10,6 +10,9 @@ Toffee 通过常规依赖 `uc-xcomm` 安装 `xspcomm` 绑定。原生后端需�
 [依赖清单](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json)为准，
 不要只按包名判断版本是否匹配。安装到当前 Python 环境后，先运行：
 
+组合事件要求 `XTriggerEngine.CombinationalVersion() == 1`。CI 使用依赖清单中的原生提交，
+并检查组合协议版本。仅安装同名旧 wheel 不会获得这一能力。
+
 ```bash
 python3 examples/getting_started/check_native.py
 ```
@@ -25,6 +28,7 @@ python3 examples/getting_started/check_native.py
 脚本会打印实际加载的 绑定 文件路径，最后应是：
 
 ```text
+native combinational: tick=0, delta=1
 native clock: tick=2, phase=RISING_STABLE
 ```
 

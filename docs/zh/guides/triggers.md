@@ -4,6 +4,46 @@ Trigger 描述一个等待条件。`await trigger` 返回对应的 `XEvent`。
 以下片段在当前 Execution 内使用，clock 与 dut 由项目环境提供；可直接运行的完整测试
 见[输入与时钟教程](../getting-started/clock-and-input.md)。
 
+## 组合逻辑：不推进时钟的稳定事件
+
+组合测试也使用 `Execution`，不要在作用域内手动调用 `RefreshComb()`：
+
+```python
+from toffee import CombStable, Execution, XCommClockBackend
+
+backend = XCommClockBackend(dut)
+try:
+    async with Execution(backend):
+        dut.a.AsImmWrite()
+        dut.b.AsImmWrite()
+        dut.a.Set(1)
+        dut.b.Set(2)
+        event = await CombStable()
+        assert dut.sum.U() == 3
+finally:
+    backend.close()
+```
+
+这里假设项目已提供加法器 DUT。无需 `InitClock`，也无需虚构时钟信号。
+可直接运行的无 RTL 示例是 [combinational.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/combinational.py)。
+
+`CombStable(source=None)` 请求当前 Backend 在域内就绪工作收敛后求值并采样。
+它不产生边沿、不改变 half-tick；返回 `PhaseEvent`，kind 为 `COMB_STABLE`。
+同一批请求共享事件，同 tick 的后续请求通过递增的 `event.delta` 区分；时钟推进后 delta 归零。
+可选 source 必须属于当前 Backend，通常直接使用 `CombStable()`。
+求值保留信号的写入模式；纯组合输入使用 `AsImmWrite()`，它不会提前提交延迟到边沿的写入。
+
+条件可用 `sample=CombStable()`，也可设置 `Execution(default_sample=CombStable())`。
+条件注册请求一次初始采样；尚未满足的条件随后只观察新的显式组合请求。
+`SamplingMonitor(CombStable(), ...)`、订阅和绑定覆盖率是被动观察者，本身不请求求值，
+也不会自行推进时间。驱动协程应在每批输入后 `await CombStable()`。
+纯组合等待的超时使用墙钟预算，而不是没有时钟就无法到期的 `SimTimeout`。
+
+原生 Backend 要求 xcomm 的 `CombinationalVersion() == 1`；条件、Sequence/FSM 与
+支持的覆盖模型仍在原生引擎执行，不默认回退到 Python。
+`@pytrigger` 及显式 Python 覆盖策略保持原有 Python 语义。
+`DriveStable(clock)` 仍表示下降沿后的驱动窗口，不等价于 `CombStable()`。
+
 ## 时钟
 
 普通 case 优先按周期表达等待；驱动和采样的具体时机由 Driver、Monitor 封装：

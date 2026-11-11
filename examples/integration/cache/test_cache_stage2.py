@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import pytest
-from toffee import Execution, FallingEdge, RisingEdge, XCommClockBackend, as_xdata
+from toffee import CombStable, Execution, FallingEdge, RisingEdge, XCommClockBackend, as_xdata
 from examples.integration.cache.cache_internal_coverage import CacheStage2Observer
 from examples.integration.cache.cache_module_env import load_module
 from examples.integration.cache.cache_assertion_env import assertion_run, record_assertion_checks
@@ -22,7 +22,7 @@ async def test_stage2_lookup_and_forwarding(tmp_path):
             data.AsImmWrite()
             data.Set(0)
     observer = CacheStage2Observer(dut)
-    backend = XCommClockBackend(dut.GetXClock())
+    backend = XCommClockBackend(dut)
 
     def drive(**values):
         for name, value in values.items():
@@ -35,7 +35,7 @@ async def test_stage2_lookup_and_forwarding(tmp_path):
                      f"io_metaReadResp_{way}_dirty": 0})
 
     async def cycle():
-        dut.RefreshComb()
+        await CombStable()
         await RisingEdge(dut.clock)
         await FallingEdge(dut.clock)
 

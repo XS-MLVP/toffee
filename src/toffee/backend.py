@@ -38,6 +38,7 @@ from .ir import (
 )
 from .triggers import (
     ClockCycles,
+    CombStable,
     CompiledTrigger,
     ConditionMode,
     DriveStable,
@@ -67,6 +68,7 @@ class BackendCapabilities:
     reentrant: bool = False
     multiple_instances: bool = True
     drive_stable: bool = False
+    comb_stable: bool = False
 
 
 class StopReason(str, Enum):
@@ -97,6 +99,7 @@ class BackendHit:
     value: Any = None
     x_mask: int = 0
     terminal_state: str | None = None
+    delta: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -146,6 +149,8 @@ class SimulationBackend(Protocol):
 
     def sample_drive_stable(self) -> RunResult | None: ...
 
+    def sample_comb_stable(self) -> RunResult: ...
+
 
 @dataclass(slots=True)
 class _FsmState:
@@ -166,27 +171,35 @@ class _Watcher:
 class MemoryBackend:
     """Deterministic half-step backend used to test framework semantics.
 
-    It deliberately executes Python expressions and is not a performance model
-    for the future xcomm adapter.
+    It deliberately executes Python expressions and is not a native performance
+    model. Omitting the clock creates a clockless backend; on_comb optionally
+    updates a Python DUT when an explicit CombStable request is evaluated.
     """
 
     capabilities = BackendCapabilities(
         half_step=True,
         stable_sample=True,
         drive_stable=True,
+        comb_stable=True,
         reentrant=False,
     )
 
     def __init__(
         self,
-        clock: Any,
+        clock: Any = None,
         *,
         on_phase: Callable[[XPhase, int], None] | None = None,
+        on_comb: Callable[[], None] | None = None,
     ) -> None:
         self.clock = clock
         self.on_phase = on_phase
+        self.on_comb = on_comb
+        if clock is None:
+            self.capabilities = replace(self.capabilities, half_step=False)
         self.tick = 0
+        self.delta = 0
         self.phase = XPhase.RISING_STABLE
+        self._edge_phase = self.phase
         self._watchers: dict[int, _Watcher] = {}
         self._generations: list[int] = []
         self._free_slots: list[int] = []
@@ -207,6 +220,10 @@ class MemoryBackend:
     def arm(self, trigger: XTrigger[Any]) -> BackendHandle:
         if self._closed:
             raise RuntimeError("backend is closed")
+        if _trigger_uses_comb_stable(trigger):
+            sample = trigger if isinstance(trigger, CombStable) else trigger.sample
+            if sample.source is not None and not _same_source(sample.source, self.clock):
+                raise ValueError("CombStable source must belong to its Execution backend")
         if self._free_slots:
             slot = self._free_slots.pop()
             self._generations[slot] += 1
@@ -254,17 +271,21 @@ class MemoryBackend:
     def run_until(self, limit: RunLimit) -> RunResult:
         if self._closed:
             raise RuntimeError("backend is closed")
+        if not self.capabilities.half_step:
+            raise RuntimeError("backend does not support clock half-step sampling")
         all_hits: list[BackendHit] = []
         advanced = 0
         started_ns = time.perf_counter_ns()
         for _ in range(limit.max_ticks):
             self.tick += 1
+            self.delta = 0
             advanced += 1
             self.phase = (
                 XPhase.FALLING_STABLE
                 if self.tick % 2
                 else XPhase.RISING_STABLE
             )
+            self._edge_phase = self.phase
             if self.on_phase is not None:
                 self.on_phase(self.phase, self.tick)
             hits = self._evaluate_phase()
@@ -335,17 +356,36 @@ class MemoryBackend:
     def refresh_comb(self) -> None:
         """MemoryBackend signals are ordinary Python values."""
 
+        if self.on_comb is not None:
+            self.on_comb()
+
+    def sample_comb_stable(self) -> RunResult:
+        if self._closed:
+            raise RuntimeError("backend is closed")
+        self.refresh_comb()
+        self.delta += 1
+        self.phase = XPhase.COMB_STABLE
+        hits = tuple(self._evaluate_phase())
+        return RunResult(
+            0, self.phase,
+            StopReason.TRIGGER_HIT if hits else StopReason.EDGE_BARRIER,
+            hits, True,
+        )
+
     def sample_drive_stable(self) -> RunResult | None:
         if not self.has_coverage_drive_work and not any(
             _trigger_uses_drive_stable(watcher.trigger)
             for watcher in self._watchers.values()
         ):
             return None
-        if self.phase is not XPhase.FALLING_STABLE:
+        if self._edge_phase is not XPhase.FALLING_STABLE or self.phase not in (
+            XPhase.FALLING_STABLE, XPhase.COMB_STABLE
+        ):
             raise RuntimeError(
                 "DriveStable sampling requires a preceding FallingStable"
             )
         self.phase = XPhase.DRIVE_STABLE
+        self.refresh_comb()
         hits = tuple(self._evaluate_phase())
         return RunResult(
             0,
@@ -381,6 +421,7 @@ class MemoryBackend:
                     XEventKind.CLOCK_RISE,
                     XEventKind.CLOCK_FALL,
                     XEventKind.DRIVE_STABLE,
+                    XEventKind.COMB_STABLE,
                 )
                 else id(source),
             )
@@ -400,6 +441,7 @@ class MemoryBackend:
                     source=source,
                     value=value,
                     terminal_state=terminal,
+                    delta=self.delta,
                 )
             )
         return hits
@@ -408,6 +450,10 @@ class MemoryBackend:
         self, watcher: _Watcher
     ) -> tuple[XEventKind, Any, Any, str | None] | None:
         trigger = watcher.trigger
+        if isinstance(trigger, CombStable):
+            if _sample_matches(trigger, self.phase, self.clock):
+                return XEventKind.COMB_STABLE, self.clock, None, None
+            return None
         if isinstance(trigger, RisingEdge):
             if self.phase is XPhase.RISING_STABLE and _same_source(
                 trigger.source, self.clock
@@ -535,12 +581,16 @@ class XCommClockBackend:
     xcomm.  Python is re-entered only when ``RunUntil`` returns.  It supports
     edge/cycle/value/change watchers, compiled Expr/Sequence/FSM,
     explicit Python sampling, batched hits and wall-clock run budgets.
+    Pass a generated DUT (GetXClock) or an XClock. Public DUT refresh must route
+    through XClock, as in current Picker wrappers. Native CombStable support is
+    reported by capabilities.comb_stable and requires combinational protocol 1.
     """
 
     capabilities = BackendCapabilities(
         half_step=True,
         stable_sample=True,
         drive_stable=True,
+        comb_stable=True,
         reentrant=False,
     )
 
@@ -552,6 +602,9 @@ class XCommClockBackend:
         capacity: int = 1024,
         program_cache_capacity: int = 256,
     ) -> None:
+        dut = clock if callable(getattr(clock, "GetXClock", None)) else None
+        if dut is not None:
+            clock = dut.GetXClock()
         required = ("StepHalf", "GetHalfTick", "GetPhase")
         missing = [name for name in required if not hasattr(clock, name)]
         if missing:
@@ -599,6 +652,9 @@ class XCommClockBackend:
         self.phase = _xcomm_phase(clock.GetPhase())
         self._closed = False
         self._owner: object | None = None
+        self.delta = 0
+        version = getattr(self._engine, "CombinationalVersion", lambda: 0)()
+        self.capabilities = replace(self.capabilities, comb_stable=version == 1)
 
     def acquire(self, owner: object) -> None:
         if self._closed:
@@ -631,7 +687,9 @@ class XCommClockBackend:
         self._engine.AcquireClock()
         cache_key = None
         native_phase: Any
-        if isinstance(trigger, RisingEdge):
+        if isinstance(trigger, CombStable):
+            native = self._engine.ArmEdge(self._native_sample_phase(trigger))
+        elif isinstance(trigger, RisingEdge):
             self._require_clock_source(trigger.source)
             native = self._engine.ArmEdge(
                 self._xspcomm.XPhase_RisingStable
@@ -830,6 +888,19 @@ class XCommClockBackend:
             raise
         return self._convert_native_result(native_result)
 
+    def sample_comb_stable(self) -> RunResult:
+        if self._closed:
+            raise RuntimeError("backend is closed")
+        phase = self._native_sample_phase(CombStable())
+        self._engine.AcquireClock()
+        self.delta += 1
+        try:
+            native_result = self._engine.SamplePhase(phase)
+        except RuntimeError as error:
+            self._coverage_error(error)
+            raise
+        return self._convert_native_result(native_result)
+
     def sample_drive_stable(self) -> RunResult | None:
         if not any(
             _trigger_uses_drive_stable(trigger)
@@ -860,6 +931,8 @@ class XCommClockBackend:
             raise IllegalBinError(hits) from error
 
     def _convert_native_result(self, native_result: Any) -> RunResult:
+        if int(native_result.advanced_ticks):
+            self.delta = 0
         self.tick = int(self.clock.GetHalfTick())
         self.phase = _xcomm_phase(native_result.stopped_phase)
         self._raise_callback_exception()
@@ -938,7 +1011,12 @@ class XCommClockBackend:
     def refresh_comb(self) -> None:
         """Propagate writes made at the current stable phase."""
 
-        self.clock.RefreshComb()
+        if hasattr(self._engine, "RefreshComb"):
+            self._engine.AcquireClock()
+            self._engine.RefreshComb()
+            self._raise_callback_exception()
+        else:
+            self.clock.RefreshComb()
 
     @property
     def has_coverage_drive_work(self) -> bool:
@@ -981,6 +1059,14 @@ class XCommClockBackend:
             )
 
     def _native_sample_phase(self, sample: Any) -> Any:
+        if isinstance(sample, CombStable):
+            if not self.capabilities.comb_stable:
+                raise RuntimeError(
+                    "CombStable requires xcomm combinational protocol 1; rebuild xcomm"
+                )
+            if sample.source is not None:
+                self._require_clock_source(sample.source)
+            return self._xspcomm.XPhase_CombStable
         self._require_clock_source(sample.source)
         if isinstance(sample, RisingEdge):
             return self._xspcomm.XPhase_RisingStable
@@ -989,7 +1075,7 @@ class XCommClockBackend:
         if isinstance(sample, DriveStable):
             return self._xspcomm.XPhase_DriveStable
         raise TypeError(
-            "sample must be RisingEdge, FallingEdge, or DriveStable"
+            "sample must be RisingEdge, FallingEdge, DriveStable, or CombStable"
         )
 
     def _native_condition_mode(self, mode: ConditionMode | str) -> Any:
@@ -1450,6 +1536,9 @@ class XCommClockBackend:
         elif isinstance(trigger, PythonPredicateTrigger):
             source = trigger.name
             value = True
+        elif isinstance(trigger, CombStable):
+            source = self.clock if trigger.source is None else trigger.source
+            value = None
         elif trigger is not None:
             source = trigger.source
             value = (
@@ -1469,10 +1558,15 @@ class XCommClockBackend:
             value=value,
             x_mask=int(hit.x_mask),
             terminal_state=terminal_state,
+            delta=self.delta,
         )
 
 
 def _sample_matches(sample: Any, phase: XPhase, clock: Any) -> bool:
+    if isinstance(sample, CombStable):
+        return phase is XPhase.COMB_STABLE and (
+            sample.source is None or _same_source(sample.source, clock)
+        )
     if isinstance(sample, RisingEdge):
         return phase is XPhase.RISING_STABLE and _same_source(sample.source, clock)
     if isinstance(sample, FallingEdge):
@@ -1480,6 +1574,12 @@ def _sample_matches(sample: Any, phase: XPhase, clock: Any) -> bool:
     if isinstance(sample, DriveStable):
         return phase is XPhase.DRIVE_STABLE and _same_source(sample.source, clock)
     return False
+
+
+def _trigger_uses_comb_stable(trigger: XTrigger[Any]) -> bool:
+    return isinstance(trigger, CombStable) or isinstance(
+        getattr(trigger, "sample", None), CombStable
+    )
 
 
 def _trigger_uses_drive_stable(trigger: XTrigger[Any]) -> bool:
@@ -1514,6 +1614,7 @@ def _xcomm_phase(value: Any) -> XPhase:
             0: XPhase.FALLING_STABLE,
             1: XPhase.RISING_STABLE,
             2: XPhase.DRIVE_STABLE,
+            3: XPhase.COMB_STABLE,
         }[int(value)]
     except KeyError as error:
         raise RuntimeError(f"unknown xcomm phase: {int(value)}") from error
@@ -1530,6 +1631,7 @@ def _xcomm_hit_kind(value: Any) -> XEventKind:
             5: XEventKind.FSM,
             6: XEventKind.VALUE_CHANGE,
             7: XEventKind.DRIVE_STABLE,
+            8: XEventKind.COMB_STABLE,
         }[int(value)]
     except KeyError as error:
         raise RuntimeError(f"unknown xcomm hit kind: {int(value)}") from error

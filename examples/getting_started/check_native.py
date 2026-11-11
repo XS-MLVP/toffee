@@ -4,7 +4,7 @@ import asyncio
 
 import xspcomm
 
-from toffee import ClockCycles, Execution, XCommClockBackend
+from toffee import ClockCycles, CombStable, Execution, XCommClockBackend
 
 
 async def main():
@@ -13,6 +13,8 @@ async def main():
     backend = XCommClockBackend(clock)
     try:
         async with Execution(backend):
+            event = await CombStable()
+            print(f"native combinational: tick={event.tick}, delta={event.delta}")
             event = await ClockCycles(clock, 1)
             print(f"native clock: tick={event.tick}, phase={event.phase.name}")
     finally:

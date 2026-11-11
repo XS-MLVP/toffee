@@ -9,6 +9,8 @@ for rationale, see [scheduling and resource ownership](../explanation/execution-
 - Value, ValueChange, and compiled conditions evaluate only at their selected sample phase.
 - Evaluation begins at the next sample phase after registration.
 - The Backend returns events hitting in the same phase as a batch.
+- CombStable evaluates at the current tick, distinguishing successive samples by delta without driving clock pins or edges.
+- Registering a combinational condition requests one initial sample; later samples require explicit requests. Combinational subscriptions and coverage remain passive.
 
 ## Lifecycle
 
@@ -86,6 +88,7 @@ See [expressions and resources](../guides/expressions-and-resources.md) for oper
   `max_active`; see [temporal coverage](../guides/coverage-patterns.md).
 - `@pytrigger` executes a Python predicate at every sample phase.
 - One Backend cannot serve multiple active Executions simultaneously.
+- Native combinational events require xcomm combinational protocol 1; compiled conditions and supported coverage models run in the native engine.
 - Backend, XClock, and DUT signals do not support concurrent cross-thread access.
 - Bundle and channel views require explicit binding; there is no generic Interface base class.
 - Coverage JSON uses Toffee's schema, not UCIS.

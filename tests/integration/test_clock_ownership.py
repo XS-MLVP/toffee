@@ -2,7 +2,7 @@
 
 import pytest
 
-from toffee import ClockCycles, Execution, FallingEdge, RunLimit, XCommClockBackend
+from toffee import ClockCycles, CombStable, Execution, FallingEdge, RunLimit, XCommClockBackend
 
 
 @pytest.fixture
@@ -22,7 +22,8 @@ async def test_execution_owns_clock_even_when_idle_or_paused(clock):
             assert clock.IsControlled()
             assert backend.tick == initial_tick
             for operation in (lambda: clock.Step(1), lambda: clock.Step(0),
-                              lambda: clock.RawStep(1), clock.StepHalf, clock.Reset):
+                              lambda: clock.RawStep(1), clock.StepHalf, clock.Reset,
+                              clock.RefreshComb, clock.RefreshCombT, clock.eval, clock.eval_t):
                 with pytest.raises(RuntimeError, match="controlled by XEngine"):
                     operation()
             for operation in (lambda: clock.AStep(1), clock.ANext,
@@ -34,12 +35,15 @@ async def test_execution_owns_clock_even_when_idle_or_paused(clock):
             async with execution.paused():
                 with pytest.raises(RuntimeError, match="controlled by XEngine"):
                     clock.Step(1)
+                with pytest.raises(RuntimeError, match="controlled by XEngine"):
+                    clock.RefreshComb()
                 assert clock.IsControlled()
             event = await ClockCycles(clock, 2)
             assert event.tick == initial_tick + 4
             with pytest.raises(RuntimeError, match="owning Execution"):
                 backend.close()
         assert not clock.IsControlled()
+        clock.RefreshComb()
         clock.Step(1)
         async with Execution(backend):
             await ClockCycles(clock, 1)
@@ -131,3 +135,41 @@ def test_standalone_backend_claims_clock_on_first_use(clock):
     finally:
         backend.close()
         other.close()
+
+
+@pytest.mark.asyncio
+async def test_dut_facade_uses_native_guard_without_monkey_patching(clock):
+    class Dut:
+        def __init__(self):
+            self.calls = 0
+
+        def GetXClock(self):
+            return clock
+
+        def RefreshComb(self):
+            # Current Picker wrappers delegate to XClock's native guard.
+            clock.RefreshComb()
+            self.calls += 1
+
+        def Step(self, cycles):
+            clock.Step(cycles)
+
+    dut = Dut()
+    refresh = Dut.RefreshComb
+    backend = XCommClockBackend(dut)
+    assert Dut.RefreshComb is refresh  # Integration must not monkey-patch user classes.
+    try:
+        dut.RefreshComb()
+        async with Execution(backend) as execution:
+            with pytest.raises(RuntimeError, match="controlled by XEngine"):
+                dut.RefreshComb()
+            with pytest.raises(RuntimeError, match="controlled by XEngine"):
+                dut.Step(1)
+            await CombStable()
+            async with execution.paused():
+                with pytest.raises(RuntimeError, match="controlled by XEngine"):
+                    dut.RefreshComb()
+        dut.RefreshComb()
+        assert dut.calls == 2
+    finally:
+        backend.close()

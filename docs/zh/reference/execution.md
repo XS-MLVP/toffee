@@ -10,10 +10,10 @@
 
 | 参数 | 默认值 | 含义与约束 |
 | --- | --- | --- |
-| `backend` | 必填 | 提供 half-step 和 stable sampling 能力的 `SimulationBackend` |
+| `backend` | 必填 | 提供稳定采样，且支持 half-step 或组合求值的 `SimulationBackend` |
 | `agents` | `()` | Agent 实例的 iterable；实例不能重复，各 Agent 不能共享组件 |
 | `coverage` | `()` | `CoverGroup` 实例的 iterable；实例不能重复，由 Execution 启停采样 |
-| `default_sample` | `None` | 条件的默认采样阶段；指定时须为 `RisingEdge`、`FallingEdge` 或 `DriveStable` |
+| `default_sample` | `None` | 条件的默认采样阶段：`RisingEdge`、`FallingEdge`、`DriveStable` 或 `CombStable` |
 | `max_batch_ticks` | `4096` | 单次 Backend 调用最多推进的 half ticks，须大于 0 |
 | `quantum_ms` | `10.0` | 单次连续推进的墙钟时间预算，单位毫秒，须大于 0 |
 | `budget_check_interval` | `64` | 原生执行器检查时间预算的间隔，须大于 0 |
@@ -44,12 +44,20 @@
 | 时段 | 手动推进行为 |
 | --- | --- |
 | 仅创建 `XCommClockBackend`、尚未进入 Execution | 尚未取得控制权，可用 `dut.Step(...)` 初始化 |
-| Execution 内，包括 `paused()` 期间 | 原生 XEngine 独占 XClock，禁止手动推进和复位 |
+| Execution 内，包括 `paused()` 期间 | 原生 XEngine 独占 XClock，禁止手动推进、复位和组合刷新 |
 | Execution 退出并释放控制权后 | 恢复手动控制；释放本身不会推进或复位时钟 |
 
-作用域内的 `dut.Step`、`clock.Step`、`RawStep`、`StepHalf` 和 `Reset` 会报错。
+作用域内的 `dut.Step`、`clock.Step`、`RawStep`、`StepHalf`、`Reset` 及
+`clock.RefreshComb` / `RefreshCombT` / `eval` / `eval_t` 会报错。
 旧接口 `AStep`、`ANext`、`ACondition`、`RunStep` 也不能混用。
 不同 Backend 包装同一个 XClock，不能同时接管它。
+
+`XCommClockBackend(dut)` 取得 `dut.GetXClock()`，也可以继续传入 XClock。
+当前 Picker 生成的 `dut.RefreshComb()` 本身经过 XClock 的原生控制权检查，
+与 Backend 的两种构造写法无关。旧生成包若直接访问 simulator，应重新导出、编译；
+Toffee 不动态修改用户的 DUT 类。请勿通过底层 simulator 或直接修改 clock pin 绕过所有权。
+框架内部通过拥有控制权的 engine 完成求值。
+组合求值改用 `await CombStable()`，退出 Execution 后恢复手动调用。
 
 若退出时停在半周期中间，手动调用完整周期 `Step` 前需用 `StepHalf` 完成剩余半周期。
 直接使用 Backend 的 `arm` / `run_until` 会在首次调用时接管时钟并持有到 `close()`；
@@ -59,6 +67,8 @@
 
 超过 `max_settle_rounds` 会抛出 `SimulationNotSettledError`，诊断包含 tick、phase 和
 未完成回调。此时不会跳过就绪工作强行推进。`paused()` 内不能等待依赖仿真推进的 Trigger。
+暂停也冻结组合求值，不能在暂停块中等待 `CombStable()`。
+同 tick 内连续的组合求值请求同样受 `max_settle_rounds` 限制，时钟推进后计数重置。
 
 Backend、XClock 与 DUT 信号不支持跨线程并发访问；多个 Execution 不提供共同时间轴。
 asyncio loop 的适配范围与外部事件边界见[行为与限制](semantics-and-limitations.md)。

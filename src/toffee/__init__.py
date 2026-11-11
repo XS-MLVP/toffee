@@ -105,6 +105,7 @@ from .protocols import drive_ready_valid
 from .signals import as_xdata
 from .triggers import (
     ClockCycles,
+    CombStable,
     CompiledTrigger,
     ConditionMode,
     DriveStable,
@@ -138,6 +139,7 @@ __all__ = [
     "AnyOf",
     "AsyncioEventTrigger",
     "ClockCycles",
+    "CombStable",
     "CheckContext",
     "CompiledTrigger",
     "ConditionMode",

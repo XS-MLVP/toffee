@@ -7,14 +7,14 @@ from contextvars import Context, Token, copy_context
 from typing import TYPE_CHECKING, Any, AsyncIterator, Coroutine, TypeVar
 
 from ._reactor_context import bind_reactor, current_reactor, reset_reactor
-from ._asyncio_observer import CallbackDomain, current_domain
+from ._asyncio_observer import CallbackDomain, SimulationNotSettledError, current_domain
 from ._cleanup_errors import raise_cleanup_errors
 from .backend import RunLimit, SimulationBackend
 from .events import XPhase
 from .reactor import Reactor
 from .reactor import Subscription
 from .subscriptions import BoundSubscriptionSpec
-from .triggers import DriveStable, FallingEdge, PhaseTrigger, RisingEdge
+from .triggers import CombStable, DriveStable, FallingEdge, PhaseTrigger, RisingEdge
 
 T = TypeVar("T")
 
@@ -46,18 +46,20 @@ class Execution:
         if max_settle_rounds <= 0:
             raise ValueError("max_settle_rounds must be positive")
         if default_sample is not None and not isinstance(
-            default_sample, (RisingEdge, FallingEdge, DriveStable)
+            default_sample, (RisingEdge, FallingEdge, DriveStable, CombStable)
         ):
             raise TypeError(
                 "default_sample must be RisingEdge, FallingEdge, or "
-                "DriveStable"
+                "DriveStable, or CombStable"
             )
         capabilities = getattr(backend, "capabilities", None)
         if capabilities is None:
             raise TypeError("simulation backend must declare capabilities")
-        if not capabilities.half_step or not capabilities.stable_sample:
+        if not capabilities.stable_sample or not (
+            capabilities.half_step or getattr(capabilities, "comb_stable", False)
+        ):
             raise RuntimeError(
-                "simulation backend must provide half-step stable sampling"
+                "simulation backend must provide half-step or combinational stable sampling"
             )
         self.backend = backend
         from .agent import Agent
@@ -246,39 +248,55 @@ class Execution:
         if result is not None:
             self.reactor.publish(result)
 
+    def _sample_comb(self) -> None:
+        assert self.reactor is not None
+        self.reactor.publish(self.backend.sample_comb_stable())
+
     async def _run_pump(self) -> None:
         assert self.reactor is not None
         assert self._delivery_context is not None
+        drive_pending = False
+        comb_rounds = 0
         try:
             while not self._closing:
-                await self.reactor.work_available.wait()
+                if not drive_pending:
+                    await self.reactor.work_available.wait()
                 self.reactor.raise_background_error()
                 if self._closing:
                     break
                 await self._ready_to_advance()
                 if self._closing:
                     break
-                if not self.reactor.has_execution_work:
+                if self.reactor.has_comb_request:
+                    if comb_rounds >= self.max_settle_rounds:
+                        raise SimulationNotSettledError(
+                            f"combinational simulation did not settle at tick={self.backend.tick} "
+                            f"phase=COMB_STABLE after {comb_rounds} rounds; "
+                            f"delta={getattr(self.backend, 'delta', '?')}"
+                        )
+                    self.reactor.consume_comb_request()
+                    self._delivery_context.run(self._sample_comb)
+                    comb_rounds += 1
+                    await asyncio.sleep(0)
+                    continue
+                if drive_pending:
+                    drive_pending = False
+                    if (self.reactor.has_drive_stable_work
+                            or getattr(self.backend, "has_coverage_drive_work", False)):
+                        self._delivery_context.run(self._sample_drive)
+                        await asyncio.sleep(0)
+                    continue
+                if not self.reactor.has_clock_work:
                     self.reactor.work_available.clear()
                     continue
                 # User callbacks inside backend evaluation/capture belong to
                 # the Execution; the Pump's own continuation remains outside.
                 result = self._delivery_context.run(self._advance)
+                comb_rounds = 0
+                drive_pending = result.stopped_phase is XPhase.FALLING_STABLE
                 # A phase barrier must give resolved waiters a chance to run
                 # before this task may enter the backend again.
                 await asyncio.sleep(0)
-                await self._ready_to_advance()
-                if self._closing:
-                    break
-                self.reactor.raise_background_error()
-                if (
-                    result.stopped_phase is XPhase.FALLING_STABLE
-                    and (self.reactor.has_drive_stable_work
-                         or getattr(self.backend, "has_coverage_drive_work", False))
-                ):
-                    self._delivery_context.run(self._sample_drive)
-                    await asyncio.sleep(0)
-                    self.reactor.raise_background_error()
         except BaseException as error:
             if not isinstance(error, asyncio.CancelledError):
                 self.reactor.fail(error)

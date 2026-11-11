@@ -10,10 +10,10 @@ Import with `from toffee import Execution`. For setup, see
 
 | Parameter | Default | Meaning and constraints |
 | --- | --- | --- |
-| `backend` | Required | SimulationBackend supporting half-step and stable sampling |
+| `backend` | Required | SimulationBackend with stable sampling and either half-step or combinational evaluation |
 | `agents` | `()` | Iterable of distinct Agent instances; Agents cannot share components |
 | `coverage` | `()` | Iterable of distinct CoverGroups whose sampling Execution starts/stops |
-| `default_sample` | `None` | Default condition sampling phase; must be RisingEdge, FallingEdge, or DriveStable |
+| `default_sample` | `None` | Default sampling phase: RisingEdge, FallingEdge, DriveStable, or CombStable |
 | `max_batch_ticks` | `4096` | Maximum half ticks per Backend call; positive |
 | `quantum_ms` | `10.0` | Wall-time budget for continuous advancement, in milliseconds; positive |
 | `budget_check_interval` | `64` | Native executor's time-budget checking interval; positive |
@@ -45,12 +45,21 @@ Create fresh instances of closed Agents and built-in Monitors.
 | Period | Manual advancement |
 | --- | --- |
 | Backend constructed, before Execution entry | Control not acquired; `dut.Step(...)` can initialize the DUT |
-| Inside Execution, including pauses | Native XEngine exclusively owns XClock; manual advancement and reset are prohibited |
+| Inside Execution, including pauses | Native XEngine exclusively owns XClock; manual advancement, reset, and combinational refresh are prohibited |
 | After Execution exits and releases control | Manual control resumes; release itself does not advance or reset the clock |
 
-Inside the scope, `dut.Step`, `clock.Step`, `RawStep`, `StepHalf`, and `Reset` raise errors.
+Inside the scope, `dut.Step`, `clock.Step`, `RawStep`, `StepHalf`, `Reset`, and
+`clock.RefreshComb` / `RefreshCombT` / `eval` / `eval_t` raise errors.
 Legacy `AStep`, `ANext`, `ACondition`, and `RunStep` also cannot be mixed in. Separate Backends
 wrapping the same XClock cannot take control simultaneously.
+
+`XCommClockBackend(dut)` obtains `dut.GetXClock()`; passing an XClock remains supported.
+Current Picker wrappers route `dut.RefreshComb()` through native XClock ownership checks,
+independently of which Backend constructor form is used. Regenerate and rebuild older DUT
+packages that access the simulator directly. Toffee does not monkey-patch user DUT classes.
+Do not bypass ownership through the underlying simulator or direct clock-pin writes.
+Framework evaluation uses the owning engine. Use `await CombStable()`
+for combinational evaluation; manual calls resume after Execution exits.
 
 If exit occurs halfway through a cycle, finish the remaining half with `StepHalf` before calling
 full-cycle `Step`. Calling Backend `arm` / `run_until` directly acquires control on first use and
@@ -60,6 +69,9 @@ retains it until `close()`. Remove directly registered watchers before entering 
 
 Exceeding `max_settle_rounds` raises `SimulationNotSettledError` with tick, phase, and unfinished
 callbacks. It never skips ready work to advance. Do not await clock-dependent triggers inside a pause.
+Pauses also freeze combinational evaluation; do not await `CombStable()` in a pause.
+Successive zero-time requests at one tick also count against `max_settle_rounds`; clock
+advancement resets this counter.
 
 Backend, XClock, and DUT signals do not support concurrent cross-thread access. Multiple Executions
 do not provide a shared timeline. See [semantics and limitations](semantics-and-limitations.md)

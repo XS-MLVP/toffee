@@ -63,3 +63,10 @@ Execution 启停显式注册的 Agent，Agent 管理自己的 Driver 和 Monitor
 独占只覆盖所用的 clock domain；多个 Execution 没有自动合成一个共同时间轴。
 精确的手动步进限制见[Execution 参考](../reference/execution.md)，
 fixture 的写法见[配置 Execution 与 Backend](../guides/execution-and-backend.md)。
+
+纯组合测试也属于 Execution 的执行域。`CombStable()` 在当前 tick 请求一次后端求值，
+先收敛就绪驱动，再统一采样并唤醒等待者；它既不是时钟边沿，也不是仅交回 asyncio。
+组合 Monitor 和覆盖采集只观察显式请求，不因为有订阅就自行反复求值。
+同一 tick 的采样通过 delta 区分，原生覆盖率也按独立采样计数。
+手动 `RefreshComb()` 和手动 Step 一样会打破这个采样顺序，因此在 Execution 内
+（包括暂停期间）都应被拒绝；暂停不转移控制权。

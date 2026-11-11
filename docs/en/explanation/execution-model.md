@@ -67,3 +67,10 @@ that ownership; manual advancement becomes available only after exit.
 Ownership covers that clock domain only. Multiple Executions do not automatically share one
 timeline. See [Execution reference](../reference/execution.md) for manual-step restrictions and
 [Execution configuration](../guides/execution-and-backend.md) for fixture examples.
+
+Combinational tests also belong to an Execution domain. CombStable requests backend evaluation
+at the current tick: settle ready drives, sample consistently, then wake waiters. It is neither a
+clock edge nor merely an asyncio yield. Combinational Monitors and coverage observe explicit
+requests without repeatedly evaluating on their own. Deltas distinguish samples at one tick,
+and native coverage counts each sample separately. Manual RefreshComb would break this sampling
+order just like manual Step, so both are prohibited inside Execution, including pauses.

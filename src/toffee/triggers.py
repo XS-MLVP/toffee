@@ -68,6 +68,17 @@ class DriveStable(PhaseTrigger):
 
 
 @dataclass(frozen=True, slots=True)
+class CombStable(PhaseTrigger):
+    """Request combinational evaluation at the current tick, without an edge.
+
+    The source defaults to the current Execution's backend. Conditions and
+    subscriptions sampled here observe explicit requests, not a running clock.
+    """
+
+    source: Any = None
+
+
+@dataclass(frozen=True, slots=True)
 class ClockCycles(XTrigger[XEvent]):
     source: Any
     cycles: int

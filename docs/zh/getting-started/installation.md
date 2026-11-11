@@ -16,7 +16,7 @@ cd toffee
 以下所有命令都在这个目录运行。不要进入 `src/` 或 `examples/` 再执行。
 
 分发包名是 `uc-toffee`，Python 导入名是 `toffee`。可以用
-`python3 -m pip install "uc-toffee[runner]"` 安装；它会自动安装 `uc-xcomm>=1.1,<2`，
+`python3 -m pip install "uc-toffee[runner]"` 安装；它会自动安装 `uc-xcomm>=1.2,<2`，
 由后者提供 `xspcomm` 原生绑定。旧 `pytoffee` 对应 Legacy，不是这条新主线。
 
 下面从源码安装，以便运行仓库中的教程。

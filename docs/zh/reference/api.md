@@ -31,6 +31,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | API | 用途 |
 | --- | --- |
 | `RisingEdge`, `FallingEdge`, `DriveStable` | 稳定阶段触发条件 |
+| `CombStable(source=None)` | 在当前 tick 请求组合求值并稳定采样，不产生时钟边沿；事件的 delta 区分同 tick 多轮请求 |
 | `ClockCycles` | 上升沿周期计数 |
 | `Value`, `ValueChange` | 指定 phase 的值条件和变化 |
 | `SimTimeout`, `WallTimeout` | 到期返回 TIMEOUT 事件，调用方决定是否抛异常 |

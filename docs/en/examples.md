@@ -26,6 +26,13 @@ demonstrates Execution, RisingEdge, FallingEdge, Value, and `@xtrigger`.
 PYTHONPATH=src python3 examples/triggers/basic_execution.py
 ```
 
+[combinational.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/combinational.py)
+demonstrates clockless Execution with CombStable: three evaluations stay at tick 0 with deltas 1, 2, 3.
+
+```bash
+python3 examples/triggers/combinational.py
+```
+
 ## Sampling and persistent subscriptions
 
 [subscription.py](https://github.com/XS-MLVP/toffee/blob/main/examples/triggers/subscription.py)

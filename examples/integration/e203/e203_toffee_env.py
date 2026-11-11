@@ -24,6 +24,7 @@ from toffee import (
     Bin,
     Bundle,
     CheckContext,
+    CombStable,
     CoverageDatabase,
     CoverGroup,
     CoverGroupDef,
@@ -573,7 +574,7 @@ class E203Harness:
 
         # First propagate response valid: a first-uop response can
         # combinationally create the second command in this same cycle.
-        self.dut.RefreshComb()
+        await CombStable()
         command_before_ready = self._target_command()
         if (command_before_ready is not None and self._request_command_ordinal == 1
                 and not self._second_command_stall_applied):
@@ -585,7 +586,7 @@ class E203Harness:
         ready = 0 if stall_command else 1
         set_(self.dut.ifu2itcm_icb_cmd_ready, ready and "itcm" in self.command_ready_targets)
         set_(self.dut.ifu2biu_icb_cmd_ready, ready and "biu" in self.command_ready_targets)
-        self.dut.RefreshComb()
+        await CombStable()
 
         command_view = self._target_command()
         if self._held_command is not None:
@@ -1074,7 +1075,7 @@ async def run_campaign(
     dut.InitClock("clk")
     harness = E203Harness(dut, seed=seed, coverage_enabled=coverage_enabled, data_pattern=data_pattern)
     harness.initialize_inputs()
-    backend = XCommClockBackend(dut.GetXClock())
+    backend = XCommClockBackend(dut)
     started = time.perf_counter()
     try:
         async with Execution(backend, max_batch_ticks=128, quantum_ms=5.0) as execution:

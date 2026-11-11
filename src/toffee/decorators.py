@@ -6,6 +6,7 @@ from typing import Any, Callable, Concatenate, Generic, ParamSpec, TypeVar, get_
 
 from .ir import FsmSpec, SequenceSpec, SymbolicDut, XExpr, PythonPredicateExpr, as_expr, resolve_path
 from .triggers import (
+    CombStable,
     CompiledTrigger,
     ConditionMode,
     DriveStable,
@@ -104,8 +105,8 @@ def xtrigger(
     *, sample: PhaseTrigger | None = None,
     mode: ConditionMode | str = ConditionMode.ENTER,
 ) -> Callable[[Callable[Concatenate[P, A], DeclaredProgram]], TriggerDefinition[P, A]]:
-    if sample is not None and not isinstance(sample, (RisingEdge, FallingEdge, DriveStable)):
-        raise TypeError("xtrigger sample must be RisingEdge, FallingEdge, or DriveStable")
+    if sample is not None and not isinstance(sample, (RisingEdge, FallingEdge, DriveStable, CombStable)):
+        raise TypeError("xtrigger sample must be RisingEdge, FallingEdge, DriveStable, or CombStable")
     normalized = normalize_condition_mode(mode)
     def decorate(function):
         return TriggerDefinition(function, sample, normalized)
@@ -173,8 +174,8 @@ def pytrigger(
     *, sample: PhaseTrigger | None = None,
     mode: ConditionMode | str = ConditionMode.ENTER,
 ) -> Callable[[Callable[Concatenate[P, A], Any]], PythonTriggerDefinition[P, A]]:
-    if sample is not None and not isinstance(sample, (RisingEdge, FallingEdge, DriveStable)):
-        raise TypeError("pytrigger sample must be RisingEdge, FallingEdge, or DriveStable")
+    if sample is not None and not isinstance(sample, (RisingEdge, FallingEdge, DriveStable, CombStable)):
+        raise TypeError("pytrigger sample must be RisingEdge, FallingEdge, DriveStable, or CombStable")
     normalized = normalize_condition_mode(mode)
     def decorate(function):
         return PythonTriggerDefinition(function, sample, normalized)

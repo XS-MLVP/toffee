@@ -31,6 +31,7 @@ See [Execution reference](execution.md) for parameters, defaults, and resource c
 | API | Purpose |
 | --- | --- |
 | `RisingEdge`, `FallingEdge`, `DriveStable` | Stable-phase triggers |
+| `CombStable(source=None)` | Request zero-time combinational evaluation and sampling; event delta distinguishes samples at the same tick |
 | `ClockCycles` | Count rising-edge cycles |
 | `Value`, `ValueChange` | Value conditions and changes at a selected phase |
 | `SimTimeout`, `WallTimeout` | Return a TIMEOUT event on expiry; caller decides whether to raise |

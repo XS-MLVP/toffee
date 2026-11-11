@@ -14,7 +14,7 @@ cd toffee
 
 Run all following commands from that directory, rather than from `src/` or `examples/`.
 The distribution is named `uc-toffee`; the Python import is `toffee`.
-`python3 -m pip install "uc-toffee[runner]"` also installs `uc-xcomm>=1.1,<2`, which supplies `xspcomm`.
+`python3 -m pip install "uc-toffee[runner]"` also installs `uc-xcomm>=1.2,<2`, which supplies `xspcomm`.
 The old `pytoffee` package belongs to Legacy Toffee.
 
 The tutorial installs from source so the repository examples are available. When developing against

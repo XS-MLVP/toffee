@@ -9,6 +9,8 @@
 - `Value`、`ValueChange` 和编译条件只在指定的 sample phase 求值；
 - 条件从注册后的下一个 sample phase 开始求值；
 - 同一 phase 命中的事件由 Backend 批量返回。
+- `CombStable()` 在当前 tick 求值，按 delta 标识同 tick 的连续请求；不改变时钟 pin 或产生边沿。
+- 组合条件注册请求一次初始采样；后续依赖显式组合请求，组合订阅和覆盖率不自行驱动求值。
 
 ## 生命周期
 
@@ -71,6 +73,7 @@
 - 普通 Sequence 等待采用非重叠匹配；覆盖采集可显式启用 `overlap=True`，并须设置正整数 `max_active`，见[时序覆盖](../guides/coverage-patterns.md)；
 - `@pytrigger` 在每个 sample phase 执行 Python 条件函数；
 - Backend 不能同时用于多个 active `Execution`；
+- 组合事件的原生路径要求 xcomm combinational protocol 1，普通编译条件和支持的覆盖模型在原生引擎执行；
 - Backend、XClock 和 DUT signal 不支持跨线程并发访问；
 - `Bundle` 和具体通道视图需要显式绑定；不存在通用 `Interface` 基类；
 - coverage JSON 使用 Toffee schema，不是 UCIS。

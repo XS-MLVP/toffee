@@ -18,6 +18,7 @@ python3 -m pytest -q examples/getting_started/test_accumulator.py
 | 问题 | 示例 |
 | --- | --- |
 | 等待时钟和信号 | [基本等待](triggers/basic_execution.py) |
+| 无时钟的组合逻辑求值 | [组合稳定事件](triggers/combinational.py) |
 | 持续订阅事件 | [订阅](triggers/subscription.py) |
 | 直接比较和流水线匹配 | [Scoreboard](transactions/scoreboard.py) |
 | 连接有状态参考模型 | [参考模型](transactions/reference_model.py) |

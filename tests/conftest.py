@@ -49,6 +49,8 @@ def _native_api_error() -> str | None:
     for method in ("AcquireClock", "ReleaseClock", "CollectExpressions", "ExprNewBits", "ExprNewBool", "ExprEvalBits"):
         if not hasattr(xspcomm.XTriggerEngine, method):
             return f"xspcomm.XTriggerEngine.{method} is unavailable; use the backend pinned in .github/native-dependencies.json"
+    if getattr(xspcomm.XTriggerEngine, "CombinationalVersion", lambda: 0)() != 1:
+        return "xspcomm combinational protocol 1 is unavailable; rebuild the pinned native dependency"
     return None
 
 

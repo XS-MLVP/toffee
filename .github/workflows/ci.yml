@@ -44,7 +44,7 @@ jobs:
           pin = json.load(open('.github/native-dependencies.json'))['xcomm']
           assert re.fullmatch(r'[0-9a-f]{40}', pin['ref'])
           with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
-              for key in ('repository', 'ref', 'package_version', 'native_abi', 'coverage_protocol'):
+              for key in ('repository', 'ref', 'package_version', 'native_abi', 'coverage_protocol', 'combinational_protocol'):
                   print(f'{key}={pin[key]}', file=output)
           PY
       - uses: actions/checkout@v4
@@ -85,6 +85,7 @@ jobs:
           EXPECTED_PACKAGE_VERSION: ${{ steps.native.outputs.package_version }}
           EXPECTED_NATIVE_ABI: ${{ steps.native.outputs.native_abi }}
           EXPECTED_COVERAGE_PROTOCOL: ${{ steps.native.outputs.coverage_protocol }}
+          EXPECTED_COMBINATIONAL_PROTOCOL: ${{ steps.native.outputs.combinational_protocol }}
         run: |
           python - <<'PY'
           from importlib.metadata import version
@@ -93,6 +94,7 @@ jobs:
           assert xspcomm.version() == os.environ['EXPECTED_PACKAGE_VERSION']
           assert xspcomm.abi_version() == int(os.environ['EXPECTED_NATIVE_ABI'])
           assert xspcomm.XTriggerEngine.CoverageVersion() == int(os.environ['EXPECTED_COVERAGE_PROTOCOL'])
+          assert xspcomm.XTriggerEngine.CombinationalVersion() == int(os.environ['EXPECTED_COMBINATIONAL_PROTOCOL'])
           for method in ('AcquireClock', 'ReleaseClock', 'CollectExpressions', 'ExprNewBits', 'ExprNewBool', 'ExprEvalBits'):
               assert hasattr(xspcomm.XTriggerEngine, method), method
           PY
@@ -102,6 +104,7 @@ jobs:
           python examples/getting_started/check_native.py
           python -m pytest -q examples/getting_started/native_lab.py
           python examples/triggers/basic_execution.py
+          python examples/triggers/combinational.py
           python examples/coverage/functional_coverage.py
           python examples/triggers/subscription.py
           python examples/transactions/scoreboard.py

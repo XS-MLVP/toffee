@@ -11,7 +11,7 @@ Within an async test, create the backend, enter Execution, and close the backend
 ```python
 from toffee import Execution, RisingEdge, XCommClockBackend
 
-backend = XCommClockBackend(dut.GetXClock())
+backend = XCommClockBackend(dut)
 try:
     async with Execution(backend, default_sample=RisingEdge(dut.clock)):
         await RisingEdge(dut.clock)
@@ -20,8 +20,10 @@ finally:
     backend.close()
 ```
 
-Release the DUT after the backend. Inside Execution use Trigger waits; do not call `dut.Step()` or
+Release the DUT after the backend. Inside Execution use Trigger waits; do not call `dut.Step()`, `dut.RefreshComb()`, or
 run another clock task, even while paused. Execution cleans up its waits and components, while backend and DUT state persist.
+Combinational tests use the same scope with `await CombStable()` and require no clock initialization;
+see [triggers](triggers.md).
 
 ## Reuse a backend in pytest
 
@@ -33,7 +35,7 @@ from toffee import Execution, XCommClockBackend
 
 @pytest.fixture(scope="session")
 def backend(dut):
-    backend = XCommClockBackend(dut.GetXClock())
+    backend = XCommClockBackend(dut)
     try:
         yield backend
     finally:

@@ -16,10 +16,13 @@ from .events import (
     XEventKind,
 )
 from .triggers import (
+    ClockCycles,
+    CombStable,
     CompiledTrigger,
     DriveStable,
     PhaseTrigger,
     PythonPredicateTrigger,
+    SimTimeout,
     Value,
     ValueChange,
     XTrigger,
@@ -74,6 +77,7 @@ class Reactor:
         self._drive_owners: dict[Hashable, tuple[object, Any]] = {}
         self._monitor_consumers: dict[int, tuple[object, object]] = {}
         self._closed = False
+        self._comb_requested = False
 
     def register(self, trigger: XTrigger[Any]) -> Registration:
         if self._closed:
@@ -91,6 +95,8 @@ class Reactor:
         self._next_registration_id += 1
         key = (handle.slot, handle.generation)
         self._registrations[key] = registration
+        if _uses_comb_stable(trigger):
+            self._comb_requested = True
         registration.future.add_done_callback(
             lambda future, reg=registration: self.cancel(reg)
             if future.cancelled()
@@ -143,6 +149,18 @@ class Reactor:
         return replace(trigger, sample=self.default_sample)
 
     def _check_phase_support(self, trigger: XTrigger[Any]) -> None:
+        if _uses_comb_stable(trigger):
+            if not getattr(self.backend.capabilities, "comb_stable", False):
+                raise RuntimeError(
+                    "backend does not support CombStable sampling; for xcomm, "
+                    "rebuild with combinational protocol 1"
+                )
+            return
+        if isinstance(trigger, (PhaseTrigger, ClockCycles, SimTimeout)) or isinstance(
+            getattr(trigger, "sample", None), PhaseTrigger
+        ):
+            if not self.backend.capabilities.half_step:
+                raise RuntimeError("backend does not support clock half-step sampling")
         if _uses_drive_stable(trigger) and not getattr(
             self.backend.capabilities, "drive_stable", False
         ):
@@ -281,7 +299,23 @@ class Reactor:
 
     @property
     def has_execution_work(self) -> bool:
-        return bool(self._registrations or self._subscriptions)
+        return self.has_clock_work or self.has_comb_request
+
+    @property
+    def has_clock_work(self) -> bool:
+        return any(
+            not _uses_comb_stable(item.trigger)
+            for item in (*self._registrations.values(), *self._subscriptions.values())
+        )
+
+    @property
+    def has_comb_request(self) -> bool:
+        return self._comb_requested and any(
+            _uses_comb_stable(item.trigger) for item in self._registrations.values()
+        )
+
+    def consume_comb_request(self) -> None:
+        self._comb_requested = False
 
     @property
     def has_drive_stable_work(self) -> bool:
@@ -372,10 +406,11 @@ def _event_from_hit(hit: BackendHit) -> XEvent:
         kind=hit.kind,
         source=hit.source,
         value=hit.value,
+        delta=hit.delta,
     )
     if hit.kind in (XEventKind.CLOCK_RISE, XEventKind.CLOCK_FALL):
         return EdgeEvent(**fields)
-    if hit.kind is XEventKind.DRIVE_STABLE:
+    if hit.kind in (XEventKind.DRIVE_STABLE, XEventKind.COMB_STABLE):
         return PhaseEvent(**fields)
     if hit.kind is XEventKind.FSM:
         return FsmEvent(
@@ -388,4 +423,10 @@ def _event_from_hit(hit: BackendHit) -> XEvent:
 def _uses_drive_stable(trigger: XTrigger[Any]) -> bool:
     return isinstance(trigger, DriveStable) or isinstance(
         getattr(trigger, "sample", None), DriveStable
+    )
+
+
+def _uses_comb_stable(trigger: XTrigger[Any]) -> bool:
+    return isinstance(trigger, CombStable) or isinstance(
+        getattr(trigger, "sample", None), CombStable
     )

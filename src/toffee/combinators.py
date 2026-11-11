@@ -67,7 +67,7 @@ class AllOf(XTrigger[XEvent]):
                     task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
             raise
-        last = max(causes, key=lambda event: event.tick)
+        last = max(causes, key=lambda event: (event.tick, event.delta))
         event = external_event("AllOf", causes)
         return XEvent(
             event_id=event.event_id,
@@ -76,4 +76,5 @@ class AllOf(XTrigger[XEvent]):
             kind=XEventKind.COMPOSITE,
             source="AllOf",
             causes=causes,
+            delta=last.delta,
         )

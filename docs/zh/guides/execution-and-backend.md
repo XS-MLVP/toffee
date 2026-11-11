@@ -12,7 +12,7 @@
 ```python
 from toffee import Execution, RisingEdge, XCommClockBackend
 
-backend = XCommClockBackend(dut.GetXClock())
+backend = XCommClockBackend(dut)
 try:
     async with Execution(backend, default_sample=RisingEdge(dut.clock)):
         await RisingEdge(dut.clock)
@@ -22,7 +22,9 @@ finally:
 ```
 
 把 DUT 的释放放在 Backend 关闭之后。Execution 内使用 Trigger 等待，
-不要调用 `dut.Step()` 或启动另一套时钟任务；暂停期间也一样。
+不要调用 `dut.Step()`、`dut.RefreshComb()` 或启动另一套时钟任务；暂停期间也一样。
+纯组合测试同样使用 Execution，以 `await CombStable()` 请求零时间求值，
+无需初始化时钟；完整写法见 [Trigger](triggers.md)。
 退出 Execution 会清理本次等待与组件，Backend 和 DUT 的状态仍然保留。
 
 ## 在 pytest 中复用 Backend
@@ -35,7 +37,7 @@ from toffee import Execution, XCommClockBackend
 
 @pytest.fixture(scope="session")
 def backend(dut):
-    backend = XCommClockBackend(dut.GetXClock())
+    backend = XCommClockBackend(dut)
     try:
         yield backend
     finally:

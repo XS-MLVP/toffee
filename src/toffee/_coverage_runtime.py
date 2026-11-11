@@ -19,13 +19,13 @@ from .events import LogicValue, XPhase
 from .ir import (BoundSignalExpr, ConstantExpr, Next, Sequence, Wait, XExpr,
                  SequenceSpec, FsmSpec, WaitStep)
 from .signals import read_signal, sample_signal
-from .triggers import (CompiledTrigger, DriveStable, FallingEdge, PhaseTrigger,
+from .triggers import (CombStable, CompiledTrigger, DriveStable, FallingEdge, PhaseTrigger,
                        PythonPredicateTrigger, RisingEdge)
 
 
 def configure(trigger, fields, abort, strategy, accumulate, contract,
               overlap, max_active, diagnostics, root=None):
-    if not isinstance(trigger, (RisingEdge, FallingEdge, DriveStable,
+    if not isinstance(trigger, (RisingEdge, FallingEdge, DriveStable, CombStable,
                                 CompiledTrigger, PythonPredicateTrigger)):
         raise TypeError("coverage trigger must be a phase, compiled pattern, or Python predicate")
     if strategy not in ("auto", "native", "python"):
@@ -94,10 +94,14 @@ class _Collector:
             self.trigger = replace(self.trigger, sample=execution.default_sample)
         self.phase_trigger = (self.trigger if isinstance(self.trigger, PhaseTrigger)
                               else self.trigger.sample)
-        if self.phase_trigger.source is not self.backend.clock:
+        execution.reactor._check_phase_support(self.trigger)
+        if (self.phase_trigger.source is not self.backend.clock
+                and not (isinstance(self.phase_trigger, CombStable)
+                         and self.phase_trigger.source is None)):
             raise ValueError("coverage sampling clock must belong to its Execution backend")
         self.phase = {RisingEdge: XPhase.RISING_STABLE, FallingEdge: XPhase.FALLING_STABLE,
-                      DriveStable: XPhase.DRIVE_STABLE}[type(self.phase_trigger)]
+                      DriveStable: XPhase.DRIVE_STABLE,
+                      CombStable: XPhase.COMB_STABLE}[type(self.phase_trigger)]
         self.thread = get_ident()
         self.handle = None
         self.native = False
@@ -356,9 +360,10 @@ class _Collector:
         return self.backend._native_handles[(self.handle.slot, self.handle.generation)]
 
     def observe(self, phase, tick):
-        if self.native or phase is not self.phase or self.last_sample == (phase, tick):
+        sample_id = phase, tick, getattr(self.backend, "delta", 0)
+        if self.native or phase is not self.phase or self.last_sample == sample_id:
             return
-        self.last_sample = phase, tick
+        self.last_sample = sample_id
         abort = self.config["abort"]
         if abort is not None:
             value = abort.evaluate(None) if isinstance(abort, XExpr) else _read(abort)

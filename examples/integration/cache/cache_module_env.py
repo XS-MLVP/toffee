@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import sys
 
-from toffee import FallingEdge, RisingEdge, as_xdata
+from toffee import CombStable, FallingEdge, RisingEdge, as_xdata
 
 
 _native_runtime = None
@@ -59,6 +59,6 @@ class ModuleCycles:
 
     async def advance(self, **values):
         self.drive(**values)
-        self.dut.RefreshComb()
+        await CombStable()
         await RisingEdge(self.dut.clock)
         await FallingEdge(self.dut.clock)

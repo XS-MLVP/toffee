@@ -10,6 +10,7 @@ class XPhase(Enum):
     DRIVE_STABLE = auto()
     RISING_STABLE = auto()
     EXTERNAL = auto()
+    COMB_STABLE = auto()
 
 
 class XEventKind(Enum):
@@ -25,6 +26,7 @@ class XEventKind(Enum):
     EXTERNAL = auto()
     COMPOSITE = auto()
     BACKEND_STOP = auto()
+    COMB_STABLE = auto()
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,6 +63,7 @@ class XEvent:
     source: Any = None
     value: Any = None
     causes: tuple["XEvent", ...] = field(default_factory=tuple)
+    delta: int = field(default=0, kw_only=True)
 
 
 @dataclass(frozen=True, slots=True)

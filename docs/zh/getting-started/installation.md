@@ -20,7 +20,9 @@ cd toffee
 由后者提供 `xspcomm` 原生绑定。旧 `pytoffee` 对应 Legacy，不是这条新主线。
 
 下面从源码安装，以便运行仓库中的教程。
-开发未发布版本时，按[贡献指南](https://github.com/XS-MLVP/toffee/blob/main/CONTRIBUTING.md)准备固定提交的原生依赖。
+如果已安装的 wheel 不提供所需的原生接口，按
+[贡献指南](https://github.com/XS-MLVP/toffee/blob/main/CONTRIBUTING.md)构建依赖清单固定的
+xcomm 提交。
 
 ## 安装到独立的 Python 环境
 

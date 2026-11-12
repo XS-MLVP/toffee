@@ -60,16 +60,26 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store_true",
         help="fail collection unless the native xspcomm trigger API is available",
     )
+    parser.addoption(
+        "--require-xarrays",
+        action="store_true",
+        help="require ABI-4 xcomm with XDataArray instead of skipping array integration tests",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    if not config.getoption("--require-xspcomm"):
+    if not (config.getoption("--require-xspcomm") or config.getoption("--require-xarrays")):
         return
     error = _native_api_error()
     if error is not None:
+        requested = "--require-xarrays" if config.getoption("--require-xarrays") else "--require-xspcomm"
         raise pytest.UsageError(
-            f"--require-xspcomm requested, but {error}. "
+            f"{requested} requested, but {error}. "
             "Install xcomm with BUILD_XSPCOMM_SWIG=python and "
             "XSPCOMM_BUILD_WHEEL=1, or set XCOMM_PYTHON to an existing "
             "xcomm build/python directory."
         )
+    if config.getoption("--require-xarrays"):
+        xspcomm = importlib.import_module("xspcomm")
+        if not hasattr(xspcomm, "XDataArray") or xspcomm.abi_version() != 4:
+            raise pytest.UsageError("--require-xarrays requires xcomm XDataArray and matching native ABI-4 Python bindings")

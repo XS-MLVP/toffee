@@ -90,7 +90,7 @@ git -C build/wiki-checkout diff
 
 ## 提交前检查
 
-先准备 `uc-xcomm>=1.2,<2`，再安装开发依赖。开发跨仓库未发布修改时，
+先准备 `uc-xcomm>=1.2,<2`，再安装开发依赖。需要使用依赖清单固定的跨仓库原生依赖时，
 按 `.github/native-dependencies.json` 检出 xcomm 的固定提交，再运行：
 
 ```bash

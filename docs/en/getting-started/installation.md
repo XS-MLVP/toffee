@@ -17,8 +17,8 @@ The distribution is named `uc-toffee`; the Python import is `toffee`.
 `python3 -m pip install "uc-toffee[runner]"` also installs `uc-xcomm>=1.2,<2`, which supplies `xspcomm`.
 The old `pytoffee` package belongs to Legacy Toffee.
 
-The tutorial installs from source so the repository examples are available. When developing against
-unreleased native changes, prepare the pinned dependency described in the
+The tutorial installs from source so the repository examples are available. If the installed wheel
+does not provide the native API you need, build the pinned xcomm commit described in the
 [contribution guide](https://github.com/XS-MLVP/toffee/blob/main/CONTRIBUTING.md).
 
 ## Install in a virtual environment

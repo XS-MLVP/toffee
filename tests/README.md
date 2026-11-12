@@ -55,3 +55,9 @@ python3 -m pytest -q --require-xspcomm \
 
 真实 RTL 的构建和测试见 `examples/integration/` 中的项目说明。
 原生时钟替身测试通过，不代表那些 RTL 已经重新运行。
+
+数组的纯 Python 契约在 `interfaces/test_signal_arrays.py`，真实 xcomm 叶子、原生触发、
+覆盖率及 Driver/Monitor 在 `integration/test_unpacked_arrays.py`。运行数组集成测试时增加
+`--require-xarrays`；它要求在带 `XDataArray` 的 xcomm（原生 ABI 4）下运行，避免被缺少
+该 API 的绑定遮蔽后静默 skip。真实 RTL 的显式运行方式见
+[数组示例](../examples/integration/arrays/README.md)。

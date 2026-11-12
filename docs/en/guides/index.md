@@ -17,7 +17,7 @@ These guides are organized around project tasks. New users should start with the
 
 | Task | Guide |
 | --- | --- |
-| Bind DUT signals to structured objects | [Signals and Bundles](data.md) |
+| Bind signals, structured Bundles, and fixed unpacked arrays | [Signals, Bundles, and arrays](data.md) |
 | Drive single-cycle, multicycle, or overlapping inputs | [Drivers](drivers.md) |
 | Capture outputs without missing brief responses | [Monitors](monitors.md) |
 | Connect components and stateful models | [Agents and reference models](agents-and-reference-models.md) |

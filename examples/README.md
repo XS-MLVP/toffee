@@ -49,5 +49,6 @@ python3 -m examples.coverage.trigger_bins --engine xcomm --strategy native
 这些例子使用原生时钟和信号，但计算行为仍由 Python 替身实现。
 真实 DUT 的构建、端口绑定和初始化分别见 [Cache](integration/cache/README.md)
 和 [e203](integration/e203/README.md)，它们需要额外的项目依赖。
+定长 unpacked 数组的 DPI/mem_direct 构建和验证见 [数组](integration/arrays/README.md)。
 
 [用户手册中的示例索引](../docs/zh/examples.md)还列出了故障练习和报告用法。

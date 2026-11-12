@@ -1,4 +1,4 @@
-# Signals, Bundles, and packed data
+# Signals, Bundles, and arrays
 
 ## XData
 
@@ -37,6 +37,86 @@ payload.drive({
 Leaves are LogicValue objects retaining width and X/Z. Convert explicitly when a model needs an integer,
 for example `snapshot.opcode.as_int()`. Unknown bits raise instead of silently becoming valid data.
 The live `payload` can change; pass `snapshot` into delayed processing rather than rereading pins later.
+
+## Fixed unpacked arrays
+
+Pass a Picker-generated array directly into a Bundle. Toffee adapts it to a
+`SignalArray`: a bounded aggregate with a read-only structure that retains the
+original `XData` leaf identity. For RTL declared as
+`logic [64:0] matrix [3:2][-1:1]`:
+
+```python
+from toffee import Bundle
+
+payload = Bundle(matrix=dut.matrix)
+assert payload.matrix.bounds == ((3, 2), (-1, 1))
+assert payload.matrix.shape == (2, 3)
+assert list(payload.matrix.indices) == [3, 2]
+payload.matrix[3][-1].Set(42)
+snapshot = payload.sample()
+assert snapshot.matrix[3][-1].as_int() == 42
+```
+
+Indices are the view's actual coordinates; negative indices are not positions
+from the end. Iteration follows declaration order, last dimension fastest.
+`SignalArray(source)` also explicitly adapts public views exposing
+`bounds/shape/indices` and indexing, or xcomm `XDataArray` views. It neither depends
+on Picker's private Python class nor copies or rebinds leaves. Constructing an
+adapter does not read or expand all elements; whole-array sampling and driver
+ownership enumerate the selected leaves when needed.
+
+Sampled arrays are immutable `ArrayValue` snapshots retaining bounds and
+four-state `LogicValue` leaves. `compile_sampler()` caches structure and getters,
+not sampled values. `ArrayValue.as_tuple()` explicitly discards bounds while
+retaining four-state leaves; `as_dict()` returns nested mappings from actual integer
+indices to plain integers, rejecting unknown bits. `BundleValue.as_dict()` uses
+the same representation for arrays.
+
+```python
+payload.drive({
+    "matrix": {
+        3: {-1: 10, 0: 11, 1: 12},
+        2: {-1: 20, 0: 21, 1: 22},
+    },
+})
+saved = payload.sample()
+payload.drive(saved)
+payload.drive({"matrix": [[10, 11, 12], [20, 21, 22]]})
+```
+
+Drive an `ArrayValue` with identical bounds, mappings keyed by actual indices,
+or nested lists/tuples in **declaration order**. The whole array's shape, indices,
+and unknown values are checked before writing; simulator IO failures do not imply
+transaction rollback. Structure is read-only: do not replace elements; the leaves
+remain live signals. Slices, dynamic indexing, and dynamic arrays are unsupported.
+Scoreboard checks snapshot bounds and reports differences using actual indices
+such as `matrix[3][-1]`.
+
+Port arrays retain RTL bounds. A native `XDataArray` view exposes its own
+`Left/Right` bounds; Picker's `NewXDataArrayView` for internal mem_direct arrays
+reports zero-based storage coordinates:
+
+```python
+from toffee import SignalArray
+
+memory = SignalArray(dut.xcfg.NewXDataArrayView(name))
+memory[0][0].AsImmWrite()
+memory[0][0].Set(42)
+```
+
+Adapters do not compute element addresses, DPI indices, or backend-specific
+handles; they use the leaves exposed by the source view. They do not change
+write modes, advance time, or register additional `XPort` entries. Generated
+ports keep their existing `XPort`/`XClock` edge commits; callers choose immediate
+writes or explicit commits for dynamically queried internal leaves. A flattened
+list remains a positional sequence; RTL bounds are not guessed.
+
+Native array views use xcomm's `XDataArray` API (native ABI 4) and matching
+Picker-generated bindings. Regenerate the DUT after toolchain upgrades.
+
+The DPI and mem_direct array paths have been verified on Verilator **5.026,
+5.048, and 5.052**. See the runnable
+[RTL array example](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md).
 
 ## PackedArray and PackedLayout
 
@@ -89,6 +169,9 @@ assert address_only.addr is dut.req_addr
 preserves signal identity, and checks widths. Keywords such as `in` become `in_`; consecutive numeric indices become sequences.
 Names do not imply a protocol. Components can enumerate `fields` or `leaves()`.
 `Bundle.drive()` requires a complete shape without extra fields; omitted fields are not implicitly held or zeroed.
+Port nodes with `Unpacked: [[left, right], ...]` bind to `SignalArray`, checking
+dimension bounds and each element's width. Use
+`Field(("matrix", 3, -1), width=65)` to select one leaf explicitly.
 
 ## Bit ordering, padding, and four-state values
 
@@ -112,4 +195,6 @@ uses `allow_overlap=True`. Driving writes leaves and preserves padding.
 `as_int(strict=False)` is for diagnostics that explicitly tolerate unknown bits, not a hardware truth value.
 `BundleValue.as_dict()` returns a structure of snapshot leaves unaffected by later DUT changes.
 Driver ownership checks underlying identity; another view cannot bypass conflicts.
+It identifies the same `XData`, not physical aliases across distinct `XData` objects;
+reuse one source view for the same element rather than guessing identity from addresses.
 See [Drivers](drivers.md) and [Monitors](monitors.md).

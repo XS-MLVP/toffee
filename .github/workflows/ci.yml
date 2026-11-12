@@ -98,7 +98,7 @@ jobs:
           for method in ('AcquireClock', 'ReleaseClock', 'CollectExpressions', 'ExprNewBits', 'ExprNewBool', 'ExprEvalBits'):
               assert hasattr(xspcomm.XTriggerEngine, method), method
           PY
-      - run: python -m pytest -q --require-xspcomm
+      - run: python -m pytest -q --require-xspcomm --require-xarrays
       - name: Run documented command-line examples
         run: |
           python examples/getting_started/check_native.py

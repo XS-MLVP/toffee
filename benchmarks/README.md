@@ -33,6 +33,17 @@ python3 benchmarks/benchmark_asyncio_observer.py --repeats 7
 前者比较输入阶段的资源交接，后者分别测量仿真协程与外部任务的调度开销。
 同时检查接收时刻和最终仿真时间，不能把少执行了一段时序当成提速。
 
+## 数组快照
+
+使用带 `XDataArray` API 的 xcomm（原生 ABI 4）：
+
+```bash
+python3 benchmarks/benchmark_arrays.py --elements 256 --iterations 100 --repeats 5
+```
+
+它比较同一批 65 位原生叶子的带边界快照和普通 tuple 快照，以及各自的编译采样器。
+同时检查完整值和顺序一致；不推进真实 RTL，也不表示批量 native 传输。
+
 ## 怎样比较结果
 
 保持机器、编译选项、原生依赖、波形与覆盖率开关、迭代次数一致。

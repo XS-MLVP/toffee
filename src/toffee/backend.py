@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ._paths import format_path
+
 from dataclasses import dataclass, field, replace
 from collections import OrderedDict
 from contextlib import contextmanager
@@ -1105,7 +1107,7 @@ class XCommClockBackend:
         self, expression: XExpr, dut: Any
     ) -> tuple[Any, int] | None:
         if isinstance(expression, SignalExpr):
-            path = ".".join(expression.path)
+            path = format_path(expression.path)
             signal = self._native_xdata(
                 resolve_path(dut, expression.path),
                 f"@xtrigger signal '{path}'",
@@ -1211,7 +1213,7 @@ class XCommClockBackend:
             return int(self._engine.ExprNewConst(value))
         if isinstance(expression, SignalExpr):
             signal = resolve_path(dut, expression.path)
-            path = ".".join(expression.path)
+            path = format_path(expression.path)
             native_signal = self._native_xdata(
                 signal, f"@xtrigger signal '{path}'"
             )

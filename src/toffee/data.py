@@ -7,6 +7,8 @@ from types import MappingProxyType
 from typing import Any
 
 from .events import LogicValue
+from .arrays import ArrayValue, SignalArray, _array_drive_items, _as_signal_array, _normalize_bounds
+from ._paths import resolve_path
 from .signals import as_xdata, sample_signal, signal_width, write_signal
 from .signals import compile_signal_sampler
 
@@ -481,6 +483,9 @@ def _normalize_node(value: Any, path: str) -> DataNode:
         return value
     if isinstance(value, Bundle):
         return value
+    array = _as_signal_array(value, name=path)
+    if array is not None:
+        return array
     if isinstance(value, Mapping):
         return Bundle(value, path=path)
     if _is_sequence(value):
@@ -501,6 +506,8 @@ def _normalize_node(value: Any, path: str) -> DataNode:
 def _sample_node(value: DataNode) -> ValueNode:
     if isinstance(value, (Bundle, PackedView)):
         return value.sample()
+    if isinstance(value, SignalArray):
+        return ArrayValue(value.bounds, tuple(_sample_node(child) for child in value))
     if isinstance(value, (tuple, PackedArray)):
         return tuple(_sample_node(item) for item in value)
     return sample_signal(value)
@@ -510,6 +517,12 @@ def _drive_node(target: DataNode, value: Any, path: str) -> None:
     if isinstance(target, (Bundle, PackedView)):
         target.drive(value)
         return
+    if isinstance(target, SignalArray):
+        assignments: list[tuple[Any, Any, str]] = []
+        _collect_array_drives(target, value, path, assignments)
+        for signal, child_value, child_path in assignments:
+            write_signal(signal, child_value, child_path)
+        return
     if isinstance(target, (tuple, PackedArray)):
         if not _is_sequence(value) or len(value) != len(target):
             raise ValueError(f"{path} requires {len(target)} values")
@@ -517,6 +530,33 @@ def _drive_node(target: DataNode, value: Any, path: str) -> None:
             _drive_node(child, child_value, f"{path}[{index}]")
         return
     write_signal(target, value, path)
+
+
+def _collect_array_drives(
+    target: SignalArray,
+    value: Any,
+    path: str,
+    assignments: list[tuple[Any, Any, str]],
+) -> None:
+    # Validate the complete array shape before writing any of its leaves. This
+    # is not a simulator transaction and does not promise rollback on IO errors.
+    values = _array_drive_items(target, value, path)
+    for index, child_value in zip(target.indices, values):
+        child = target[index]
+        child_path = f"{path}[{index}]"
+        if isinstance(child, SignalArray):
+            _collect_array_drives(child, child_value, child_path, assignments)
+        else:
+            if (isinstance(child_value, (Mapping, ArrayValue))
+                    or _is_sequence(child_value)):
+                raise ValueError(f"{child_path} requires a scalar drive value")
+            if isinstance(child_value, LogicValue) and not child_value.is_known:
+                raise ValueError(f"{child_path} contains X/Z; four-state drive is not implemented")
+            if callable(getattr(child, "IsOutIO", None)) and child.IsOutIO():
+                raise ValueError(f"{child_path} is a DUT output and cannot be driven")
+            if callable(getattr(child, "IsReadonly", None)) and child.IsReadonly():
+                raise ValueError(f"{child_path} backend is read-only")
+            assignments.append((child, child_value, child_path))
 
 
 class Bundle(Mapping[str, DataNode]):
@@ -684,6 +724,9 @@ def _iter_leaves(node: DataNode, path: str) -> Iterator[tuple[str, Any]]:
     if isinstance(node, Bundle):
         for name, value in node.items():
             yield from _iter_leaves(value, f"{path}.{name}")
+    elif isinstance(node, SignalArray):
+        for index in node.indices:
+            yield from _iter_leaves(node[index], f"{path}[{index}]")
     elif isinstance(node, PackedView):
         if node.kind == "struct":
             for name, value in node.fields.items():
@@ -726,13 +769,10 @@ def _resolve_source(root: Any, source: Any) -> Any:
     if not isinstance(source, (str, tuple)):
         return source
     parts = source.split(".") if isinstance(source, str) else source
-    value = root
-    for part in parts:
-        value = value[part] if isinstance(part, int) else getattr(value, part)
-    return value
+    return resolve_path(root, parts)
 
 
-_TREE_METADATA = frozenset({"_", "Pin", "High", "Low"})
+_TREE_METADATA = frozenset({"_", "Pin", "High", "Low", "Unpacked"})
 
 
 def _bind_tree_node(
@@ -754,17 +794,27 @@ def _bind_tree_node(
         if not source_parts:
             raise ValueError(f"{path} leaf has no source path")
         signal = as_xdata(getattr(root, "_".join(source_parts)))
+        array = None
+        if "Unpacked" in node:
+            bounds = _normalize_bounds(node["Unpacked"])
+            array = _as_signal_array(signal, name=path)
+            if array is None or array.bounds != bounds:
+                raise ValueError(f"{path} array bounds mismatch with Unpacked metadata")
         if "High" in node:
             high = int(node["High"])
             low = int(node.get("Low", 0))
             expected = 1 if high < 0 else high - low + 1
-            actual = signal_width(signal)
-            if actual != expected:
-                raise ValueError(
-                    f"{path} width mismatch: metadata={expected}, "
-                    f"actual={actual}"
-                )
-        return signal
+            leaves = _iter_leaves(array, path) if array is not None else ((path, signal),)
+            for leaf_path, leaf in leaves:
+                actual = signal_width(leaf)
+                if actual != expected:
+                    raise ValueError(
+                        f"{leaf_path} width mismatch: metadata={expected}, "
+                        f"actual={actual}"
+                    )
+        return array if array is not None else signal
+    if "Unpacked" in node:
+        raise ValueError(f"{path} Unpacked metadata requires an array port leaf")
     if not children:
         raise ValueError(f"{path} aggregate has no fields")
 
@@ -824,6 +874,10 @@ def compile_sampler(node: DataNode):
     if isinstance(node, Bundle):
         fields = tuple((name, compile_sampler(value)) for name, value in node.items())
         return lambda: BundleValue(tuple((name, sample()) for name, sample in fields))
+    if isinstance(node, SignalArray):
+        bounds = node.bounds
+        samplers = tuple(compile_sampler(value) for value in node)
+        return lambda: ArrayValue(bounds, tuple(sample() for sample in samplers))
     if isinstance(node, (PackedView, PackedArray)):
         return lambda: _sample_node(node)
     if isinstance(node, tuple):
@@ -840,5 +894,7 @@ def _value_as_plain(value: ValueNode) -> Any:
     if isinstance(value, LogicValue):
         return value.as_int()
     if isinstance(value, BundleValue):
+        return value.as_dict()
+    if isinstance(value, ArrayValue):
         return value.as_dict()
     return tuple(_value_as_plain(item) for item in value)

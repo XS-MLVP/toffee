@@ -23,6 +23,23 @@ For arithmetic and signed values use explicit conversions and [expression rules]
 Data bitwise operations use `bit_and/or/xor/not()`; logical operators retain their condition-composition meaning.
 The decorator declares a specification; `handshake(dut)` binds it. `sample` can be a phase Trigger or a DUT attribute-path string.
 
+### Constant array indices
+
+```python
+@xtrigger(sample=RisingEdge("clk"))
+def selected_word(dut):
+    return dut.matrix[3][-1] == 42
+```
+
+Integer indices resolve to the original `XData` at binding. The native Backend
+then evaluates the leaf expression without invoking Python array selection on
+every cycle. Negative indices use the view's actual bounds. Attribute/index paths
+round-trip through portable IR; existing attribute-only paths are unchanged.
+`Value(dut.matrix[3][-1], 42)` can also use a leaf directly. Dynamic indices such
+as `dut.matrix[dut.index]`, slices, and whole-array comparisons are unsupported.
+String sources keep their existing attribute-path syntax; explicit Field selection
+uses `Field(("matrix", 3, -1))`, not a new bracket-string parser.
+
 ## Declare a Python predicate
 
 ```python

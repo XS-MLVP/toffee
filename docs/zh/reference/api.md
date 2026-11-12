@@ -62,6 +62,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | --- | --- |
 | `as_xdata` | 取得/校验原生 XData |
 | `Bundle`, `BundleValue` | 结构化 实时信号视图 和不可变 snapshot |
+| `SignalArray(source, *, name="array")`, `ArrayValue` | 带真实下标边界的 unpacked 信号视图和不可变四态数组快照；见[数组](../guides/data.md#unpacked-arrays) |
 | `PackedArray`, `split_packed` | 等宽 packed bus 拆分 |
 | `PackedLayout`, `PackedView` | 嵌套、自定义 packed 布局 |
 | `ReadyValid`, `Decoupled`, `Role` | 可选的 ready/valid 通道视图 |
@@ -115,7 +116,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | `ScoreboardTimeoutError` | 周期预算失败，含 operation、budget_cycles、elapsed_cycles、tick 与 context 等结构化属性 |
 | `DriverIncompleteError` | Driver 关闭时仍有已接受且未完成的请求 |
 | `MissingExpectedError` | 异步事务没有显式期望或 expected source |
-| `structural_differences` | dataclass/mapping/sequence/BundleValue 的递归差异 |
+| `structural_differences` | dataclass/mapping/sequence/BundleValue/ArrayValue 的递归差异；数组核对边界并保留实际下标 |
 
 完整示例见 [Scoreboard 与流水线事务](../guides/scoreboard.md)。
 

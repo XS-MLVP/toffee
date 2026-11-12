@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Callable, Protocol
 
+from ._paths import SignalPath, path_sort_key, resolve_path, validate_path
+
 
 class SupportsEval(Protocol):
     def evaluate(self, dut: Any) -> Any: ...
@@ -143,10 +145,18 @@ class ConstantExpr(XExpr):
 
 @dataclass(frozen=True, slots=True, eq=False)
 class SignalExpr(XExpr):
-    path: tuple[str, ...]
+    path: SignalPath
+
+    def __post_init__(self) -> None:
+        validate_path(self.path)
 
     def __getattr__(self, name: str) -> "SignalExpr":
         return SignalExpr(self.path + (name,))
+
+    def __getitem__(self, index: int) -> "SignalExpr":
+        if type(index) is not int:
+            raise TypeError("symbolic arrays support only constant integer indices")
+        return SignalExpr(self.path + (index,))
 
     def evaluate(self, dut: Any) -> Any:
         value = resolve_path(dut, self.path)
@@ -435,13 +445,6 @@ def _evaluate_condition(expression: XExpr, dut: Any) -> bool:
     return _condition_known(expression, dut) and bool(expression.evaluate(dut))
 
 
-def resolve_path(root: Any, path: tuple[str, ...]) -> Any:
-    value = root
-    for name in path:
-        value = getattr(value, name)
-    return value
-
-
 class SymbolicDut:
     def __getattr__(self, name: str) -> SignalExpr:
         return SignalExpr((name,))
@@ -673,7 +676,7 @@ def program_signal_paths(program):
             for item in value:
                 walk(item)
     walk(program)
-    return tuple(sorted(paths))
+    return tuple(sorted(paths, key=path_sort_key))
 
 
 _PROGRAM_NODES = {cls.__name__: cls for cls in (

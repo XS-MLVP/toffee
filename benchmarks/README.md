@@ -35,6 +35,15 @@ python3 benchmarks/benchmark_asyncio_observer.py --repeats 7
 
 ## 怎样比较结果
 
+数组快照（需要 xcomm ABI 4 的 `XDataArray`）：
+
+```bash
+python3 benchmarks/benchmark_arrays.py --elements 256 --iterations 100 --repeats 5
+```
+
+它比较同一批 65 位原生叶子的带边界快照和普通 tuple 快照，以及各自的编译采样器。
+同时检查完整值和顺序一致；不推进真实 RTL，也不表示批量 native 传输。
+
 保持机器、编译选项、原生依赖、波形与覆盖率开关、迭代次数一致。
 重复运行，比较中位数，并保留 JSON 中的每次测量。
 不要把空时钟的结果直接换算成某个 DUT 的加速倍数。

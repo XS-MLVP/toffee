@@ -78,6 +78,8 @@ eliminate scheduling overhead. See [asyncio and pytest](../guides/asyncio-and-py
 - Constants must fit the target type; arithmetic results truncate to its width.
 - ValueChange compares four-state aval/bval values.
 - Data operations use two-state bit-vector semantics, not full SystemVerilog four-state propagation.
+- SignalArray indices follow source bounds, retained by ArrayValue; ordinary lists/tuples remain positional sequences.
+- Array adaptation does not change leaves, write modes, backends, or XPort registration. Whole-array sampling/driving remains per-element, not atomic or bulk native transfer.
 
 See [expressions and resources](../guides/expressions-and-resources.md) for operations, overflow, and division rules.
 
@@ -92,3 +94,4 @@ See [expressions and resources](../guides/expressions-and-resources.md) for oper
 - Backend, XClock, and DUT signals do not support concurrent cross-thread access.
 - Bundle and channel views require explicit binding; there is no generic Interface base class.
 - Coverage JSON uses Toffee's schema, not UCIS.
+- Array expressions support constant integer indices only, not slices, dynamic indexing/arrays, whole-array expressions, or array selectors in the declarative coverage-field DSL.

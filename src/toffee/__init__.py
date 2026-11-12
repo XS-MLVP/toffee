@@ -57,6 +57,7 @@ from .data import (
     PackedView,
     split_packed,
 )
+from .arrays import ArrayValue, SignalArray
 from .async_drivers import AsyncDriver, AsyncSingleCycleDriver, DriverIncompleteError
 from .sync_drivers import SyncDriver, SyncSingleCycleDriver
 from .staged_drivers import AsyncMultiCycleDriver, DriveStage, SyncMultiCycleDriver
@@ -131,6 +132,7 @@ __all__ = [
     "BackendHit",
     "Bundle",
     "BundleValue",
+    "ArrayValue",
     "Bin",
     "BinKind",
     "BinSpec",
@@ -158,6 +160,7 @@ __all__ = [
     "Difference",
     "Driver",
     "SignalDriver",
+    "SignalArray",
     "SyncDriver",
     "SyncSingleCycleDriver",
     "SyncMultiCycleDriver",

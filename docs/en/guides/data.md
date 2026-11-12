@@ -41,7 +41,8 @@ The live `payload` can change; pass `snapshot` into delayed processing rather th
 ## Fixed unpacked arrays
 
 Pass a Picker-generated array directly into a Bundle. Toffee adapts it to a
-`SignalArray`, retaining the original `XData` leaves. For RTL declared as
+`SignalArray`: a bounded aggregate with a read-only structure that retains the
+original `XData` leaf identity. For RTL declared as
 `logic [64:0] matrix [3:2][-1:1]`:
 
 ```python
@@ -86,12 +87,14 @@ payload.drive({"matrix": [[10, 11, 12], [20, 21, 22]]})
 Drive an `ArrayValue` with identical bounds, mappings keyed by actual indices,
 or nested lists/tuples in **declaration order**. The whole array's shape, indices,
 and unknown values are checked before writing; simulator IO failures do not imply
-transaction rollback. Structure is read-only: do not replace elements. Slices,
-dynamic indexing, and dynamic arrays are unsupported. Scoreboard checks snapshot
-bounds and reports differences using actual indices such as `matrix[3][-1]`.
+transaction rollback. Structure is read-only: do not replace elements; the leaves
+remain live signals. Slices, dynamic indexing, and dynamic arrays are unsupported.
+Scoreboard checks snapshot bounds and reports differences using actual indices
+such as `matrix[3][-1]`.
 
-Port arrays retain RTL bounds. Internal native views retain their source's
-zero-based storage coordinates:
+Port arrays retain RTL bounds. A native `XDataArray` view exposes its own
+`Left/Right` bounds; Picker's `NewXDataArrayView` for internal mem_direct arrays
+reports zero-based storage coordinates:
 
 ```python
 from toffee import SignalArray
@@ -101,13 +104,19 @@ memory[0][0].AsImmWrite()
 memory[0][0].Set(42)
 ```
 
-Adapters do not change write modes, advance time, or register signals with `XPort`.
-Generated ports keep their existing `XPort`/`XClock` edge commits; callers select
-immediate writes or explicit commits for dynamically queried internal leaves.
-Legacy flat lists remain positional sequences; RTL bounds are not guessed.
-Picker/xcomm's new native array capability requires rebuilding ABI-4 libraries,
-bindings, and DUTs together; ordinary signals do not require `XDataArray`.
-See the runnable [RTL array example](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md).
+Adapters do not compute element addresses, DPI indices, or backend-specific
+handles; they use the leaves exposed by the source view. They do not change
+write modes, advance time, or register additional `XPort` entries. Generated
+ports keep their existing `XPort`/`XClock` edge commits; callers choose immediate
+writes or explicit commits for dynamically queried internal leaves. A flattened
+list remains a positional sequence; RTL bounds are not guessed.
+
+Native array views use xcomm's `XDataArray` API (native ABI 4) and matching
+Picker-generated bindings. Regenerate the DUT after toolchain upgrades.
+
+The DPI and mem_direct array paths have been verified on Verilator **5.026,
+5.048, and 5.052**. See the runnable
+[RTL array example](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md).
 
 ## PackedArray and PackedLayout
 

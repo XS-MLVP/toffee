@@ -44,8 +44,8 @@ payload.drive({
 
 ## 定长 unpacked 数组
 
-Picker 生成的数组可直接放进 Bundle；Toffee 自动适配为 `SignalArray`，叶子仍是原来的
-`XData`。例如 RTL 声明 `logic [64:0] matrix [3:2][-1:1]`：
+Picker 生成的数组可直接放进 Bundle；Toffee 自动适配为 `SignalArray`。它是结构只读的
+有界聚合，保留原 `XData` 叶子的对象身份。例如 RTL 声明 `logic [64:0] matrix [3:2][-1:1]`：
 
 ```python
 from toffee import Bundle
@@ -62,7 +62,7 @@ assert snapshot.matrix[3][-1].as_int() == 42
 下标是视图的真实坐标，负数不是倒数位置；迭代按声明顺序，最后一维变化最快。
 `SignalArray(source)` 也可显式适配公开提供 `bounds/shape/indices` 和索引能力的视图，
 或者 xcomm 的 `XDataArray`。不依赖 Picker 的私有 Python 类，也不复制、重新绑定叶子。
-构造适配器不读取或展开全部元素；采样整组或声明整组驱动所有权时才遍历叶子。
+构造适配器不读取或展开全部元素；采样整组或 Driver 获取整组所有权时才遍历叶子。
 
 `sample()` 返回的数组部分是不可变 `ArrayValue`，保留边界及四态 `LogicValue` 叶子。
 `compile_sampler()` 缓存结构和 getter，但每次调用仍读取当前值。`ArrayValue.as_tuple()`
@@ -83,10 +83,12 @@ payload.drive({"matrix": [[10, 11, 12], [20, 21, 22]]})
 
 数组驱动接受边界一致的 `ArrayValue`、按真实下标组织的 mapping，或按**声明顺序**
 排列的嵌套 list/tuple。完整数组的形状、下标和未知值会在写入前检查；不承诺模拟器
-写入失败后的事务回滚。结构只读，不替换元素；不支持切片、动态下标或动态数组。
-Scoreboard 会核对快照边界，并用 `matrix[3][-1]` 这样的真实下标报告差异。
+写入失败后的事务回滚。结构只读，不替换元素；叶子本身仍是实时信号。不支持切片、
+动态下标或动态数组。Scoreboard 会核对快照边界，并用 `matrix[3][-1]` 这样的真实下标
+报告差异。
 
-端口数组使用 RTL 边界；内部原生数组继续使用其来源提供的零起始存储坐标：
+端口数组使用 RTL 边界；原生 `XDataArray` 视图使用自身的 `Left/Right` 边界，Picker 的
+`NewXDataArrayView` 对内部 mem_direct 数组报告零起始存储坐标：
 
 ```python
 from toffee import SignalArray
@@ -96,11 +98,17 @@ memory[0][0].AsImmWrite()
 memory[0][0].Set(42)
 ```
 
-适配器不会改变写模式、推进时间或自动注册 `XPort`。生成端口的边沿提交仍由原来的
-`XPort`/`XClock` 管理；动态查询的内部叶子由调用方选择立即写或显式提交。
-只取得旧扁平列表时仍按位置序列处理，不猜测 RTL 边界。使用 Picker/xcomm 的新数组
-能力需一起重建 ABI 4 库、绑定和 DUT；普通信号不要求 `XDataArray`。
-可运行的真实 RTL 场景见 [数组示例](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md)。
+适配器不计算元素地址、DPI 下标或后端专用句柄，只使用来源视图暴露的叶子。它不改变
+写模式、不推进时间，也不额外注册 `XPort`。生成端口的边沿提交仍由原来的
+`XPort`/`XClock` 管理；动态查询的内部叶子由调用方选择立即写或显式提交。扁平列表仍是
+位置序列，不猜测 RTL 边界。
+
+原生数组视图使用 xcomm 的 `XDataArray` API（原生 ABI 4）和匹配的 Picker 生成绑定；
+升级工具链后重新生成 DUT。
+
+DPI 和 mem_direct 数组路径已在 Verilator **5.026、5.048、5.052** 上验证。可运行的真实
+RTL 场景见
+[数组示例](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md)。
 
 ## PackedArray 与 PackedLayout
 

@@ -13,6 +13,8 @@ Use the commit, package, ABI, and protocol versions from the
 Combinational events require `XTriggerEngine.CombinationalVersion() == 1`.
 CI uses the native commit in the dependency manifest and checks the combinational protocol.
 An older wheel with the same package name does not provide this capability.
+Array DUTs additionally require the `XDataArray` API and native ABI 4; see
+[fixed unpacked arrays](../guides/data.md#fixed-unpacked-arrays).
 
 ```bash
 python3 examples/getting_started/check_native.py

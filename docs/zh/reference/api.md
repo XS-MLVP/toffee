@@ -62,7 +62,7 @@ Backend 扩展协议与底层推进类型放在本页最后；编写普通测试
 | --- | --- |
 | `as_xdata` | 取得/校验原生 XData |
 | `Bundle`, `BundleValue` | 结构化 实时信号视图 和不可变 snapshot |
-| `SignalArray(source, *, name="array")`, `ArrayValue` | 带真实下标边界的 unpacked 信号视图和不可变四态数组快照；见[数组](../guides/data.md#unpacked-arrays) |
+| `SignalArray(source, *, name="array")`, `ArrayValue` | 结构只读的有界 unpacked 视图，保留原 `XData` 叶子；`ArrayValue` 为不可变的有界四态快照，叶子是 `LogicValue`；见[数组](../guides/data.md#unpacked-arrays) |
 | `PackedArray`, `split_packed` | 等宽 packed bus 拆分 |
 | `PackedLayout`, `PackedView` | 嵌套、自定义 packed 布局 |
 | `ReadyValid`, `Decoupled`, `Role` | 可选的 ready/valid 通道视图 |

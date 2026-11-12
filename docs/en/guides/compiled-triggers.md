@@ -33,12 +33,13 @@ def selected_word(dut):
 
 Integer indices resolve to the original `XData` at binding. The native Backend
 then evaluates the leaf expression without invoking Python array selection on
-every cycle. Negative indices use the view's actual bounds. Attribute/index paths
-round-trip through portable IR; existing attribute-only paths are unchanged.
+every cycle. Negative indices use the view's actual bounds. Attribute/index paths round-trip
+through portable IR; attribute-only paths keep their existing syntax.
 `Value(dut.matrix[3][-1], 42)` can also use a leaf directly. Dynamic indices such
-as `dut.matrix[dut.index]`, slices, and whole-array comparisons are unsupported.
-String sources keep their existing attribute-path syntax; explicit Field selection
-uses `Field(("matrix", 3, -1))`, not a new bracket-string parser.
+as `dut.matrix[dut.index]`, slices, implicit packed bit selection, and whole-array
+comparisons are unsupported. String sources keep their existing attribute-path
+syntax; explicit Field selection uses `Field(("matrix", 3, -1))`, not a
+bracket-string parser.
 
 ## Declare a Python predicate
 

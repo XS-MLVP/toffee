@@ -82,4 +82,4 @@ def pytest_configure(config: pytest.Config) -> None:
     if config.getoption("--require-xarrays"):
         xspcomm = importlib.import_module("xspcomm")
         if not hasattr(xspcomm, "XDataArray") or xspcomm.abi_version() != 4:
-            raise pytest.UsageError("--require-xarrays requires xcomm XDataArray and native ABI 4; rebuild the array branch and its Python bindings")
+            raise pytest.UsageError("--require-xarrays requires xcomm XDataArray and matching native ABI-4 Python bindings")

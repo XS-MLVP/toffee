@@ -62,7 +62,7 @@ See [Execution reference](execution.md) for parameters, defaults, and resource c
 | --- | --- |
 | `as_xdata` | Obtain/validate native XData |
 | `Bundle`, `BundleValue` | Structured live-signal view and immutable snapshot |
-| `SignalArray(source, *, name="array")`, `ArrayValue` | Bounded unpacked signal view and immutable four-state array snapshot; see [arrays](../guides/data.md#fixed-unpacked-arrays) |
+| `SignalArray(source, *, name="array")`, `ArrayValue` | Bounded unpacked view with a read-only structure, retaining original `XData` leaves; `ArrayValue` is an immutable, bounded four-state snapshot with `LogicValue` leaves; see [arrays](../guides/data.md#fixed-unpacked-arrays) |
 | `PackedArray`, `split_packed` | Split a packed bus into equal-width elements |
 | `PackedLayout`, `PackedView` | Nested, customized packed layouts |
 | `ReadyValid`, `Decoupled`, `Role` | Optional ready/valid channel views |

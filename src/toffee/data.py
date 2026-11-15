@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
+import json
 from keyword import iskeyword
 from types import MappingProxyType
 from typing import Any
@@ -479,10 +480,20 @@ def _is_sequence(value: Any) -> bool:
 
 
 def _normalize_node(value: Any, path: str) -> DataNode:
+    # Explicit XView nodes are typed references, not scalar values. Use
+    # public protocols so Toffee remains importable without xcomm installed.
+    if all(callable(getattr(value, name, None))
+           for name in ("Kind", "Data", "Struct", "Array")):
+        kind = value.Kind()
+        if kind not in ("bits", "struct", "array"):
+            raise ValueError(f"{path} unsupported view kind: {kind!r}")
+        value = getattr(value, {"bits": "Data", "struct": "Struct", "array": "Array"}[kind])()
     if isinstance(value, (PackedArray, PackedView)):
         return value
     if isinstance(value, Bundle):
         return value
+    if _is_struct_view(value):
+        return Bundle(value, path=path)
     array = _as_signal_array(value, name=path)
     if array is not None:
         return array
@@ -514,62 +525,71 @@ def _sample_node(value: DataNode) -> ValueNode:
 
 
 def _drive_node(target: DataNode, value: Any, path: str) -> None:
-    if isinstance(target, (Bundle, PackedView)):
-        target.drive(value)
-        return
-    if isinstance(target, SignalArray):
-        assignments: list[tuple[Any, Any, str]] = []
-        _collect_array_drives(target, value, path, assignments)
-        for signal, child_value, child_path in assignments:
-            write_signal(signal, child_value, child_path)
-        return
-    if isinstance(target, (tuple, PackedArray)):
-        if not _is_sequence(value) or len(value) != len(target):
-            raise ValueError(f"{path} requires {len(target)} values")
-        for index, (child, child_value) in enumerate(zip(target, value)):
-            _drive_node(child, child_value, f"{path}[{index}]")
-        return
-    write_signal(target, value, path)
+    assignments: list[tuple[Any, Any, str]] = []
+    _collect_drives(target, value, path, assignments)
+    for signal, child_value, child_path in assignments:
+        write_signal(signal, child_value, child_path)
 
 
-def _collect_array_drives(
-    target: SignalArray,
+def _collect_drives(
+    target: DataNode,
     value: Any,
     path: str,
     assignments: list[tuple[Any, Any, str]],
 ) -> None:
-    # Validate the complete array shape before writing any of its leaves. This
-    # is not a simulator transaction and does not promise rollback on IO errors.
-    values = _array_drive_items(target, value, path)
-    for index, child_value in zip(target.indices, values):
-        child = target[index]
-        child_path = f"{path}[{index}]"
-        if isinstance(child, SignalArray):
-            _collect_array_drives(child, child_value, child_path, assignments)
-        else:
-            if (isinstance(child_value, (Mapping, ArrayValue))
-                    or _is_sequence(child_value)):
-                raise ValueError(f"{child_path} requires a scalar drive value")
-            if isinstance(child_value, LogicValue) and not child_value.is_known:
-                raise ValueError(f"{child_path} contains X/Z; four-state drive is not implemented")
-            if callable(getattr(child, "IsOutIO", None)) and child.IsOutIO():
-                raise ValueError(f"{child_path} is a DUT output and cannot be driven")
-            if callable(getattr(child, "IsReadonly", None)) and child.IsReadonly():
-                raise ValueError(f"{child_path} backend is read-only")
-            assignments.append((child, child_value, child_path))
+    # Validate the entire recursive shape before the first write. This is not
+    # a simulator transaction and does not promise rollback on IO failures.
+    if isinstance(target, Bundle) or (isinstance(target, PackedView) and target.kind == "struct"):
+        fields = target.fields
+        if isinstance(target, PackedView) and target.layout.allow_overlap:
+            raise ValueError(f"{path} has overlapping fields; drive an explicit leaf instead of the whole view")
+        if not isinstance(value, Mapping):
+            raise TypeError(f"{path} drive value must be a mapping")
+        missing = tuple(name for name in fields if name not in value)
+        extra = tuple(name for name in value if name not in fields)
+        if missing or extra:
+            raise ValueError(f"{path} shape mismatch: missing={missing}, extra={extra}")
+        for name, child in fields.items():
+            _collect_drives(child, value[name], f"{path}.{name}", assignments)
+        return
+    if isinstance(target, SignalArray):
+        values = _array_drive_items(target, value, path)
+        for index, child_value in zip(target.indices, values):
+            _collect_drives(target[index], child_value, f"{path}[{index}]", assignments)
+        return
+    if isinstance(target, (tuple, PackedArray, PackedView)):
+        if not _is_sequence(value) or len(value) != len(target):
+            raise ValueError(f"{path} requires {len(target)} values")
+        for index, (child, child_value) in enumerate(zip(target, value)):
+            _collect_drives(child, child_value, f"{path}[{index}]", assignments)
+        return
+    if isinstance(value, (Mapping, ArrayValue)) or _is_sequence(value):
+        raise ValueError(f"{path} requires a scalar drive value")
+    if isinstance(value, LogicValue) and not value.is_known:
+        raise ValueError(f"{path} contains X/Z; four-state drive is not implemented")
+    if callable(getattr(target, "IsOutIO", None)) and target.IsOutIO():
+        raise ValueError(f"{path} is a DUT output and cannot be driven")
+    if callable(getattr(target, "IsReadonly", None)) and target.IsReadonly():
+        raise ValueError(f"{path} backend is read-only")
+    assignments.append((target, value, path))
+
+
+def _is_struct_view(source: Any) -> bool:
+    return all(callable(getattr(source, name, None))
+               for name in ("Names", "Field", "IsPacked", "__getitem__"))
 
 
 class Bundle(Mapping[str, DataNode]):
     """A deterministic, nested live view over bound signal leaves."""
 
-    __slots__ = ("_fields", "_path")
+    __slots__ = ("_fields", "_path", "_source")
     _reserved = frozenset(
         {"drive", "fields", "items", "keys", "leaves", "sample", "values", "compile_sampler"}
     )
 
     def __init__(
         self,
-        fields: Mapping[str, Any] | None = None,
+        fields: Any = None,
         /,
         *,
         path: str = "bundle",
@@ -578,17 +598,23 @@ class Bundle(Mapping[str, DataNode]):
         if fields is not None and named_fields:
             raise TypeError("pass either a field mapping or keyword fields")
         source = fields if fields is not None else named_fields
+        native_struct = _is_struct_view(source)
+        object.__setattr__(self, "_source", source if native_struct else None)
+        if native_struct:
+            # Raw RTL names (including Bundle method names and keywords) stay
+            # accessible through []. The source owns the original live leaves.
+            source = {name: source[name] for name in source.Names()}
         if not source:
             raise ValueError("Bundle requires at least one field")
         normalized: dict[str, DataNode] = {}
         for name, value in source.items():
-            if (
+            if not native_struct and (
                 not isinstance(name, str)
                 or not name.isidentifier()
                 or iskeyword(name)
             ):
                 raise ValueError(f"invalid Bundle field name: {name!r}")
-            if name.startswith("_") or name in self._reserved:
+            if not native_struct and (name.startswith("_") or name in self._reserved):
                 raise ValueError(f"reserved Bundle field name: {name}")
             normalized[name] = _normalize_node(value, f"{path}.{name}")
         object.__setattr__(self, "_fields", MappingProxyType(normalized))
@@ -631,16 +657,7 @@ class Bundle(Mapping[str, DataNode]):
         return compile_sampler(self)
 
     def drive(self, value: Mapping[str, Any] | "BundleValue") -> None:
-        if not isinstance(value, Mapping):
-            raise TypeError("Bundle drive value must be a mapping")
-        missing = tuple(name for name in self if name not in value)
-        extra = tuple(name for name in value if name not in self)
-        if missing or extra:
-            raise ValueError(
-                f"Bundle shape mismatch: missing={missing}, extra={extra}"
-            )
-        for name, target in self.items():
-            _drive_node(target, value[name], f"{self._path}.{name}")
+        _drive_node(self, value, self._path)
 
     @classmethod
     def bind(
@@ -772,7 +789,44 @@ def _resolve_source(root: Any, source: Any) -> Any:
     return resolve_path(root, parts)
 
 
-_TREE_METADATA = frozenset({"_", "Pin", "High", "Low", "Unpacked"})
+_TREE_METADATA = frozenset({"_", "Pin", "High", "Low", "Unpacked", "Layout"})
+
+
+def _bind_layout(signal: Any, layout: Mapping[str, Any], path: str) -> DataNode:
+    if not isinstance(layout, Mapping) or layout.get("kind") not in ("bits", "struct", "array"):
+        raise ValueError(f"{path} Layout must describe bits, struct, or array")
+    kind = layout["kind"]
+    if kind != "bits" and layout.get("packed") and callable(getattr(signal, "W", None)):
+        method = "StructView" if kind == "struct" else "ArrayView"
+        factory = getattr(signal, method, None)
+        if not callable(factory):
+            raise TypeError(f"{path} Layout requires xcomm recursive views (native ABI 4 with XStruct/XArray)")
+        signal = factory(json.dumps(layout))
+    bound = _normalize_node(signal, path)
+
+    def validate(node, description, node_path):
+        if description.get("packed") and not isinstance(node, (Bundle, SignalArray)):
+            expected = int(description["width"]) or 1
+            actual = signal_width(node)
+            if actual != expected:
+                raise ValueError(f"{node_path} width mismatch: Layout={expected}, actual={actual}")
+        elif description["kind"] == "struct":
+            names = tuple(field["name"] for field in description["fields"])
+            if not isinstance(node, Bundle) or tuple(node) != names:
+                raise ValueError(f"{node_path} struct fields mismatch with Layout")
+            for field in description["fields"]:
+                validate(node[field["name"]], field["type"], f"{node_path}.{field['name']}")
+        elif description["kind"] == "array":
+            bounds = _normalize_bounds(((description["left"], description["right"]),))[0]
+            if not isinstance(node, SignalArray) or node.bounds[0] != bounds:
+                raise ValueError(f"{node_path} array bounds mismatch with Layout")
+            for index in node.indices:
+                validate(node[index], description["element"], f"{node_path}[{index}]")
+        else:
+            raise ValueError(f"{node_path} invalid scalar Layout")
+
+    validate(bound, layout, path)
+    return bound
 
 
 def _bind_tree_node(
@@ -794,6 +848,20 @@ def _bind_tree_node(
         if not source_parts:
             raise ValueError(f"{path} leaf has no source path")
         signal = as_xdata(getattr(root, "_".join(source_parts)))
+        if "Layout" in node:
+            layout = node["Layout"]
+            if isinstance(layout, Mapping) and layout.get("packed") and "High" in node:
+                high, low = int(node["High"]), int(node.get("Low", 0))
+                expected = 1 if high < 0 else high - low + 1
+                width = int(layout["width"]) or 1
+                if width != expected:
+                    raise ValueError(f"{path} width mismatch: metadata={expected}, Layout={width}")
+            bound = _bind_layout(signal, layout, path)
+            if "Unpacked" in node and (
+                not isinstance(bound, SignalArray) or bound.bounds != _normalize_bounds(node["Unpacked"])
+            ):
+                raise ValueError(f"{path} array bounds mismatch with Unpacked metadata")
+            return bound
         array = None
         if "Unpacked" in node:
             bounds = _normalize_bounds(node["Unpacked"])
@@ -813,8 +881,8 @@ def _bind_tree_node(
                         f"actual={actual}"
                     )
         return array if array is not None else signal
-    if "Unpacked" in node:
-        raise ValueError(f"{path} Unpacked metadata requires an array port leaf")
+    if "Unpacked" in node or "Layout" in node:
+        raise ValueError(f"{path} Unpacked/Layout metadata requires an array port leaf or aggregate port leaf")
     if not children:
         raise ValueError(f"{path} aggregate has no fields")
 
@@ -854,7 +922,7 @@ def _bind_tree_node(
 def iter_data_leaves(
     node: DataNode, path: str = "data"
 ) -> Iterator[tuple[str, Any]]:
-    yield from _iter_leaves(node, path)
+    yield from _iter_leaves(_normalize_node(node, path), path)
 
 
 def normalize_data(node: DataNode, path: str = "data") -> DataNode:
@@ -862,7 +930,7 @@ def normalize_data(node: DataNode, path: str = "data") -> DataNode:
 
 
 def sample_data(node: DataNode) -> ValueNode:
-    return _sample_node(node)
+    return _sample_node(_normalize_node(node, "data"))
 
 
 def compile_sampler(node: DataNode):
@@ -871,6 +939,7 @@ def compile_sampler(node: DataNode):
     Packed views retain their normal wide/four-state path. Leaves without
     explicit widths retain dynamic width inference. Recompile after rebinding.
     """
+    node = _normalize_node(node, "data")
     if isinstance(node, Bundle):
         fields = tuple((name, compile_sampler(value)) for name, value in node.items())
         return lambda: BundleValue(tuple((name, sample()) for name, sample in fields))
@@ -887,7 +956,7 @@ def compile_sampler(node: DataNode):
 
 
 def drive_data(node: DataNode, value: Any, path: str = "data") -> None:
-    _drive_node(node, value, path)
+    _drive_node(_normalize_node(node, path), value, path)
 
 
 def _value_as_plain(value: ValueNode) -> Any:

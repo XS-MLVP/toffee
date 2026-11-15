@@ -20,18 +20,17 @@ class Vec(ctypes.Structure):
 @pytest.fixture
 def native():
     xs = pytest.importorskip("xspcomm")
-    if not hasattr(xs, "XDataArray"):
-        pytest.skip("requires xcomm XDataArray and matching native ABI-4 Python bindings")
+    if not hasattr(getattr(xs, "XArray", None), "FromNative"):
+        pytest.skip("requires xcomm XArray factories and matching native ABI-4 Python bindings")
     return xs
 
 
 @pytest.fixture(params=("mem_direct", "dpi"))
 def storage(native, request):
-    array = native.XDataArray(65, [3, -1], [2, 1])
-    state = SimpleNamespace(array=array, kind=request.param)
+    state = SimpleNamespace(kind=request.param)
     if request.param == "mem_direct":
         state.memory = (ctypes.c_uint32 * 18)()
-        array.BindNativeData(ctypes.addressof(state.memory), [36, 12])
+        array = native.XArray.FromNative(65, [3, -1], [2, 1], ctypes.addressof(state.memory), [36, 12])
     else:
         state.values = [0] * 6
         state.masks = [0] * 6
@@ -48,8 +47,9 @@ def storage(native, request):
             state.masks[index] = sum(int(value[word].bval) << (word * 32) for word in range(3)) & ((1 << 65) - 1)
 
         state.callbacks = (getter, setter)
-        array.BindDPIPtr(ctypes.cast(getter, ctypes.c_void_p).value,
-                         ctypes.cast(setter, ctypes.c_void_p).value)
+        array = native.XArray.FromDPI(65, [3, -1], [2, 1], ctypes.cast(getter, ctypes.c_void_p).value,
+                                     ctypes.cast(setter, ctypes.c_void_p).value)
+    state.array = array
     state.view = SignalArray(array)
     for _, leaf in state.view.leaves():
         leaf.AsImmWrite()
@@ -63,7 +63,7 @@ def test_native_array_sampling_and_static_index_trigger(native, storage):
     bundle = Bundle(matrix=array)
     assert bundle.sample().matrix[3][-1].as_int() == expected
     assert bundle.compile_sampler()() == bundle.sample()
-    assert array[3][-1].CSelf() == storage.array.AtFlat(0).CSelf()
+    assert array[3][-1].CSelf() == storage.array[3][-1].CSelf()
     assert array[3][-1].IsArrayBound()
     if storage.kind == "mem_direct":
         assert storage.memory[9] == 0x1234 and storage.memory[11] == 1

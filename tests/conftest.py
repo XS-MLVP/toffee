@@ -63,16 +63,22 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--require-xarrays",
         action="store_true",
-        help="require ABI-4 xcomm with XDataArray instead of skipping array integration tests",
+        help="require ABI-4 xcomm with XArray factories instead of skipping array integration tests",
+    )
+    parser.addoption(
+        "--require-xviews",
+        action="store_true",
+        help="require ABI-4 xcomm with recursive XStruct/XArray views",
     )
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    if not (config.getoption("--require-xspcomm") or config.getoption("--require-xarrays")):
+    if not any(config.getoption(name) for name in ("--require-xspcomm", "--require-xarrays", "--require-xviews")):
         return
     error = _native_api_error()
     if error is not None:
-        requested = "--require-xarrays" if config.getoption("--require-xarrays") else "--require-xspcomm"
+        requested = next(name for name in ("--require-xviews", "--require-xarrays", "--require-xspcomm")
+                         if config.getoption(name))
         raise pytest.UsageError(
             f"{requested} requested, but {error}. "
             "Install xcomm with BUILD_XSPCOMM_SWIG=python and "
@@ -81,5 +87,9 @@ def pytest_configure(config: pytest.Config) -> None:
         )
     if config.getoption("--require-xarrays"):
         xspcomm = importlib.import_module("xspcomm")
-        if not hasattr(xspcomm, "XDataArray") or xspcomm.abi_version() != 4:
-            raise pytest.UsageError("--require-xarrays requires xcomm XDataArray and matching native ABI-4 Python bindings")
+        if not hasattr(getattr(xspcomm, "XArray", None), "FromNative") or xspcomm.abi_version() != 4:
+            raise pytest.UsageError("--require-xarrays requires xcomm XArray factories and matching native ABI-4 Python bindings")
+    if config.getoption("--require-xviews"):
+        xspcomm = importlib.import_module("xspcomm")
+        if xspcomm.abi_version() != 4 or not all(hasattr(xspcomm, name) for name in ("XView", "XStruct", "XArray")):
+            raise pytest.UsageError("--require-xviews requires xcomm recursive views and matching native ABI-4 Python bindings")

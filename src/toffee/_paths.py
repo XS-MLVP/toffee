@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 SignalPath = tuple[str | int, ...]
@@ -23,7 +24,17 @@ def resolve_path(root: Any, path: SignalPath) -> Any:
                 raise TypeError("integer signal paths select array elements, not packed signal bits; use an explicit packed view")
             value = value[part]
         else:
-            value = getattr(value, part)
+            # Native struct fields may have names such as `Data` or `sample`.
+            # Prefer data members over container methods when resolving a
+            # declared signal path, without changing normal attribute access.
+            names = getattr(value, "Names", None)
+            if isinstance(value, Mapping) and part in value:
+                value = value[part]
+            elif (callable(names) and callable(getattr(value, "Field", None))
+                  and callable(getattr(value, "IsPacked", None)) and part in names()):
+                value = value[part]
+            else:
+                value = getattr(value, part)
     return value
 
 

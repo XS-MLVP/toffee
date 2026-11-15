@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from typing import Any, Generic, TypeVar
 
 from .data import Bundle, DataNode, iter_data_leaves, normalize_data
+from .arrays import SignalArray
 from .events import XEvent
 from .ir import signal_expr
 from .signals import as_xdata
@@ -89,7 +90,7 @@ class ReadyValid:
                 f"{name} requires exactly valid/ready/bits; "
                 f"missing={missing}, extra={extra}"
             )
-        if not isinstance(bound.bits, Bundle):
+        if not isinstance(bound.bits, (Bundle, SignalArray)):
             raise ValueError(f"{name}.bits must be an aggregate signal-tree node")
         return cls(
             clock=clock,

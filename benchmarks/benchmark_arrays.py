@@ -29,11 +29,10 @@ def main():
     args = parser.parse_args()
     if min(args.elements, args.iterations, args.repeats) <= 0:
         parser.error("elements, iterations and repeats must be positive")
-    if not hasattr(xspcomm, "XDataArray"):
-        parser.error("requires xcomm XDataArray and matching ABI-4 Python bindings")
+    if not hasattr(getattr(xspcomm, "XArray", None), "FromNative"):
+        parser.error("requires xcomm XArray factories and matching ABI-4 Python bindings")
     memory = (ctypes.c_uint32 * (args.elements * 3))()
-    source = xspcomm.XDataArray(65, [args.elements + 1], [2])
-    source.BindNativeData(ctypes.addressof(memory), [12])
+    source = xspcomm.XArray.FromNative(65, [args.elements + 1], [2], ctypes.addressof(memory), [12])
     view = SignalArray(source)
     first = view[args.elements + 1]
     first.AsImmWrite()

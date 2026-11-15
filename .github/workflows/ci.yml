@@ -60,7 +60,7 @@ jobs:
       - name: Install build and report tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build lcov verilator
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build lcov verilator zlib1g-dev
           python -m pip install 'build>=1,<2'
       - name: Build pinned native backend
         # This wheel is reused by another runner during isolated installation.
@@ -98,7 +98,7 @@ jobs:
           for method in ('AcquireClock', 'ReleaseClock', 'CollectExpressions', 'ExprNewBits', 'ExprNewBool', 'ExprEvalBits'):
               assert hasattr(xspcomm.XTriggerEngine, method), method
           PY
-      - run: python -m pytest -q --require-xspcomm --require-xarrays
+      - run: python -m pytest -q --require-xspcomm --require-xarrays --require-xviews
       - name: Run documented command-line examples
         run: |
           python examples/getting_started/check_native.py

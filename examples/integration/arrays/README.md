@@ -1,10 +1,10 @@
 # 定长数组的真实 RTL 验证
 
-本例用同一份 RTL 验证 Picker 生成的定长 unpacked 数组端口，以及 xcomm `XDataArray`
-的内部原生数组视图。DPI 和 mem_direct 两条路径都由 xcomm 的共享 `XDataArray` 后端
+本例用同一份 RTL 验证 Picker 生成的定长 unpacked 数组端口，以及 xcomm `XArray`
+的内部原生数组视图。DPI 和 mem_direct 两条路径都由 xcomm 的内部共享数组后端
 提供，并使用真实 RTL，不使用 Python 行为替身。
 
-环境需要 xcomm 的 `XDataArray` API（原生 ABI 4）、匹配的 Python 绑定和 Picker 模板；
+环境需要 xcomm 的 `XArray` 工厂（原生 ABI 4）、匹配的 Python 绑定和 Picker 模板；
 升级工具链后重新生成 DUT。
 
 在 Toffee 仓库根目录执行，替换工具和绑定路径：
@@ -19,7 +19,7 @@ TOFFEE_ARRAY_RTL=1 python3 -m pytest -q \
 
 测试将构建两种访问方式，成功时显示 `2 passed`。不设置 `TOFFEE_ARRAY_RTL=1` 时，
 默认框架回归不会隐式构建 RTL。若环境中缺少该 API 的 xspcomm 遮蔽了源码构建，使用上面的
-显式 `PYTHONPATH`；`--require-xarrays` 会在缺少 `XDataArray` 或 ABI 不匹配时失败，
+显式 `PYTHONPATH`；`--require-xarrays` 会在缺少 `XArray` 工厂或 ABI 不匹配时失败，
 而非静默跳过。
 
 DPI 和 mem_direct 已在 Verilator **5.026、5.048、5.052** 上验证。
@@ -28,7 +28,7 @@ DPI 和 mem_direct 已在 Verilator **5.026、5.048、5.052** 上验证。
 
 ## 验证内容
 
-- 根据真实 `signals.json` 的 `Unpacked` 元数据绑定二维和三维端口。
+- 根据唯一配置库 `dut.xcfg.Metadata("ports")` 的 `Unpacked` 元数据绑定二维和三维端口。
 - 端口数组适配为结构只读的 `SignalArray`，采样得到不可变 `ArrayValue`；不复制或重绑叶子。
 - 绑定后保留 RTL 边界；快照按真实下标访问，驱动接受真实下标 mapping 或声明顺序序列。
 - 65 位元素、负下标和各维升降序；结果数组与输入使用不同方向。
@@ -46,7 +46,7 @@ DPI 和 mem_direct 已在 Verilator **5.026、5.048、5.052** 上验证。
   --autobuild false -V '-Wno-fatal'
 make -C output/arrays/UnpackedSignals NPROC=4
 PYTHONPATH="output/arrays:$PYTHONPATH" python3 examples/integration/arrays/verify.py \
-  --metadata output/arrays/UnpackedSignals/signals.json --access mem_direct
+  --access mem_direct
 ```
 
 中文用法与契约见[数据指南](../../../docs/zh/guides/data.md#unpacked-arrays)，英文见

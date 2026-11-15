@@ -22,7 +22,8 @@ async def verify(metadata, access):
     backend = None
     try:
         dut.InitClock("clk")
-        pins = Bundle.bind_tree(dut, json.loads(Path(metadata).read_text()))
+        tree = json.loads(Path(metadata).read_text() if metadata else dut.xcfg.Metadata("ports"))
+        pins = Bundle.bind_tree(dut, tree)
         assert pins.matrix.bounds == ((3, 2), (-1, 1))
         assert pins.result.bounds == ((2, 3), (1, -1))
         assert pins.cube.shape == (2, 2, 3)
@@ -77,17 +78,18 @@ async def verify(metadata, access):
 
         if access == "mem_direct":
             name = next(name for name in dut.GetInternalSignalList() if name.endswith(".memory"))
-            native = dut.xcfg.NewXDataArrayView(name)
+            native = dut.xcfg.NewXArray(name)
             memory = SignalArray(native)
             assert memory.bounds == ((0, 1), (0, 2))
-            assert tuple(native.Strides()) == (36, 12)
-            old = dut.GetInternalSignal(name, is_array=True)
-            assert len(old) == 6
+            config = dut.xcfg.At(name)
+            assert tuple(config.array_strides) == (36, 12)
+            internal = dut.GetInternalSignal(name, is_array=True)
+            assert internal.shape == (2, 3)
             for _, leaf in memory.leaves():
                 leaf.AsImmWrite()
             memory.drive([[1 << 64, 2, 3], [4, 5, 99]])
-            assert old[0].U() == 1 << 64 and old[5].U() == 99
-            assert memory[0][0].CSelf() == native.At([0, 0]).CSelf()
+            assert internal[0][0].U() == 1 << 64 and internal[1][2].U() == 99
+            assert memory[0][0].CSelf() == native.Array(0).Data(0).CSelf()
             dut.RefreshComb()
             assert dut.probe.U() == (1 << 64) ^ 99
         assert scoreboard.status.checked == 4 and scoreboard.status.failed == 0
@@ -100,7 +102,7 @@ async def verify(metadata, access):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--metadata", type=Path, required=True)
+    parser.add_argument("--metadata", type=Path, help="explicit JSON override; defaults to the DUT configuration database")
     parser.add_argument("--access", choices=("dpi", "mem_direct"), required=True)
     args = parser.parse_args()
     asyncio.run(verify(args.metadata, args.access))

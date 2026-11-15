@@ -39,6 +39,8 @@ def test_generated_picker_arrays(tmp_path, access):
     env["PYTHONPATH"] = os.pathsep.join((str(tmp_path), str(ROOT / "src"), env.get("PYTHONPATH", "")))
     run(args)
     run(["make", "-C", str(package), "NPROC=4"])
+    assert (package / "UnpackedSignals.xscfg").is_file()
+    assert not list(package.rglob("signals.json"))
     result = run([sys.executable, str(EXAMPLE / "verify.py"),
-                  "--metadata", str(package / "signals.json"), "--access", access])
+                  "--access", access])
     assert "snapshots PASS" in result.stdout

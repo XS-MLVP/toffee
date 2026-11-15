@@ -35,7 +35,7 @@ python3 benchmarks/benchmark_asyncio_observer.py --repeats 7
 
 ## 数组快照
 
-使用带 `XDataArray` API 的 xcomm（原生 ABI 4）：
+使用带 `XArray` 工厂的 xcomm（原生 ABI 4）：
 
 ```bash
 python3 benchmarks/benchmark_arrays.py --elements 256 --iterations 100 --repeats 5

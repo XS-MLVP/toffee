@@ -61,7 +61,7 @@ assert snapshot.matrix[3][-1].as_int() == 42
 
 下标是视图的真实坐标，负数不是倒数位置；迭代按声明顺序，最后一维变化最快。
 `SignalArray(source)` 也可显式适配公开提供 `bounds/shape/indices` 和索引能力的视图，
-或者 xcomm 的 `XDataArray`。不依赖 Picker 的私有 Python 类，也不复制、重新绑定叶子。
+包括 xcomm 的 `XArray`。不依赖 Picker 的私有 Python 类，也不复制、重新绑定叶子。
 构造适配器不读取或展开全部元素；采样整组或 Driver 获取整组所有权时才遍历叶子。
 
 `sample()` 返回的数组部分是不可变 `ArrayValue`，保留边界及四态 `LogicValue` 叶子。
@@ -87,13 +87,13 @@ payload.drive({"matrix": [[10, 11, 12], [20, 21, 22]]})
 动态下标或动态数组。Scoreboard 会核对快照边界，并用 `matrix[3][-1]` 这样的真实下标
 报告差异。
 
-端口数组使用 RTL 边界；原生 `XDataArray` 视图使用自身的 `Left/Right` 边界，Picker 的
-`NewXDataArrayView` 对内部 mem_direct 数组报告零起始存储坐标：
+端口数组使用 RTL 边界；原生数组使用相同的递归 `XArray` 接口，Picker 的
+`NewXArray` 对内部 mem_direct 数组报告零起始存储坐标：
 
 ```python
 from toffee import SignalArray
 
-memory = SignalArray(dut.xcfg.NewXDataArrayView(name))
+memory = SignalArray(dut.xcfg.NewXArray(name))
 memory[0][0].AsImmWrite()
 memory[0][0].Set(42)
 ```
@@ -103,14 +103,59 @@ memory[0][0].Set(42)
 `XPort`/`XClock` 管理；动态查询的内部叶子由调用方选择立即写或显式提交。扁平列表仍是
 位置序列，不猜测 RTL 边界。
 
-原生数组视图使用 xcomm 的 `XDataArray` API（原生 ABI 4）和匹配的 Picker 生成绑定；
-升级工具链后重新生成 DUT。
+原生数组视图使用 xcomm 的 `XArray` 工厂（原生 ABI 4）和匹配的 Picker 生成绑定；
+原先单独的原生数组协议已移除，升级工具链后重新生成 DUT 并迁移为递归索引。
 
 DPI 和 mem_direct 数组路径已在 Verilator **5.026、5.048、5.052** 上验证。可运行的真实
 RTL 场景见
 [数组示例](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md)。
 
+## RTL struct 与递归数组
+
+使用带聚合支持的配套 Picker/xcomm（**原生 ABI 4**）时，可把 `XStruct` 和 `XArray`
+直接交给现有 Toffee 组件：
+
+```python
+from toffee import Bundle
+
+payload = Bundle(
+    record=dut.record_in,
+    header=dut.packed_in_view,
+    matrix=dut.matrix_view,
+)
+snapshot = payload.sample()
+word = snapshot.record.entries[-1].payload[3].as_int()
+payload.drive(snapshot)
+```
+
+`Bundle(xstruct)` 适配 struct 根节点，数组适配成 `SignalArray`，包括 struct 数组。
+快照递归组合 `BundleValue`、保留边界的 `ArrayValue` 和四态 `LogicValue`。字段名、声明顺序、
+各维方向及负下标均来自来源视图。原生字段与 Bundle 方法重名时用 `bundle["sample"]` 这样的
+索引访问；普通用户编写的 Bundle mapping 仍拒绝保留名。
+
+packed 标量字段保留来源视图暴露的完整 `XData` 值；需要逐维访问 packed 数组字段时，显式把
+`xstruct.Array("field")` 交给 `SignalArray`。packed 视图共享父存储，unpacked 字段保留各自
+独立叶子。Toffee 不计算偏移、不复制聚合存储、不增加时钟回调或 XPort 条目，也不改变写模式。
+需要 Driver 识别共同叶子时，复用同一来源视图。
+
+`ReadyValid`、Driver、Monitor、编译采样器、原生叶子条件及 coverage 均使用这些原始叶子。
+整棵结构的 drive 会在首次写入前检查字段、数组边界、X/Z 驱动值、输出方向和只读后端。
+四态采样保留未知位；驱动含 X/Z 的 `LogicValue` 仍会报错，不会静默丢弃未知位。
+
+`dut.GetInternalSignal(name, use_vpi=True)` 返回的 VPI 来源也使用同一适配器。
+驱动 VPI 输入前先完成模型初始化，避免 Verilator 首次求值覆盖提前写入的值。
+动态查询的 VPI 输入不由生成的 XPort 提交，需显式选择立即写或安排提交后再推进仿真。
+不要为 Picker 未导出布局的内部 packed struct 猜测字段偏移。
+
+[聚合 RTL 示例](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/aggregates/README.md)
+在 Verilator 5.052 上验证 DPI、mem_direct 和 VPI。Picker 的聚合端口要求 5.048+；已验证的
+VPI unpacked struct 路径要求 5.052+。这些结果不代表 UVS、VCS 或 GSIM 的聚合运行时已支持。
+
 ## PackedArray 与 PackedLayout
+
+`PackedLayout.struct` 仍是手工描述已有 packed `XData` 位向量的软件视图，独立于 Picker 的
+RTL `Layout` 元数据。它不推断 RTL 类型，也不扩展 union 等不支持的端口类型。对于已支持的
+RTL struct 和 packed 数组，优先使用上面的生成 `XStruct` / `XArray`，而非手工复制布局。
 
 等宽一维总线：
 
@@ -163,6 +208,23 @@ assert address_only.addr is dut.req_addr
 `Bundle.drive()` 要求完整且无多余字段的形状，不会把漏掉的字段隐式保持或归零。
 带 `Unpacked: [[left, right], ...]` 的端口节点绑定成 `SignalArray`，检查各维边界及每个
 元素的位宽。`Field(("matrix", 3, -1), width=65)` 可显式选择一个数组叶子。
+端口的 `Layout` 元数据还可绑定递归 struct 和数组，并检查字段、边界和位宽；packed 根节点
+使用 xcomm 的 `StructView` / `ArrayView` 工厂，不猜测模拟器布局。元数据必须是无歧义的树；
+如果同一节点既是端口叶子又是其他端口名的前缀，应显式绑定所需端口，而不是接受歧义节点。
+
+使用只交付一份 `.xscfg` 配置库的配套 Picker 时，显式读取端口元数据，不需要单独的
+`signals.json`：
+
+```python
+import json
+from toffee import Bundle
+
+pins = Bundle.bind_tree(dut, json.loads(dut.xcfg.Metadata("ports")))
+```
+
+`bind_tree` 通过生成属性解析端口。如果 Picker 为保护封装成员或方法而修改了端口属性名，
+请用 `dut["original_name"]` 或生成后的属性显式绑定该端口，不要假设原属性一定是信号。
+此适配器不会补造缺失的类型布局或原生地址。
 
 ## 位序、padding 与四态值
 

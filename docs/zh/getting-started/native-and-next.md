@@ -11,8 +11,10 @@ Toffee 通过常规依赖 `uc-xcomm` 安装 `xspcomm` 绑定。原生后端需�
 不要只按包名判断版本是否匹配。安装到当前 Python 环境后，先运行：
 
 组合事件要求 `XTriggerEngine.CombinationalVersion() == 1`。CI 使用依赖清单中的原生提交，
-并检查组合协议版本。仅安装同名旧 wheel 不会获得这一能力。数组 DUT 还需要 `XDataArray`
+并检查组合协议版本。仅安装同名旧 wheel 不会获得这一能力。数组 DUT 还需要 `XArray` 工厂
 API 和原生 ABI 4，见[定长 unpacked 数组](../guides/data.md#unpacked-arrays)。
+递归 `XStruct` / `XArray` 来源要求带这些新 API 的配套 Picker/xcomm（原生 ABI 4），可在仓库测试中
+用 `--require-xviews` 检查，不能仅依据包版本判断。
 
 ```bash
 python3 examples/getting_started/check_native.py

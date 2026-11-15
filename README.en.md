@@ -17,7 +17,7 @@ checking, and coverage.
   supported conditions compiled for native evaluation.
 - **Signals and arrays:** structure signals with Bundle, including fixed unpacked arrays with
   actual index bounds and immutable four-state snapshots; native array views require a matching
-  Picker/xcomm toolchain with `XDataArray`.
+  Picker/xcomm toolchain with matching native array support (ABI 4).
 - **Driving and checking:** organize reusable Drivers, Monitors, and Agents; check ordered or
   reordered responses with Scoreboard.
 - **Coverage and regressions:** define functional, cross, and temporal coverage, then aggregate

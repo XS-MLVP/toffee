@@ -60,8 +60,8 @@ assert snapshot.matrix[3][-1].as_int() == 42
 Indices are the view's actual coordinates; negative indices are not positions
 from the end. Iteration follows declaration order, last dimension fastest.
 `SignalArray(source)` also explicitly adapts public views exposing
-`bounds/shape/indices` and indexing, or xcomm `XDataArray` views. It neither depends
-on Picker's private Python class nor copies or rebinds leaves. Constructing an
+`bounds/shape/indices` and indexing, including xcomm `XArray`. It neither depends
+on Picker's private Python classes nor copies or rebinds leaves. Constructing an
 adapter does not read or expand all elements; whole-array sampling and driver
 ownership enumerate the selected leaves when needed.
 
@@ -92,14 +92,14 @@ remain live signals. Slices, dynamic indexing, and dynamic arrays are unsupporte
 Scoreboard checks snapshot bounds and reports differences using actual indices
 such as `matrix[3][-1]`.
 
-Port arrays retain RTL bounds. A native `XDataArray` view exposes its own
-`Left/Right` bounds; Picker's `NewXDataArrayView` for internal mem_direct arrays
-reports zero-based storage coordinates:
+Port arrays retain RTL bounds. Native arrays use the same recursive `XArray`
+interface; Picker's `NewXArray` for internal mem_direct arrays reports zero-based
+storage coordinates:
 
 ```python
 from toffee import SignalArray
 
-memory = SignalArray(dut.xcfg.NewXDataArrayView(name))
+memory = SignalArray(dut.xcfg.NewXArray(name))
 memory[0][0].AsImmWrite()
 memory[0][0].Set(42)
 ```
@@ -111,14 +111,71 @@ ports keep their existing `XPort`/`XClock` edge commits; callers choose immediat
 writes or explicit commits for dynamically queried internal leaves. A flattened
 list remains a positional sequence; RTL bounds are not guessed.
 
-Native array views use xcomm's `XDataArray` API (native ABI 4) and matching
-Picker-generated bindings. Regenerate the DUT after toolchain upgrades.
+Native array views use xcomm's `XArray` factories (native ABI 4) and matching
+Picker-generated bindings. The former separate native-array protocol is removed;
+regenerate DUTs and migrate to recursive indexing after toolchain upgrades.
 
 The DPI and mem_direct array paths have been verified on Verilator **5.026,
 5.048, and 5.052**. See the runnable
 [RTL array example](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md).
 
+## RTL structs and recursive arrays
+
+With a matching aggregate-enabled Picker/xcomm build (**native ABI 4**), pass
+`XStruct` and `XArray` directly to existing Toffee components:
+
+```python
+from toffee import Bundle
+
+payload = Bundle(
+    record=dut.record_in,
+    header=dut.packed_in_view,
+    matrix=dut.matrix_view,
+)
+snapshot = payload.sample()
+word = snapshot.record.entries[-1].payload[3].as_int()
+payload.drive(snapshot)
+```
+
+`Bundle(xstruct)` adapts a struct root; arrays become `SignalArray`, including
+arrays of structs. Snapshots recursively combine `BundleValue`, bounded
+`ArrayValue`, and four-state `LogicValue`. Field names, declaration order, index
+directions, and negative indices come from the source. Native fields colliding
+with Bundle methods remain accessible through `bundle["sample"]`, for example;
+ordinary user-authored Bundle mappings still reject reserved names.
+
+Packed scalar fields retain the source's whole `XData` value. To explicitly
+traverse a packed array field, pass `xstruct.Array("field")` to `SignalArray`.
+Packed views share their parent storage; unpacked fields keep independent
+leaves. Toffee does not compute offsets, copy aggregate storage, add clock
+callbacks or XPort entries, or change write modes. Reuse the same source view
+when driver ownership must recognize a shared leaf.
+
+`ReadyValid`, drivers, monitors, compiled sampling, native leaf conditions and
+coverage use these same leaves. Whole-tree drives validate fields, array bounds,
+X/Z drive values, output directions and read-only backends before the first write.
+Four-state sampling is supported; driving a `LogicValue` containing X/Z still
+raises rather than silently discarding unknown bits.
+
+VPI sources returned by `dut.GetInternalSignal(name, use_vpi=True)` use the same
+adapters. Initialize the model before driving VPI inputs; Verilator's first
+evaluation can overwrite values written before initialization.
+Dynamically queried VPI inputs are not committed by the generated
+XPort: explicitly select immediate writes or arrange commits before simulation.
+Do not infer internal packed-struct layouts that Picker did not export.
+
+The [aggregate RTL example](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/aggregates/README.md)
+checks DPI, mem_direct and VPI on Verilator 5.052. Picker requires 5.048+ for
+aggregate ports and 5.052+ for the verified VPI unpacked-struct path. These results
+do not establish aggregate runtime support on UVS, VCS or GSIM.
+
 ## PackedArray and PackedLayout
+
+`PackedLayout.struct` remains a manually declared Toffee-side view over an
+existing packed `XData` vector, independent of Picker's RTL `Layout` metadata.
+It does not infer RTL types or add support for unsupported ports such as unions.
+For supported RTL structs and packed arrays, prefer the generated `XStruct` /
+`XArray` views above rather than duplicating their layout by hand.
 
 An equal-width one-dimensional bus:
 
@@ -172,6 +229,26 @@ Names do not imply a protocol. Components can enumerate `fields` or `leaves()`.
 Port nodes with `Unpacked: [[left, right], ...]` bind to `SignalArray`, checking
 dimension bounds and each element's width. Use
 `Field(("matrix", 3, -1), width=65)` to select one leaf explicitly.
+Port `Layout` metadata additionally binds recursive structs and arrays and checks
+their fields, bounds and widths. Packed roots use xcomm's `StructView` or
+`ArrayView` factory, not a guessed simulator layout. Metadata must be an
+unambiguous tree: if a node is both a port leaf and a prefix of other port names,
+bind the selected ports explicitly instead of accepting that ambiguous node.
+
+For a matching Picker build that delivers one `.xscfg` configuration database,
+read the port metadata explicitly; no separate `signals.json` is required:
+
+```python
+import json
+from toffee import Bundle
+
+pins = Bundle.bind_tree(dut, json.loads(dut.xcfg.Metadata("ports")))
+```
+
+`bind_tree` resolves generated attributes. If Picker renamed a port to protect a
+wrapper member or method, bind that port explicitly using `dut["original_name"]`
+or its generated attribute rather than assuming the original attribute is a pin.
+This adapter does not reconstruct missing layouts or native addresses.
 
 ## Bit ordering, padding, and four-state values
 

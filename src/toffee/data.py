@@ -1386,19 +1386,6 @@ def _normalize_xarray(value: Any, path: str) -> DataNode:
     )
 
 
-def _safe_field_name(name: Any, path: str) -> str:
-    if not isinstance(name, str):
-        raise ValueError(f"{path} field name must be a string: {name!r}")
-    field_name = f"{name}_" if iskeyword(name) else name
-    if not field_name.isidentifier():
-        raise ValueError(
-            f"{path} field is not a Python identifier: {name!r}"
-        )
-    if field_name.startswith("_"):
-        raise ValueError(f"{path} field cannot start with '_': {name!r}")
-    return field_name
-
-
 def _normalize_xstruct(value: Any, path: str) -> DataNode:
     names = _xstruct_names(value, path)
     fields: dict[str, DataNode] = {}
@@ -1724,16 +1711,19 @@ class Bundle(Mapping[str, DataNode]):
         source_prefix: str = "",
         path: str = "bundle",
     ) -> "Bundle":
-        """Bind Picker signal-tree metadata without inferring protocols."""
-        node = _bind_tree_node(
+        """Bind Picker signal-tree metadata without inferring protocols.
+
+        A trie node may be both a leaf and a parent (for example ports named
+        ``data`` and ``data_0``). The leaf keeps its own field and child
+        nodes are promoted next to it with underscore-joined names.
+        """
+        binding = _bind_tree_node(
             root,
             tree,
             (source_prefix,) if source_prefix else (),
             path,
         )
-        if not isinstance(node, Bundle):
-            raise ValueError("Bundle.bind_tree root must describe an aggregate")
-        return node
+        return _materialize_root(binding, path)
 
     def view_as(
         self,
@@ -1839,12 +1829,46 @@ _TREE_METADATA = frozenset(
 )
 
 
+@dataclass(frozen=True, slots=True)
+class _TreeBinding:
+    leaf: DataNode | None = None
+    fields: tuple[tuple[str, "_TreeBinding"], ...] = ()
+    items: tuple["_TreeBinding", ...] | None = None
+
+    @property
+    def has_children(self) -> bool:
+        return bool(self.fields) or self.items is not None
+
+
+def _safe_field_name(name: Any, path: str) -> str:
+    if not isinstance(name, str):
+        raise ValueError(f"{path} field name must be a string: {name!r}")
+    field_name = f"{name}_" if iskeyword(name) else name
+    if not field_name.isidentifier():
+        raise ValueError(
+            f"{path} field is not a Python identifier: {name!r}"
+        )
+    if field_name.startswith("_"):
+        raise ValueError(f"{path} field cannot start with '_': {name!r}")
+    return field_name
+
+
+def _validate_child_suffix(name: Any, path: str) -> None:
+    if not isinstance(name, str) or not name:
+        raise ValueError(f"{path} field name must be a non-empty string")
+    if not f"field_{name}".isidentifier():
+        raise ValueError(
+            f"{path} signal-tree field is not a Python identifier: "
+            f"{name!r}"
+        )
+
+
 def _bind_tree_node(
     root: Any,
     node: Mapping[str, Any],
     source_parts: tuple[str, ...],
     path: str,
-) -> DataNode:
+) -> _TreeBinding:
     if not isinstance(node, Mapping):
         raise TypeError(f"{path} signal-tree node must be a mapping")
     children = tuple(
@@ -1852,20 +1876,23 @@ def _bind_tree_node(
         for name, child in node.items()
         if name not in _TREE_METADATA
     )
+    leaf: DataNode | None = None
     if node.get("_") is True:
-        if children:
-            raise ValueError(f"{path} cannot be both a leaf and aggregate")
         if not source_parts:
             raise ValueError(f"{path} leaf has no source path")
-        return _bind_tree_leaf(root, node, source_parts, path)
+        leaf = _bind_tree_leaf(root, node, source_parts, path)
     if not children:
-        raise ValueError(f"{path} aggregate has no fields")
+        if leaf is None:
+            raise ValueError(f"{path} aggregate has no fields")
+        return _TreeBinding(leaf=leaf)
 
-    if all(str(name).isdigit() for name, _ in children):
+    if leaf is None and all(
+        str(name).isdigit() for name, _ in children
+    ):
         indexed = sorted((int(name), child) for name, child in children)
         if [index for index, _ in indexed] != list(range(len(indexed))):
             raise ValueError(f"{path} sequence indices must be contiguous")
-        return tuple(
+        items = tuple(
             _bind_tree_node(
                 root,
                 child,
@@ -1874,24 +1901,134 @@ def _bind_tree_node(
             )
             for index, child in indexed
         )
+        return _TreeBinding(items=items)
 
+    fields: list[tuple[str, _TreeBinding]] = []
+    seen: set[str] = set()
+    for raw_name, child in children:
+        if leaf is None:
+            field_name = _safe_field_name(raw_name, path)
+        else:
+            _validate_child_suffix(raw_name, path)
+            field_name = str(raw_name)
+        if field_name in seen:
+            raise ValueError(f"{path} duplicate field after name mapping")
+        seen.add(field_name)
+        fields.append(
+            (
+                str(raw_name),
+                _bind_tree_node(
+                    root,
+                    child,
+                    source_parts + (str(raw_name),),
+                    f"{path}.{field_name}",
+                ),
+            )
+        )
+    return _TreeBinding(leaf=leaf, fields=tuple(fields))
+
+
+def _materialize_root(binding: _TreeBinding, path: str) -> Bundle:
+    if binding.leaf is not None or binding.items is not None:
+        raise ValueError("Bundle.bind_tree root must describe an aggregate")
+    return Bundle(_materialize_fields(binding.fields, path), path=path)
+
+
+def _materialize_node(binding: _TreeBinding, path: str) -> DataNode:
+    if binding.items is not None:
+        return tuple(
+            _materialize_node(child, f"{path}[{index}]")
+            for index, child in enumerate(binding.items)
+        )
+    if binding.leaf is not None:
+        if binding.has_children:
+            raise ValueError(
+                f"{path} cannot be materialized without a field name "
+                "because it is both a leaf and an aggregate"
+            )
+        return binding.leaf
+    return Bundle(_materialize_fields(binding.fields, path), path=path)
+
+
+def _materialize_fields(
+    children: tuple[tuple[str, _TreeBinding], ...],
+    path: str,
+) -> dict[str, DataNode]:
     fields: dict[str, DataNode] = {}
     for raw_name, child in children:
-        field_name = f"{raw_name}_" if iskeyword(raw_name) else raw_name
-        if not field_name.isidentifier():
-            raise ValueError(
-                f"{path} signal-tree field is not a Python identifier: "
-                f"{raw_name!r}"
+        field_name = _safe_field_name(raw_name, path)
+        _insert_binding(fields, field_name, child, path)
+    return fields
+
+
+def _items_need_names(binding: _TreeBinding) -> bool:
+    if binding.items is None:
+        return False
+    for child in binding.items:
+        if child.leaf is not None and child.has_children:
+            return True
+        if _items_need_names(child):
+            return True
+    return False
+
+
+def _insert_binding(
+    fields: dict[str, DataNode],
+    field_name: str,
+    binding: _TreeBinding,
+    path: str,
+) -> None:
+    if binding.leaf is None and _items_need_names(binding):
+        # A sequence slot cannot hold both a leaf and children. Flatten the
+        # clashing numeric subtree into named fields instead.
+        for index, child in enumerate(binding.items or ()):
+            child_name = f"{field_name}_{index}"
+            _insert_binding(
+                fields,
+                child_name,
+                child,
+                f"{path}.{child_name}",
             )
-        if field_name in fields:
-            raise ValueError(f"{path} duplicate field after name mapping")
-        fields[field_name] = _bind_tree_node(
-            root,
-            child,
-            source_parts + (raw_name,),
-            f"{path}.{field_name}",
+        return
+    if binding.leaf is not None and binding.has_children:
+        _add_field(fields, field_name, binding.leaf, path)
+        for index, child in enumerate(binding.items or ()):
+            child_name = f"{field_name}_{index}"
+            _insert_binding(
+                fields,
+                child_name,
+                child,
+                f"{path}.{child_name}",
+            )
+        for raw_name, child in binding.fields:
+            _validate_child_suffix(raw_name, path)
+            child_name = f"{field_name}_{raw_name}"
+            _insert_binding(
+                fields,
+                child_name,
+                child,
+                f"{path}.{child_name}",
+            )
+        return
+    _add_field(
+        fields,
+        field_name,
+        _materialize_node(binding, f"{path}.{field_name}"),
+        path,
+    )
+
+
+def _add_field(
+    fields: dict[str, DataNode],
+    name: str,
+    value: DataNode,
+    path: str,
+) -> None:
+    if name in fields:
+        raise ValueError(
+            f"{path} duplicate field after flattening signal tree: {name!r}"
         )
-    return Bundle(fields, path=path)
+    fields[name] = value
 
 
 def _bind_tree_leaf(

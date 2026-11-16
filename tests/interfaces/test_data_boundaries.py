@@ -87,7 +87,7 @@ def test_nested_snapshots_round_trip_without_aliasing_live_signals():
 
 @pytest.mark.parametrize("tree,prefix,message", [
     ([], "io", "mapping"),
-    ({"_": True, "child": {}}, "io", "both"),
+    ({"_": True, "child": {}}, "io", "no fields"),
     ({"_": True}, "", "source path"),
     ({}, "io", "no fields"),
     ({"0": {"_": True}, "2": {"_": True}}, "io", "contiguous"),

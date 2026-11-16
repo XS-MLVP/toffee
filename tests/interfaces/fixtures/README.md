@@ -1,8 +1,8 @@
 # Picker metadata fixtures
 
 These files are frozen output from Picker on branch `feat/aggregate-views`
-(version `2.0.0-feat/aggregate-views-2b40f53-2026-11-16`, tool commit
-`v2.6.0-18-g2b40f53`, native ABI 5) so the interface tests can run without a
+(version `2.0.0-feat/aggregate-views-1dda288-2026-11-16`, tool commit
+`v2.6.0-19-g1dda288`, native ABI 5) so the interface tests can run without a
 local Picker checkout. Regenerating them with that binary reproduces these bytes
 exactly. `tests/interfaces/test_picker_metadata.py` also regenerates and
 re-exports the first fixture when `PICKER_BIN` (or the default

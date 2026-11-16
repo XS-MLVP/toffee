@@ -1,6 +1,6 @@
 {
   "generator": {
-    "native_abi": 6,
+    "native_abi": 5,
     "rw_type": "DPI",
     "simulator": "verilator"
   },

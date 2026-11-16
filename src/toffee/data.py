@@ -1008,6 +1008,91 @@ def split_packed(
     )
 
 
+class SignalArray(Sequence[DataNode]):
+    """Live view over an unpacked array, indexed by RTL indices.
+
+    Items are stored, iterated and sampled in RTL declaration order
+    (``left`` to ``right``). Integer keys are interpreted as RTL indices, so
+    ``view[-1]`` on a declaration ``[-1:0]`` selects the element named
+    ``[-1]``, not the last Python item. A mapping passed to :meth:`drive`
+    uses the same RTL indices; a sequence is consumed in declaration order.
+    Python slices remain positional slices of the declaration-order items.
+    """
+
+    __slots__ = ("_bounds", "_indices", "_items", "_path")
+
+    def __init__(self, container: Any, *, path: str = "array") -> None:
+        bounds = _array_bounds(container, path)
+        indices = _array_indices(bounds[0])
+        items = []
+        for index in indices:
+            item_path = f"{path}[{index}]"
+            item = _array_element(container, index, item_path, bounds[0])
+            items.append(_normalize_node(item, item_path))
+        self._bounds = bounds
+        self._indices = indices
+        self._items = tuple(items)
+        self._path = path
+
+    @property
+    def bounds(self) -> tuple[tuple[int, int], ...]:
+        return self._bounds
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        return tuple(
+            abs(left - right) + 1 for left, right in self._bounds
+        )
+
+    @property
+    def indices(self) -> tuple[int, ...]:
+        return self._indices
+
+    def __getitem__(self, key: int | slice) -> Any:
+        if isinstance(key, slice):
+            return self._items[key]
+        position = _rtl_position(self._bounds[0], key, self._path)
+        return self._items[position]
+
+    def __iter__(self) -> Iterator[DataNode]:
+        return iter(self._items)
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def sample(self) -> ValueNode:
+        return tuple(_sample_node(item) for item in self._items)
+
+    def drive(self, value: Any) -> None:
+        if isinstance(value, Mapping):
+            expected = set(self._indices)
+            missing = tuple(index for index in self._indices if index not in value)
+            extra = tuple(index for index in value if index not in expected)
+            if missing or extra:
+                raise ValueError(
+                    f"{self._path} shape mismatch: missing={missing}, "
+                    f"extra={extra}"
+                )
+            ordered = tuple(value[index] for index in self._indices)
+        elif _is_sequence(value):
+            if len(value) != len(self._items):
+                raise ValueError(
+                    f"{self._path} requires {len(self._items)} values"
+                )
+            ordered = tuple(value)
+        else:
+            raise TypeError(
+                f"{self._path} drive value must be a mapping or sequence"
+            )
+        for index, item, item_value in zip(
+            self._indices, self._items, ordered
+        ):
+            _drive_node(item, item_value, f"{self._path}[{index}]")
+
+    def leaves(self) -> Iterator[tuple[str, Any]]:
+        yield from _iter_leaves(self, self._path)
+
+
 class PortView:
     """Bind one Picker port together with its parsed layout metadata.
 
@@ -1141,11 +1226,79 @@ def _is_sequence(value: Any) -> bool:
     )
 
 
+def _is_xview(value: Any) -> bool:
+    kind = getattr(value, "Kind", None)
+    if not callable(kind):
+        return False
+    return any(
+        callable(getattr(value, name, None))
+        for name in ("Array", "Data", "Struct")
+    )
+
+
+def _is_picker_array(value: Any) -> bool:
+    if isinstance(
+        value,
+        (
+            Bundle,
+            Mapping,
+            PackedArray,
+            PackedView,
+            PortView,
+            SignalArray,
+            bytes,
+            bytearray,
+            str,
+        ),
+    ):
+        return False
+    if getattr(value, "bounds", None) is not None and (
+        callable(getattr(value, "__getitem__", None))
+        or callable(getattr(value, "At", None))
+    ):
+        return True
+    return getattr(value, "shape", None) is not None and callable(
+        getattr(value, "At", None)
+    )
+
+
+def _is_picker_struct(value: Any) -> bool:
+    if isinstance(
+        value,
+        (
+            Bundle,
+            Mapping,
+            PackedArray,
+            PackedView,
+            PortView,
+            SignalArray,
+            bytes,
+            bytearray,
+            str,
+        ),
+    ):
+        return False
+    if callable(getattr(value, "Names", None)):
+        return True
+    if getattr(value, "fields", None) is None:
+        return False
+    return any(
+        callable(getattr(value, name, None))
+        for name in ("Array", "Data", "Struct")
+    )
+
+
 def _normalize_node(value: Any, path: str) -> DataNode:
-    if isinstance(value, (PackedArray, PackedView, PortView)):
+    if isinstance(value, (PackedArray, PackedView, PortView, SignalArray)):
         return value
     if isinstance(value, Bundle):
         return value
+    if _is_xview(value):
+        return _normalize_xview(value, path)
+    if _is_picker_array(value):
+        return _normalize_xarray(value, path)
+    if _is_picker_struct(value):
+        return _normalize_xstruct(value, path)
     if isinstance(value, Mapping):
         return Bundle(value, path=path)
     if _is_sequence(value):
@@ -1155,14 +1308,278 @@ def _normalize_node(value: Any, path: str) -> DataNode:
             _normalize_node(item, f"{path}[{index}]")
             for index, item in enumerate(value)
         )
+    packed_data = getattr(value, "PackedData", None)
+    if callable(packed_data):
+        data = packed_data()
+        if data is not value:
+            return _normalize_node(data, path)
     if not any(
         hasattr(value, name)
         for name in ("U", "W", "Set", "value", "xdata")
     ):
         raise TypeError(
-            f"{path} must be a signal, Bundle, or sequence"
+            f"{path} must be a signal, Bundle, sequence, or Picker "
+            f"XArray/XStruct/XView; got {type(value).__name__}"
         )
     return as_xdata(value)
+
+
+def _normalize_xview(value: Any, path: str) -> DataNode:
+    kind = str(value.Kind())
+    if kind == "bits":
+        data = value.Data()
+        if data is None or data is value:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: XView bits node "
+                "does not expose an underlying signal"
+            )
+        return _normalize_node(data, path)
+    if kind == "array":
+        child = value.Array()
+        if child is None:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: XView array node "
+                "does not expose an XArray"
+            )
+        if child is value:
+            return _normalize_xarray(value, path)
+        return _normalize_xarray(child, path)
+    if kind == "struct":
+        child = value.Struct()
+        if child is None:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: XView struct "
+                "node does not expose an XStruct"
+            )
+        if child is value:
+            return _normalize_xstruct(value, path)
+        return _normalize_xstruct(child, path)
+    raise ValueError(
+        f"{path} unsupported aggregate metadata: XView kind {kind!r}"
+    )
+
+
+def _normalize_xarray(value: Any, path: str) -> DataNode:
+    if _is_picker_array(value):
+        is_packed = getattr(value, "IsPacked", None)
+        if callable(is_packed) and is_packed():
+            packed_data = getattr(value, "PackedData", None)
+            if callable(packed_data):
+                try:
+                    data = packed_data()
+                except (RuntimeError, TypeError, ValueError):
+                    data = None
+                if data is not None and data is not value:
+                    # A packed array is one packed value, not N independent
+                    # one-bit leaves. Collapse it so callers see a real
+                    # 5-/65-/N-bit signal instead of bit soup.
+                    return _normalize_node(data, path)
+        return SignalArray(value, path=path)
+    packed_data = getattr(value, "PackedData", None)
+    if callable(packed_data):
+        data = packed_data()
+        if data is not value:
+            return _normalize_node(data, path)
+    raise ValueError(
+        f"{path} unsupported aggregate metadata: XArray has no indexed "
+        "elements or packed data"
+    )
+
+
+def _safe_field_name(name: Any, path: str) -> str:
+    if not isinstance(name, str):
+        raise ValueError(f"{path} field name must be a string: {name!r}")
+    field_name = f"{name}_" if iskeyword(name) else name
+    if not field_name.isidentifier():
+        raise ValueError(
+            f"{path} field is not a Python identifier: {name!r}"
+        )
+    if field_name.startswith("_"):
+        raise ValueError(f"{path} field cannot start with '_': {name!r}")
+    return field_name
+
+
+def _normalize_xstruct(value: Any, path: str) -> DataNode:
+    names = _xstruct_names(value, path)
+    fields: dict[str, DataNode] = {}
+    for raw_name in names:
+        field_name = _safe_field_name(raw_name, path)
+        if field_name in fields:
+            raise ValueError(
+                f"{path} duplicate struct field after name mapping: "
+                f"{raw_name!r}"
+            )
+        fields[field_name] = _normalize_node(
+            _xstruct_member(value, raw_name, path),
+            f"{path}.{field_name}",
+        )
+    return Bundle(fields, path=path)
+
+
+def _xstruct_names(value: Any, path: str) -> tuple[str, ...]:
+    names_getter = getattr(value, "Names", None)
+    raw_names: Any
+    if callable(names_getter):
+        raw_names = names_getter()
+    else:
+        raw_fields = getattr(value, "fields", None)
+        if callable(raw_fields):
+            raw_fields = raw_fields()
+        if isinstance(raw_fields, Mapping):
+            raw_names = tuple(raw_fields)
+        elif _is_sequence(raw_fields):
+            raw_names = tuple(
+                getattr(field, "name", field) for field in raw_fields
+            )
+        else:
+            raw_names = ()
+    names = tuple(str(name) for name in raw_names)
+    if not names:
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: XStruct has no fields"
+        )
+    return names
+
+
+def _xstruct_member(value: Any, name: str, path: str) -> Any:
+    raw_fields = getattr(value, "fields", None)
+    if callable(raw_fields):
+        raw_fields = raw_fields()
+    if isinstance(raw_fields, Mapping):
+        return raw_fields[name]
+    field_getter = getattr(value, "Field", None)
+    if callable(field_getter):
+        field = field_getter(name)
+        kind_getter = getattr(field, "Kind", None)
+        if callable(kind_getter):
+            kind = str(kind_getter())
+            accessor = {
+                "bits": "Data",
+                "struct": "Struct",
+                "array": "Array",
+            }.get(kind)
+            if accessor is not None:
+                getter = getattr(field, accessor, None)
+                if callable(getter):
+                    return getter()
+    # Probe struct before array before bits. ``Data`` would also succeed for
+    # a packed struct or packed vector and lose its nested structure.
+    for accessor in ("Struct", "Array", "Data"):
+        getter = getattr(value, accessor, None)
+        if not callable(getter):
+            continue
+        try:
+            item = getter(name)
+        except (AttributeError, RuntimeError, TypeError, ValueError):
+            continue
+        if item is not None:
+            return item
+    raise ValueError(
+        f"{path} unsupported aggregate metadata: cannot select XStruct "
+        f"field {name!r}"
+    )
+
+
+def _array_bounds(container: Any, path: str) -> tuple[tuple[int, int], ...]:
+    raw_bounds = getattr(container, "bounds", None)
+    if callable(raw_bounds):
+        raw_bounds = raw_bounds()
+    if raw_bounds is None:
+        left_getter = getattr(container, "LeftBounds", None)
+        right_getter = getattr(container, "RightBounds", None)
+        if callable(left_getter) and callable(right_getter):
+            raw_bounds = tuple(
+                zip(left_getter(), right_getter())
+            )
+    if raw_bounds is None:
+        raw_shape = getattr(container, "shape", None)
+        if callable(raw_shape):
+            raw_shape = raw_shape()
+        if raw_shape is not None:
+            if isinstance(raw_shape, int):
+                raw_shape = (raw_shape,)
+            raw_bounds = tuple(
+                (0, int(count) - 1) for count in raw_shape
+            )
+    if (
+        _is_sequence(raw_bounds)
+        and len(raw_bounds) == 2
+        and all(
+            isinstance(bound, int) and not isinstance(bound, bool)
+            for bound in raw_bounds
+        )
+    ):
+        raw_bounds = (tuple(raw_bounds),)
+    if not raw_bounds:
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: XArray has no bounds"
+        )
+    bounds: list[tuple[int, int]] = []
+    for entry in raw_bounds:
+        if not _is_sequence(entry) or len(entry) != 2:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: invalid XArray "
+                f"bounds {entry!r}"
+            )
+        bounds.append((int(entry[0]), int(entry[1])))
+    return tuple(bounds)
+
+
+def _array_indices(bounds: tuple[int, int]) -> tuple[int, ...]:
+    left, right = bounds
+    step = 1 if left <= right else -1
+    return tuple(range(left, right + step, step))
+
+
+def _rtl_position(bounds: tuple[int, int], index: Any, path: str) -> int:
+    """Translate one RTL array index into a 0-based declaration-order slot."""
+    if not isinstance(index, int) or isinstance(index, bool):
+        raise TypeError(f"{path} index must be an integer")
+    left, right = bounds
+    step = 1 if left <= right else -1
+    position = (index - left) * step
+    if not 0 <= position <= abs(left - right):
+        raise IndexError(
+            f"{path} RTL array index {index} outside [{left}:{right}]"
+        )
+    return position
+
+
+def _array_element(
+    container: Any,
+    index: int,
+    path: str,
+    bounds: tuple[int, int] | None = None,
+) -> Any:
+    """Select one RTL-indexed element from an XArray or array-like object.
+
+    Native containers expose ``At(rtl_index)`` and are authoritative. Plain
+    Python sequences use positional ``container[position]``; when bounds are
+    known the RTL index is translated first so descending declarations do
+    not silently select the mirror element.
+    """
+    at_getter = getattr(container, "At", None)
+    if callable(at_getter):
+        item = at_getter(index)
+        if item is not None:
+            return item
+    position = (
+        _rtl_position(bounds, index, path) if bounds is not None else index
+    )
+    try:
+        return container[position]
+    except (IndexError, KeyError, TypeError):
+        pass
+    data_getter = getattr(container, "Data", None)
+    if callable(data_getter):
+        item = data_getter(index)
+        if item is not None:
+            return item
+    raise ValueError(
+        f"{path} unsupported aggregate metadata: cannot select XArray "
+        f"element {index}"
+    )
+
 
 
 def _data_kind(value: DataNode) -> str:
@@ -1170,7 +1587,7 @@ def _data_kind(value: DataNode) -> str:
         return "struct"
     if isinstance(value, PackedView):
         return value.kind
-    if isinstance(value, (PackedArray, tuple)):
+    if isinstance(value, (PackedArray, SignalArray, tuple)):
         return "array"
     return "bits"
 
@@ -1178,13 +1595,16 @@ def _data_kind(value: DataNode) -> str:
 def _sample_node(value: DataNode) -> ValueNode:
     if isinstance(value, (Bundle, PackedView, PortView)):
         return value.sample()
-    if isinstance(value, (tuple, PackedArray)):
+    if isinstance(value, (tuple, PackedArray, SignalArray)):
         return tuple(_sample_node(item) for item in value)
     return sample_signal(value)
 
 
 def _drive_node(target: DataNode, value: Any, path: str) -> None:
     if isinstance(target, (Bundle, PackedView, PortView)):
+        target.drive(value)
+        return
+    if isinstance(target, SignalArray):
         target.drive(value)
         return
     if isinstance(target, (tuple, PackedArray)):
@@ -1370,6 +1790,9 @@ def _iter_leaves(node: DataNode, path: str) -> Iterator[tuple[str, Any]]:
         else:
             for index, value in zip(node.indices, node):
                 yield from _iter_leaves(value, f"{path}[{index}]")
+    elif isinstance(node, SignalArray):
+        for index, value in zip(node.indices, node):
+            yield from _iter_leaves(value, f"{path}[{index}]")
     elif isinstance(node, (tuple, PackedArray)):
         for index, value in enumerate(node):
             yield from _iter_leaves(value, f"{path}[{index}]")
@@ -1808,7 +2231,7 @@ def compile_sampler(node: DataNode):
     if isinstance(node, Bundle):
         fields = tuple((name, compile_sampler(value)) for name, value in node.items())
         return lambda: BundleValue(tuple((name, sample()) for name, sample in fields))
-    if isinstance(node, (PackedView, PackedArray, PortView)):
+    if isinstance(node, (PackedView, PackedArray, PortView, SignalArray)):
         return lambda: _sample_node(node)
     if isinstance(node, tuple):
         samplers = tuple(compile_sampler(value) for value in node)

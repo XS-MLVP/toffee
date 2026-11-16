@@ -1,8 +1,7 @@
-"""Bind real Picker port metadata and project packed layouts.
+"""Bind real Picker port metadata and normalize Picker aggregate containers.
 
-This first stage covers Layout/Unpacked parsing and packed projection.  The
-fixtures are verbatim ``picker config --section metadata`` output; see
-``fixtures/README.md`` for the Picker version and commands.
+This stage adds SignalArray, XArray/XStruct/XView normalization and RTL index
+semantics on top of the Layout parsing and packed projection tests.
 """
 
 from __future__ import annotations
@@ -19,6 +18,7 @@ from toffee import (
     PackedView,
     PortLayout,
     PortView,
+    SignalArray,
 )
 
 FIXTURES = Path(__file__).with_name("fixtures")
@@ -97,6 +97,136 @@ class Slice(Signal):
 class Bus(Signal):
     def SubDataRef(self, low, width, name=""):
         return Slice(self, low, width, name)
+
+
+class RtlArray:
+    """XArray-shaped double: ``At`` takes RTL indices."""
+
+    def __init__(self, bounds, elements):
+        self._bounds = (tuple(bounds),)
+        self._elements = dict(elements)
+
+    @property
+    def bounds(self):
+        return self._bounds
+
+    def LeftBounds(self):
+        return (self._bounds[0][0],)
+
+    def RightBounds(self):
+        return (self._bounds[0][1],)
+
+    def __getitem__(self, index):
+        return self._elements[index]
+
+    def At(self, index):
+        return self._elements[index]
+
+    def IsPacked(self):
+        return False
+
+    def PackedData(self):
+        raise RuntimeError("unpacked array")
+
+
+class PositionalArray:
+    """Array-shaped double whose ``__getitem__`` is 0-based positional."""
+
+    def __init__(self, bounds, elements):
+        self.bounds = (tuple(bounds),)
+        self._elements = list(elements)
+        self.indices = tuple(
+            range(
+                bounds[0],
+                bounds[1] + (1 if bounds[0] <= bounds[1] else -1),
+                1 if bounds[0] <= bounds[1] else -1,
+            )
+        )
+
+    def __getitem__(self, position):
+        return self._elements[position]
+
+    def __len__(self):
+        return len(self._elements)
+
+    def IsPacked(self):
+        return False
+
+    def PackedData(self):
+        raise RuntimeError("unpacked array")
+
+
+class XArray:
+    """Small stand-in for Picker's XArray container."""
+
+    def __init__(self, bounds, elements, *, packed=False):
+        self.bounds = (tuple(bounds),)
+        self._elements = dict(elements)
+        self._packed = packed
+
+    def IsPacked(self):
+        return self._packed
+
+    def At(self, index):
+        return self._elements[index]
+
+    def Data(self, index):
+        return self._elements[index]
+
+    def PackedData(self):
+        if not self._packed:
+            raise RuntimeError("unpacked array")
+        return self._elements["packed"]
+
+
+class XStruct:
+    def __init__(self, fields):
+        self._fields = dict(fields)
+
+    def Names(self):
+        return tuple(self._fields)
+
+    def Data(self, name):
+        item = self._fields[name]
+        if not isinstance(item, Signal):
+            raise TypeError(name)
+        return item
+
+    def Struct(self, name):
+        item = self._fields[name]
+        if not isinstance(item, XStruct):
+            raise TypeError(name)
+        return item
+
+    def Array(self, name):
+        item = self._fields[name]
+        if not isinstance(item, XArray):
+            raise TypeError(name)
+        return item
+
+
+class XView:
+    def __init__(self, kind, node):
+        self.kind = kind
+        self.node = node
+
+    def Kind(self):
+        return self.kind
+
+    def Data(self):
+        if self.kind != "bits":
+            raise TypeError(self.kind)
+        return self.node
+
+    def Array(self):
+        if self.kind != "array":
+            raise TypeError(self.kind)
+        return self.node
+
+    def Struct(self):
+        if self.kind != "struct":
+            raise TypeError(self.kind)
+        return self.node
 
 
 class Dut:
@@ -396,6 +526,58 @@ def test_packed_view_lsb_first_with_rtl_bounds_maps_right_index_to_lsb():
     ]
 
 
+@pytest.mark.parametrize("bounds", [(3, 2), (-1, 0)])
+def test_signal_array_uses_rtl_indices_for_rtl_backed_arrays(bounds):
+    left, right = bounds
+    signals = {
+        left: Signal(width=8),
+        right: Signal(width=8),
+    }
+    view = SignalArray(RtlArray(bounds, signals), path="lane")
+
+    assert view.bounds == (bounds,)
+    assert view.indices == bounds
+    assert list(view) == [signals[left], signals[right]]
+    assert view[left] is signals[left]
+    assert view[right] is signals[right]
+    assert [path for path, _ in view.leaves()] == [
+        f"lane[{left}]",
+        f"lane[{right}]",
+    ]
+
+    view[left].Set(0x11)
+    view[right].Set(0x22)
+    assert tuple(value.as_int() for value in view.sample()) == (0x11, 0x22)
+    view.drive({left: 0x33, right: 0x44})
+    assert (signals[left].value, signals[right].value) == (0x33, 0x44)
+    view.drive([0x55, 0x66])
+    assert (signals[left].value, signals[right].value) == (0x55, 0x66)
+    with pytest.raises(IndexError):
+        _ = view[right + 1 if right >= left else left + 1]
+
+
+@pytest.mark.parametrize("bounds", [(3, 2), (-1, 0)])
+def test_signal_array_translates_rtl_indices_for_positional_arrays(bounds):
+    left, right = bounds
+    signals = [Signal(width=8), Signal(width=8)]
+    # Positional storage is in declaration order: left element first.
+    view = SignalArray(PositionalArray(bounds, signals), path="lane")
+
+    assert view.indices == bounds
+    assert list(view) == signals
+    assert view[left] is signals[0]
+    assert view[right] is signals[1]
+    assert [path for path, _ in view.leaves()] == [
+        f"lane[{left}]",
+        f"lane[{right}]",
+    ]
+
+    view.drive({left: 0x77, right: 0x88})
+    assert (signals[0].value, signals[1].value) == (0x77, 0x88)
+    view.drive([0x99, 0xAA])
+    assert (signals[0].value, signals[1].value) == (0x99, 0xAA)
+
+
 def test_layout_rejects_unknown_kind_and_malformed_documents():
     with pytest.raises(ValueError, match="unsupported aggregate metadata"):
         PortLayout.from_json({"kind": "union", "packed": True, "width": 8})
@@ -454,4 +636,43 @@ def test_packed_layout_array_bounds_must_match_count():
         )
     with pytest.raises(ValueError, match="both left and right"):
         PackedLayout.array(2, PackedLayout.bits(8), left=1)
+
+
+def test_bundle_accepts_picker_xarray_xstruct_and_xview_containers():
+    first = Signal(1, width=8)
+    second = Signal(2, width=8)
+    struct = XStruct({"first": first, "second": second})
+    array = XArray((0, 1), {0: first, 1: second})
+    packed_data = Signal(0xA5, width=8)
+    packed_array = XArray((1, 0), {"packed": packed_data}, packed=True)
+
+    bundle = Bundle(
+        array=array,
+        struct=struct,
+        bits=XView("bits", first),
+        array_view=XView("array", array),
+        struct_view=XView("struct", struct),
+        packed_view=XView("array", packed_array),
+    )
+
+    assert isinstance(bundle.array, SignalArray)
+    assert isinstance(bundle.struct, Bundle)
+    assert bundle.bits is first
+    assert isinstance(bundle.array_view, SignalArray)
+    assert isinstance(bundle.struct_view, Bundle)
+    assert bundle.packed_view is packed_data
+    assert bundle.struct.first is first
+    assert bundle.array[1] is second
+    assert bundle.sample().as_dict() == {
+        "array": (1, 2),
+        "struct": {"first": 1, "second": 2},
+        "bits": 1,
+        "array_view": (1, 2),
+        "struct_view": {"first": 1, "second": 2},
+        "packed_view": 0xA5,
+    }
+
+    bundle.array.drive([5, 6])
+    bundle.struct.drive({"first": 7, "second": 8})
+    assert (first.value, second.value) == (7, 8)
 

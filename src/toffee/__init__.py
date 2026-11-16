@@ -58,6 +58,7 @@ from .data import (
     PortField,
     PortLayout,
     PortView,
+    SignalArray,
     split_packed,
 )
 from .async_drivers import AsyncDriver, AsyncSingleCycleDriver, DriverIncompleteError
@@ -193,6 +194,7 @@ __all__ = [
     "PortField",
     "PortLayout",
     "PortView",
+    "SignalArray",
     "parse_lcov",
     "PhaseEvent",
     "PhaseTrigger",

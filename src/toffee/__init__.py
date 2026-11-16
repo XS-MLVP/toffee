@@ -55,6 +55,9 @@ from .data import (
     PackedArray,
     PackedLayout,
     PackedView,
+    PortField,
+    PortLayout,
+    PortView,
     split_packed,
 )
 from .async_drivers import AsyncDriver, AsyncSingleCycleDriver, DriverIncompleteError
@@ -187,6 +190,9 @@ __all__ = [
     "PackedArray",
     "PackedLayout",
     "PackedView",
+    "PortField",
+    "PortLayout",
+    "PortView",
     "parse_lcov",
     "PhaseEvent",
     "PhaseTrigger",

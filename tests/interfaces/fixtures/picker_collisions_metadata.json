@@ -1,0 +1,57 @@
+{
+  "generator": {
+    "native_abi": 6,
+    "rw_type": "DPI",
+    "simulator": "verilator"
+  },
+  "ports": {
+    "data": {
+      "0": {
+        "High": 3,
+        "Low": 0,
+        "Pin": "input",
+        "_": true,
+        "out": {
+          "High": 3,
+          "Low": 0,
+          "Pin": "output",
+          "_": true
+        }
+      },
+      "High": -1,
+      "Low": 0,
+      "Pin": "input",
+      "_": true,
+      "out": {
+        "High": -1,
+        "Low": 0,
+        "Pin": "output",
+        "_": true
+      }
+    },
+    "req": {
+      "High": -1,
+      "Low": 0,
+      "Pin": "input",
+      "_": true,
+      "out": {
+        "High": -1,
+        "Low": 0,
+        "Pin": "output",
+        "_": true
+      },
+      "valid": {
+        "High": -1,
+        "Low": 0,
+        "Pin": "input",
+        "_": true,
+        "out": {
+          "High": -1,
+          "Low": 0,
+          "Pin": "output",
+          "_": true
+        }
+      }
+    }
+  }
+}

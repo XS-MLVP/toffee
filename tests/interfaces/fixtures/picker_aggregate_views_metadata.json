@@ -1,0 +1,531 @@
+{
+  "generator": {
+    "native_abi": 6,
+    "rw_type": "DPI",
+    "simulator": "verilator"
+  },
+  "ports": {
+    "matrix": {
+      "High": 7,
+      "Layout": {
+        "element": {
+          "element": {
+            "four_state": true,
+            "kind": "bits",
+            "packed": true,
+            "signed": true,
+            "width": 0
+          },
+          "four_state": true,
+          "kind": "array",
+          "left": -2,
+          "packed": true,
+          "right": 1,
+          "signed": true,
+          "width": 4
+        },
+        "four_state": true,
+        "kind": "array",
+        "left": 1,
+        "packed": true,
+        "right": 0,
+        "signed": true,
+        "width": 8
+      },
+      "Low": 0,
+      "Pin": "input",
+      "_": true,
+      "out": {
+        "High": 7,
+        "Layout": {
+          "element": {
+            "element": {
+              "four_state": true,
+              "kind": "bits",
+              "packed": true,
+              "signed": true,
+              "width": 0
+            },
+            "four_state": true,
+            "kind": "array",
+            "left": -2,
+            "packed": true,
+            "right": 1,
+            "signed": true,
+            "width": 4
+          },
+          "four_state": true,
+          "kind": "array",
+          "left": 1,
+          "packed": true,
+          "right": 0,
+          "signed": true,
+          "width": 8
+        },
+        "Low": 0,
+        "Pin": "output",
+        "_": true
+      }
+    },
+    "packed": {
+      "in": {
+        "High": 5,
+        "Layout": {
+          "fields": [
+            {
+              "name": "tag",
+              "offset": 1,
+              "type": {
+                "element": {
+                  "four_state": true,
+                  "kind": "bits",
+                  "packed": true,
+                  "signed": true,
+                  "width": 0
+                },
+                "four_state": true,
+                "kind": "array",
+                "left": 0,
+                "packed": true,
+                "right": 4,
+                "signed": true,
+                "width": 5
+              }
+            },
+            {
+              "name": "valid",
+              "offset": 0,
+              "type": {
+                "four_state": false,
+                "kind": "bits",
+                "packed": true,
+                "signed": false,
+                "width": 0
+              }
+            }
+          ],
+          "four_state": true,
+          "kind": "struct",
+          "packed": true,
+          "signed": false,
+          "width": 6
+        },
+        "Low": 0,
+        "Pin": "input",
+        "_": true
+      },
+      "out": {
+        "High": 5,
+        "Layout": {
+          "fields": [
+            {
+              "name": "tag",
+              "offset": 1,
+              "type": {
+                "element": {
+                  "four_state": true,
+                  "kind": "bits",
+                  "packed": true,
+                  "signed": true,
+                  "width": 0
+                },
+                "four_state": true,
+                "kind": "array",
+                "left": 0,
+                "packed": true,
+                "right": 4,
+                "signed": true,
+                "width": 5
+              }
+            },
+            {
+              "name": "valid",
+              "offset": 0,
+              "type": {
+                "four_state": false,
+                "kind": "bits",
+                "packed": true,
+                "signed": false,
+                "width": 0
+              }
+            }
+          ],
+          "four_state": true,
+          "kind": "struct",
+          "packed": true,
+          "signed": false,
+          "width": 6
+        },
+        "Low": 0,
+        "Pin": "output",
+        "_": true
+      },
+      "records": {
+        "High": -1,
+        "Layout": {
+          "element": {
+            "fields": [
+              {
+                "name": "tag",
+                "offset": 1,
+                "type": {
+                  "element": {
+                    "four_state": true,
+                    "kind": "bits",
+                    "packed": true,
+                    "signed": true,
+                    "width": 0
+                  },
+                  "four_state": true,
+                  "kind": "array",
+                  "left": 0,
+                  "packed": true,
+                  "right": 4,
+                  "signed": true,
+                  "width": 5
+                }
+              },
+              {
+                "name": "valid",
+                "offset": 0,
+                "type": {
+                  "four_state": false,
+                  "kind": "bits",
+                  "packed": true,
+                  "signed": false,
+                  "width": 0
+                }
+              }
+            ],
+            "four_state": true,
+            "kind": "struct",
+            "packed": true,
+            "signed": false,
+            "width": 6
+          },
+          "four_state": true,
+          "kind": "array",
+          "left": 2,
+          "packed": false,
+          "right": 1,
+          "signed": false,
+          "width": 0
+        },
+        "Low": 0,
+        "Pin": "input",
+        "_": true,
+        "out": {
+          "High": -1,
+          "Layout": {
+            "element": {
+              "fields": [
+                {
+                  "name": "tag",
+                  "offset": 1,
+                  "type": {
+                    "element": {
+                      "four_state": true,
+                      "kind": "bits",
+                      "packed": true,
+                      "signed": true,
+                      "width": 0
+                    },
+                    "four_state": true,
+                    "kind": "array",
+                    "left": 0,
+                    "packed": true,
+                    "right": 4,
+                    "signed": true,
+                    "width": 5
+                  }
+                },
+                {
+                  "name": "valid",
+                  "offset": 0,
+                  "type": {
+                    "four_state": false,
+                    "kind": "bits",
+                    "packed": true,
+                    "signed": false,
+                    "width": 0
+                  }
+                }
+              ],
+              "four_state": true,
+              "kind": "struct",
+              "packed": true,
+              "signed": false,
+              "width": 6
+            },
+            "four_state": true,
+            "kind": "array",
+            "left": 2,
+            "packed": false,
+            "right": 1,
+            "signed": false,
+            "width": 0
+          },
+          "Low": 0,
+          "Pin": "output",
+          "_": true
+        }
+      }
+    },
+    "record": {
+      "in": {
+        "High": -1,
+        "Layout": {
+          "fields": [
+            {
+              "name": "enabled",
+              "type": {
+                "four_state": true,
+                "kind": "bits",
+                "packed": true,
+                "signed": false,
+                "width": 0
+              }
+            },
+            {
+              "name": "entries",
+              "type": {
+                "element": {
+                  "fields": [
+                    {
+                      "name": "header",
+                      "type": {
+                        "fields": [
+                          {
+                            "name": "tag",
+                            "offset": 1,
+                            "type": {
+                              "element": {
+                                "four_state": true,
+                                "kind": "bits",
+                                "packed": true,
+                                "signed": true,
+                                "width": 0
+                              },
+                              "four_state": true,
+                              "kind": "array",
+                              "left": 0,
+                              "packed": true,
+                              "right": 4,
+                              "signed": true,
+                              "width": 5
+                            }
+                          },
+                          {
+                            "name": "valid",
+                            "offset": 0,
+                            "type": {
+                              "four_state": false,
+                              "kind": "bits",
+                              "packed": true,
+                              "signed": false,
+                              "width": 0
+                            }
+                          }
+                        ],
+                        "four_state": true,
+                        "kind": "struct",
+                        "packed": true,
+                        "signed": false,
+                        "width": 6
+                      }
+                    },
+                    {
+                      "name": "payload",
+                      "type": {
+                        "element": {
+                          "element": {
+                            "four_state": true,
+                            "kind": "bits",
+                            "packed": true,
+                            "signed": false,
+                            "width": 0
+                          },
+                          "four_state": true,
+                          "kind": "array",
+                          "left": 64,
+                          "packed": true,
+                          "right": 0,
+                          "signed": false,
+                          "width": 65
+                        },
+                        "four_state": true,
+                        "kind": "array",
+                        "left": 3,
+                        "packed": false,
+                        "right": 2,
+                        "signed": false,
+                        "width": 0
+                      }
+                    },
+                    {
+                      "name": "flag",
+                      "type": {
+                        "four_state": true,
+                        "kind": "bits",
+                        "packed": true,
+                        "signed": false,
+                        "width": 0
+                      }
+                    }
+                  ],
+                  "four_state": true,
+                  "kind": "struct",
+                  "packed": false,
+                  "signed": false,
+                  "width": 0
+                },
+                "four_state": true,
+                "kind": "array",
+                "left": -1,
+                "packed": false,
+                "right": 0,
+                "signed": false,
+                "width": 0
+              }
+            }
+          ],
+          "four_state": true,
+          "kind": "struct",
+          "packed": false,
+          "signed": false,
+          "width": 0
+        },
+        "Low": 0,
+        "Pin": "input",
+        "_": true
+      },
+      "out": {
+        "High": -1,
+        "Layout": {
+          "fields": [
+            {
+              "name": "enabled",
+              "type": {
+                "four_state": true,
+                "kind": "bits",
+                "packed": true,
+                "signed": false,
+                "width": 0
+              }
+            },
+            {
+              "name": "entries",
+              "type": {
+                "element": {
+                  "fields": [
+                    {
+                      "name": "header",
+                      "type": {
+                        "fields": [
+                          {
+                            "name": "tag",
+                            "offset": 1,
+                            "type": {
+                              "element": {
+                                "four_state": true,
+                                "kind": "bits",
+                                "packed": true,
+                                "signed": true,
+                                "width": 0
+                              },
+                              "four_state": true,
+                              "kind": "array",
+                              "left": 0,
+                              "packed": true,
+                              "right": 4,
+                              "signed": true,
+                              "width": 5
+                            }
+                          },
+                          {
+                            "name": "valid",
+                            "offset": 0,
+                            "type": {
+                              "four_state": false,
+                              "kind": "bits",
+                              "packed": true,
+                              "signed": false,
+                              "width": 0
+                            }
+                          }
+                        ],
+                        "four_state": true,
+                        "kind": "struct",
+                        "packed": true,
+                        "signed": false,
+                        "width": 6
+                      }
+                    },
+                    {
+                      "name": "payload",
+                      "type": {
+                        "element": {
+                          "element": {
+                            "four_state": true,
+                            "kind": "bits",
+                            "packed": true,
+                            "signed": false,
+                            "width": 0
+                          },
+                          "four_state": true,
+                          "kind": "array",
+                          "left": 64,
+                          "packed": true,
+                          "right": 0,
+                          "signed": false,
+                          "width": 65
+                        },
+                        "four_state": true,
+                        "kind": "array",
+                        "left": 3,
+                        "packed": false,
+                        "right": 2,
+                        "signed": false,
+                        "width": 0
+                      }
+                    },
+                    {
+                      "name": "flag",
+                      "type": {
+                        "four_state": true,
+                        "kind": "bits",
+                        "packed": true,
+                        "signed": false,
+                        "width": 0
+                      }
+                    }
+                  ],
+                  "four_state": true,
+                  "kind": "struct",
+                  "packed": false,
+                  "signed": false,
+                  "width": 0
+                },
+                "four_state": true,
+                "kind": "array",
+                "left": -1,
+                "packed": false,
+                "right": 0,
+                "signed": false,
+                "width": 0
+              }
+            }
+          ],
+          "four_state": true,
+          "kind": "struct",
+          "packed": false,
+          "signed": false,
+          "width": 0
+        },
+        "Low": 0,
+        "Pin": "output",
+        "_": true
+      }
+    }
+  }
+}

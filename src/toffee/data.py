@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from keyword import iskeyword
@@ -7,11 +8,19 @@ from types import MappingProxyType
 from typing import Any
 
 from .events import LogicValue
-from .signals import as_xdata, sample_signal, signal_width, write_signal
+from .signals import (
+    as_xdata,
+    read_signal,
+    sample_signal,
+    signal_width,
+    write_signal,
+)
 from .signals import compile_signal_sampler
 
 DataNode = Any
 ValueNode = Any
+
+_MAX_LAYOUT_DEPTH = 64
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +31,321 @@ class Field:
     def __post_init__(self) -> None:
         if self.width is not None and self.width <= 0:
             raise ValueError("Field width must be positive")
+
+
+@dataclass(frozen=True, slots=True)
+class PortField:
+    """One named member of a Picker port layout.
+
+    ``offset`` is a **bit** offset from the least-significant bit of the
+    enclosing packed struct, not a byte offset and not a bit range from the
+    most-significant end. Picker emits it in ``Layout.fields[].offset`` and
+    ``xcomm::detail::ViewNode::Child()`` adds it directly to the child's LSB
+    (``view.cpp``: ``child_offset += layout->offsets.at(position)``). A field
+    declared first therefore gets the offset after all fields declared later,
+    e.g. ``struct packed { logic [0:4] tag; bit valid; }`` emits
+    ``tag.offset == 1`` and ``valid.offset == 0``.
+
+    Unpacked structs have no bit placement; Picker omits ``offset`` for their
+    fields and exposes each member through a separate container child.
+    """
+
+    name: str
+    offset: int | None
+    type: "PortLayout"
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name:
+            raise ValueError("port layout field name must be a non-empty string")
+        if self.offset is not None and self.offset < 0:
+            raise ValueError("port layout field offset cannot be negative")
+
+    @property
+    def width(self) -> int:
+        return self.type.width
+
+    @property
+    def signed(self) -> bool:
+        return self.type.signed
+
+
+@dataclass(frozen=True, slots=True)
+class PortLayout:
+    """Recursive type layout emitted by Picker for one port.
+
+    ``kind`` is ``"bits"``, ``"array"`` or ``"struct"``. Picker represents
+    every packed vector dimension as a nested ``array`` node whose ``width``
+    is already the *expanded* width of that dimension; the innermost
+    ``bits`` node has ``width == 0`` because it denotes a one-bit scalar
+    primitive. Both facts are normalized here: ``bits`` width is at least 1,
+    and a packed array's width is the total bit width of the dimension.
+
+    Packed layouts can be materialized as a :class:`PackedView`; unpacked
+    layouts describe the structure of an XArray/XStruct container.
+    """
+
+    kind: str
+    packed: bool
+    width: int
+    signed: bool = False
+    four_state: bool = True
+    left: int | None = None
+    right: int | None = None
+    element: "PortLayout | None" = None
+    fields: tuple[PortField, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.kind not in {"array", "bits", "struct"}:
+            raise ValueError(
+                f"unsupported aggregate metadata: layout kind {self.kind!r}"
+            )
+        if self.width < 0:
+            raise ValueError("port layout width cannot be negative")
+        if self.kind == "array":
+            if self.element is None:
+                raise ValueError(
+                    "unsupported aggregate metadata: array layout requires "
+                    "an element layout"
+                )
+            if self.left is None or self.right is None:
+                raise ValueError(
+                    "unsupported aggregate metadata: array layout requires "
+                    "left and right bounds"
+                )
+            if self.fields:
+                raise ValueError("array layout cannot declare fields")
+            if self.packed and self.width != self.count * self.element.width:
+                raise ValueError(
+                    "unsupported aggregate metadata: packed array width "
+                    f"{self.width} does not match {self.count} elements of "
+                    f"{self.element.width} bits"
+                )
+        elif self.kind == "struct":
+            if not self.fields:
+                raise ValueError(
+                    "unsupported aggregate metadata: struct layout requires "
+                    "at least one field"
+                )
+            if self.element is not None:
+                raise ValueError("struct layout cannot declare an element")
+            if self.packed:
+                for field in self.fields:
+                    if field.offset is None:
+                        raise ValueError(
+                            "unsupported aggregate metadata: packed struct "
+                            f"field {field.name!r} has no offset"
+                        )
+                    if field.offset + field.width > self.width:
+                        raise ValueError(
+                            "unsupported aggregate metadata: packed struct "
+                            f"field {field.name!r} exceeds width {self.width}"
+                        )
+        else:
+            if self.element is not None or self.fields:
+                raise ValueError("bits layout cannot declare element or fields")
+
+    @property
+    def count(self) -> int:
+        if self.kind != "array":
+            raise AttributeError("only array layouts have a count")
+        assert self.left is not None and self.right is not None
+        return abs(self.left - self.right) + 1
+
+    @property
+    def indices(self) -> tuple[int, ...]:
+        if self.kind != "array":
+            raise AttributeError("only array layouts have indices")
+        assert self.left is not None and self.right is not None
+        step = 1 if self.left <= self.right else -1
+        return tuple(range(self.left, self.right + step, step))
+
+    @classmethod
+    def from_json(cls, source: Any) -> "PortLayout":
+        """Parse Picker's ``Layout`` field.
+
+        Picker emits a JSON object in current builds; older or wrapped
+        metadata can carry the same document as a string. Both forms are
+        accepted here. Parsing is depth-limited because a truncated or
+        malicious document must not turn into unbounded Python recursion.
+        """
+        if isinstance(source, PortLayout):
+            return source
+        if isinstance(source, Mapping):
+            data = source
+        elif isinstance(source, (str, bytes, bytearray)):
+            try:
+                data = json.loads(source)
+            except (TypeError, ValueError, RecursionError) as error:
+                raise ValueError(
+                    "unsupported aggregate metadata: invalid Layout JSON: "
+                    f"{error}"
+                ) from error
+        else:
+            raise TypeError(
+                "Picker Layout must be a mapping or a JSON string, got "
+                f"{type(source).__name__}"
+            )
+        if not isinstance(data, Mapping):
+            raise ValueError(
+                "unsupported aggregate metadata: Layout must be a JSON object"
+            )
+        try:
+            return cls._from_mapping(data, "layout", 0)
+        except RecursionError as error:
+            raise ValueError(
+                "unsupported aggregate metadata: layout nesting exceeds "
+                f"{_MAX_LAYOUT_DEPTH} levels"
+            ) from error
+
+    @classmethod
+    def _from_mapping(
+        cls,
+        data: Mapping[str, Any],
+        path: str,
+        depth: int,
+    ) -> "PortLayout":
+        if depth > _MAX_LAYOUT_DEPTH:
+            raise ValueError(
+                "unsupported aggregate metadata: layout nesting exceeds "
+                f"{_MAX_LAYOUT_DEPTH} levels at {path}"
+            )
+        kind = data.get("kind")
+        if kind not in {"array", "bits", "struct"}:
+            raise ValueError(
+                "unsupported aggregate metadata: unknown layout kind "
+                f"{kind!r} at {path}"
+            )
+        packed = bool(data.get("packed", True))
+        signed = bool(data.get("signed", False))
+        four_state = bool(data.get("four_state", True))
+        raw_width = data.get("width", 0)
+        if not isinstance(raw_width, int) or isinstance(raw_width, bool):
+            raise ValueError(
+                f"{path} layout width must be an integer, got {raw_width!r}"
+            )
+        if raw_width < 0:
+            raise ValueError(f"{path} layout width cannot be negative")
+
+        if kind == "bits":
+            return cls(
+                kind="bits",
+                packed=packed,
+                width=max(1, raw_width),
+                signed=signed,
+                four_state=four_state,
+            )
+
+        if kind == "array":
+            if "left" not in data or "right" not in data:
+                raise ValueError(
+                    "unsupported aggregate metadata: array layout requires "
+                    f"left and right bounds at {path}"
+                )
+            left = data["left"]
+            right = data["right"]
+            if (
+                not isinstance(left, int)
+                or isinstance(left, bool)
+                or not isinstance(right, int)
+                or isinstance(right, bool)
+            ):
+                raise ValueError(f"{path} array bounds must be integers")
+            element_data = data.get("element")
+            if not isinstance(element_data, Mapping):
+                raise ValueError(
+                    "unsupported aggregate metadata: array layout requires "
+                    f"an element object at {path}"
+                )
+            element = cls._from_mapping(element_data, f"{path}[]", depth + 1)
+            count = abs(left - right) + 1
+            # Picker's array width is the expanded width of this dimension.
+            # ``element.width`` is one element's width, so both forms agree
+            # for well-formed metadata. Prefer the emitted total (the
+            # authoritative value) and let validation catch disagreements.
+            width = (
+                raw_width if packed and raw_width > 0
+                else count * element.width if packed
+                else 0
+            )
+            return cls(
+                kind="array",
+                packed=packed,
+                width=width,
+                signed=signed,
+                four_state=four_state,
+                left=left,
+                right=right,
+                element=element,
+            )
+
+        raw_fields = data.get("fields")
+        if not _is_sequence(raw_fields) or not raw_fields:
+            raise ValueError(
+                "unsupported aggregate metadata: struct layout requires a "
+                f"non-empty fields list at {path}"
+            )
+        fields: list[PortField] = []
+        for index, raw_field in enumerate(raw_fields):
+            if not isinstance(raw_field, Mapping):
+                raise ValueError(
+                    f"{path} struct field {index} must be an object"
+                )
+            name = raw_field.get("name")
+            if not isinstance(name, str) or not name:
+                raise ValueError(
+                    f"{path} struct field {index} has no valid name"
+                )
+            field_data = raw_field.get("type")
+            if not isinstance(field_data, Mapping):
+                raise ValueError(
+                    "unsupported aggregate metadata: struct field "
+                    f"{name!r} has no type object at {path}"
+                )
+            field_layout = cls._from_mapping(
+                field_data, f"{path}.{name}", depth + 1
+            )
+            raw_offset = raw_field.get("offset")
+            if raw_offset is not None and (
+                not isinstance(raw_offset, int) or isinstance(raw_offset, bool)
+            ):
+                raise ValueError(
+                    f"{path} struct field {name!r} offset must be an integer"
+                )
+            fields.append(PortField(name, raw_offset, field_layout))
+
+        names = [field.name for field in fields]
+        if len(set(names)) != len(names):
+            raise ValueError(
+                f"{path} struct layout field names must be unique"
+            )
+        if packed:
+            offsets = [field.offset for field in fields]
+            if any(offset is None for offset in offsets):
+                missing = names[offsets.index(None)]
+                raise ValueError(
+                    "unsupported aggregate metadata: packed struct field "
+                    f"{missing!r} has no offset at {path}"
+                )
+            extent = 0
+            for field in fields:
+                assert field.offset is not None
+                extent = max(extent, field.offset + field.width)
+            width = raw_width or extent
+            if width < extent:
+                raise ValueError(
+                    "unsupported aggregate metadata: packed struct width "
+                    f"{width} is too small for its fields at {path}"
+                )
+        else:
+            width = 0
+        return cls(
+            kind="struct",
+            packed=packed,
+            width=width,
+            signed=signed,
+            four_state=four_state,
+            fields=tuple(fields),
+        )
 
 
 class PackedLayout:
@@ -49,6 +373,8 @@ class PackedLayout:
         lsb_first: bool = True,
         stride: int | None = None,
         offset: int | None = None,
+        left: int | None = None,
+        right: int | None = None,
     ) -> "PackedLayout":
         if not isinstance(element, PackedLayout):
             raise TypeError("PackedLayout.array element must be a PackedLayout")
@@ -59,6 +385,23 @@ class PackedLayout:
             )
         if count <= 0:
             raise ValueError("PackedLayout.array count must be positive")
+        if (left is None) != (right is None):
+            raise ValueError(
+                "PackedLayout.array requires both left and right or neither"
+            )
+        if left is not None and right is not None:
+            if (
+                not isinstance(left, int)
+                or isinstance(left, bool)
+                or not isinstance(right, int)
+                or isinstance(right, bool)
+            ):
+                raise ValueError("PackedLayout.array bounds must be integers")
+            if abs(left - right) + 1 != count:
+                raise ValueError(
+                    f"PackedLayout.array count {count} does not match RTL "
+                    f"bounds [{left}:{right}]"
+                )
         if stride is None:
             stride = element.width
         if stride < element.width:
@@ -71,6 +414,8 @@ class PackedLayout:
             bool(lsb_first),
             stride,
             _packed_offset(offset),
+            left,
+            right,
         )
 
     @classmethod
@@ -199,10 +544,27 @@ class _PackedArrayLayout(PackedLayout):
     lsb_first: bool
     stride: int
     offset: int | None = None
+    left: int | None = None
+    right: int | None = None
 
     @property
     def width(self) -> int:
         return (self.count - 1) * self.stride + self.element.width
+
+    @property
+    def indices(self) -> tuple[int, ...]:
+        """Declaration-order RTL indices for this dimension.
+
+        Without explicit bounds the historical positional indices
+        ``0..count-1`` are returned. With bounds, the left index is the
+        most-significant RTL element for a packed dimension; ``PackedView``
+        maps these to physical bit positions.
+        """
+        if self.left is None:
+            return tuple(range(self.count))
+        assert self.right is not None
+        step = 1 if self.left <= self.right else -1
+        return tuple(range(self.left, self.right + step, step))
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,9 +581,15 @@ class _PackedStructLayout(PackedLayout):
 
 
 class PackedView:
-    """Live recursive view whose leaves directly slice one root XData."""
+    """Live recursive view whose leaves directly slice one root XData.
 
-    __slots__ = ("_parent", "_layout", "_kind", "_children", "_path")
+    Arrays preserve Picker's RTL declaration order: for a packed dimension
+    ``[2:0]`` the left index (2) is the most-significant element. Integer
+    indexing uses RTL indices when the layout carries bounds; otherwise the
+    historical positional ``0..count-1`` indices are used.
+    """
+
+    __slots__ = ("_parent", "_layout", "_kind", "_children", "_indices", "_path")
 
     def __init__(
         self,
@@ -281,10 +649,22 @@ class PackedView:
     ) -> None:
         if isinstance(layout, _PackedArrayLayout):
             self._kind = "array"
+            declaration = layout.indices
+            has_rtl_bounds = layout.left is not None
             items = []
-            for index in range(layout.count):
+            indices = []
+            for position in range(layout.count):
                 physical = (
-                    index if layout.lsb_first else layout.count - 1 - index
+                    position if layout.lsb_first
+                    else layout.count - 1 - position
+                )
+                index = (
+                    declaration[
+                        position if not layout.lsb_first
+                        else layout.count - 1 - position
+                    ]
+                    if has_rtl_bounds
+                    else position
                 )
                 child_base = base + physical * layout.stride
                 items.append(
@@ -295,7 +675,9 @@ class PackedView:
                         f"{path}[{index}]",
                     )
                 )
+                indices.append(index)
             self._children = tuple(items)
+            self._indices = tuple(indices)
             return
         if isinstance(layout, _PackedStructLayout):
             self._kind = "struct"
@@ -309,6 +691,7 @@ class PackedView:
                 for name, child, placement in layout.placements
             }
             self._children = MappingProxyType(children)
+            self._indices = ()
             return
         raise TypeError(f"unsupported packed layout: {type(layout).__name__}")
 
@@ -325,12 +708,55 @@ class PackedView:
         return self._kind
 
     @property
+    def indices(self) -> tuple[int, ...]:
+        """RTL indices in the same order as ``__iter__``/``sample``."""
+        if self._kind != "array":
+            raise AttributeError("struct PackedView has no indices")
+        return self._indices
+
+    @property
+    def bounds(self) -> tuple[tuple[int, int], ...]:
+        if self._kind != "array":
+            raise AttributeError("struct PackedView has no bounds")
+        layout = self._layout
+        assert isinstance(layout, _PackedArrayLayout)
+        if layout.left is None:
+            assert layout.right is None
+            return ((0, layout.count - 1),)
+        assert layout.right is not None
+        return ((layout.left, layout.right),)
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        return tuple(
+            abs(left - right) + 1 for left, right in self.bounds
+        )
+
+    @property
     def fields(self) -> Mapping[str, Any]:
         if self._kind != "struct":
             raise AttributeError("array PackedView has no fields")
         return self._children
 
+    def _array_position(self, key: int) -> int:
+        assert self._kind == "array"
+        try:
+            return self._indices.index(key)
+        except ValueError:
+            layout = self._layout
+            assert isinstance(layout, _PackedArrayLayout)
+            if layout.left is None and -len(self._children) <= key < 0:
+                return len(self._children) + key
+            raise IndexError(
+                f"{self._path} RTL array index {key} not in "
+                f"{self._indices}"
+            ) from None
+
     def __getitem__(self, key: int | slice | str) -> Any:
+        if self._kind == "array" and isinstance(key, int) and not isinstance(
+            key, bool
+        ):
+            return self._children[self._array_position(key)]
         return self._children[key]
 
     def __iter__(self) -> Iterator[Any]:
@@ -382,14 +808,126 @@ class PackedView:
             for name, child in self._children.items():
                 _drive_node(child, value[name], f"{self._path}.{name}")
             return
-        if not _is_sequence(value) or len(value) != len(self._children):
+        if isinstance(value, Mapping):
+            expected = set(self._indices)
+            missing = tuple(
+                index for index in self._indices if index not in value
+            )
+            extra = tuple(index for index in value if index not in expected)
+            if missing or extra:
+                raise ValueError(
+                    f"{self._path} shape mismatch: missing={missing}, "
+                    f"extra={extra}"
+                )
+            ordered = tuple(value[index] for index in self._indices)
+        elif _is_sequence(value) and len(value) == len(self._children):
+            ordered = tuple(value)
+        else:
             raise ValueError(
                 f"{self._path} requires {len(self._children)} values"
             )
-        for index, (child, child_value) in enumerate(
-            zip(self._children, value)
+        for index, child, child_value in zip(
+            self._indices, self._children, ordered
         ):
             _drive_node(child, child_value, f"{self._path}[{index}]")
+
+
+class _SignalSlice:
+    """Read-modify-write bit slice for signals without ``SubDataRef``.
+
+    Real Picker/xcomm ``XData`` objects provide ``SubDataRef`` and never use
+    this class. It exists for lightweight Python signal doubles (and other
+    backends that expose only ``U``/``Set``) so a packed Layout can still be
+    projected onto them. The adapter is intentionally not an ``XData``
+    replacement: every write reads the parent, replaces the selected bits and
+    writes the whole parent back.
+    """
+
+    __slots__ = ("_low", "_name", "_parent", "_width")
+
+    def __init__(
+        self,
+        parent: Any,
+        low: int,
+        width: int,
+        name: str,
+    ) -> None:
+        self._parent = parent
+        self._low = low
+        self._width = width
+        self._name = name
+
+    def W(self) -> int:
+        return self._width
+
+    @property
+    def value(self) -> int:
+        return self.U()
+
+    @value.setter
+    def value(self, value: Any) -> None:
+        self.Set(value)
+
+    def U(self) -> int:
+        value = read_signal(self._parent)
+        if isinstance(value, LogicValue):
+            value = value.as_int(strict=False)
+        return (int(value) >> self._low) & ((1 << self._width) - 1)
+
+    def XMask(self) -> int:
+        getter = getattr(self._parent, "XMask", None)
+        if not callable(getter):
+            value = read_signal(self._parent)
+            if isinstance(value, LogicValue):
+                return (
+                    value.x_mask >> self._low
+                ) & ((1 << self._width) - 1)
+            return 0
+        return (
+            int(getter()) >> self._low
+        ) & ((1 << self._width) - 1)
+
+    def Set(self, value: Any) -> None:
+        if isinstance(value, LogicValue):
+            if not value.is_known:
+                raise ValueError(
+                    f"{self._name} contains X/Z; four-state drive is not "
+                    "implemented"
+                )
+            value = value.value
+        current = read_signal(self._parent)
+        if isinstance(current, LogicValue):
+            if not current.is_known:
+                raise ValueError(
+                    f"{self._name} cannot drive a slice while its parent "
+                    "contains X/Z"
+                )
+            current = current.value
+        mask = (1 << self._width) - 1
+        shifted = mask << self._low
+        combined = (
+            int(current) & ~shifted
+        ) | ((int(value) & mask) << self._low)
+        write_signal(self._parent, combined, self._name)
+
+
+class _SignalSlices:
+    """Expose bit slices for signals without native sub-signal support."""
+
+    __slots__ = ("_signal", "_width")
+
+    def __init__(self, signal: Any) -> None:
+        self._signal = signal
+        self._width = signal_width(signal)
+
+    def W(self) -> int:
+        return self._width
+
+    def SubDataRef(self, low: int, width: int, name: str) -> _SignalSlice:
+        return _SignalSlice(self._signal, low, width, name)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._signal, name)
 
 
 class PackedArray(Sequence[Any]):
@@ -470,6 +1008,133 @@ def split_packed(
     )
 
 
+class PortView:
+    """Bind one Picker port together with its parsed layout metadata.
+
+    The underlying node is a signal, :class:`Bundle`, :class:`PackedView` or
+    :class:`SignalArray`. Leaf identity, sampling and driving are delegated
+    to that node; ``layout`` and ``unpacked`` expose the metadata that Picker
+    emitted for the port.
+    """
+
+    __slots__ = ("_node", "_layout", "_unpacked", "_path")
+
+    def __init__(
+        self,
+        node: DataNode,
+        *,
+        layout: PortLayout | None = None,
+        unpacked: tuple[tuple[int, int], ...] = (),
+        path: str = "port",
+    ) -> None:
+        if isinstance(node, PortView):
+            if layout is None:
+                layout = node.layout
+            if not unpacked:
+                unpacked = node.unpacked
+            node = node.node
+        if layout is not None and not isinstance(layout, PortLayout):
+            raise TypeError("PortView layout must be a PortLayout")
+        self._node = _normalize_node(node, path)
+        self._layout = layout
+        self._unpacked = tuple(unpacked)
+        self._path = path
+
+    @property
+    def node(self) -> DataNode:
+        return self._node
+
+    @property
+    def layout(self) -> PortLayout | None:
+        return self._layout
+
+    @property
+    def unpacked(self) -> tuple[tuple[int, int], ...]:
+        return self._unpacked
+
+    @property
+    def kind(self) -> str:
+        if self._layout is not None:
+            return self._layout.kind
+        return _data_kind(self._node)
+
+    @property
+    def bounds(self) -> tuple[tuple[int, int], ...]:
+        """Bounds of the live indexable node, not just the declared type.
+
+        A collapsed packed array is one packed leaf even though its
+        ``layout.kind == "array"``; it has no per-element views, so this
+        property raises. Use ``layout.left``/``layout.right`` for declaration
+        metadata.
+        """
+        node_bounds = getattr(self._node, "bounds", None)
+        if node_bounds is not None:
+            return tuple(node_bounds)
+        if isinstance(self._node, tuple) and self._node:
+            return ((0, len(self._node) - 1),)
+        raise AttributeError(
+            f"{self._path} is not an indexable array; use layout bounds"
+        )
+
+    @property
+    def shape(self) -> tuple[int, ...]:
+        node_shape = getattr(self._node, "shape", None)
+        if node_shape is not None:
+            return tuple(node_shape)
+        return tuple(abs(left - right) + 1 for left, right in self.bounds)
+
+    @property
+    def indices(self) -> tuple[int, ...]:
+        """RTL indices of live element views (``layout.indices`` is metadata)."""
+        node_indices = getattr(self._node, "indices", None)
+        if node_indices is not None:
+            return tuple(node_indices)
+        if isinstance(self._node, tuple):
+            return tuple(range(len(self._node)))
+        raise AttributeError(
+            f"{self._path} is not an indexable array; use layout.indices"
+        )
+
+    @property
+    def fields(self) -> Mapping[str, DataNode]:
+        try:
+            return self._node.fields
+        except AttributeError as error:
+            raise AttributeError(
+                f"{self._path} has no named fields"
+            ) from error
+
+    def __getitem__(self, key: Any) -> DataNode:
+        return self._node[key]  # type: ignore[index]
+
+    def __iter__(self) -> Iterator[Any]:
+        return iter(self._node)
+
+    def __len__(self) -> int:
+        return len(self._node)  # type: ignore[arg-type]
+
+    def __getattr__(self, name: str) -> Any:
+        if name in {"bounds", "indices"}:
+            # The property above already decided the live node is not
+            # indexable; do not mask that with the node's own AttributeError.
+            raise AttributeError(
+                f"{self._path} is not an indexable array; "
+                f"use layout.{name}"
+            )
+        if name == "fields":
+            raise AttributeError(f"{self._path} has no named fields")
+        return getattr(self._node, name)
+
+    def leaves(self) -> Iterator[tuple[str, Any]]:
+        yield from _iter_leaves(self._node, self._path)
+
+    def sample(self) -> ValueNode:
+        return _sample_node(self._node)
+
+    def drive(self, value: Any) -> None:
+        _drive_node(self._node, value, self._path)
+
+
 def _is_sequence(value: Any) -> bool:
     return isinstance(value, Sequence) and not isinstance(
         value, (str, bytes, bytearray)
@@ -477,7 +1142,7 @@ def _is_sequence(value: Any) -> bool:
 
 
 def _normalize_node(value: Any, path: str) -> DataNode:
-    if isinstance(value, (PackedArray, PackedView)):
+    if isinstance(value, (PackedArray, PackedView, PortView)):
         return value
     if isinstance(value, Bundle):
         return value
@@ -494,12 +1159,24 @@ def _normalize_node(value: Any, path: str) -> DataNode:
         hasattr(value, name)
         for name in ("U", "W", "Set", "value", "xdata")
     ):
-        raise TypeError(f"{path} must be a signal, Bundle, or sequence")
+        raise TypeError(
+            f"{path} must be a signal, Bundle, or sequence"
+        )
     return as_xdata(value)
 
 
+def _data_kind(value: DataNode) -> str:
+    if isinstance(value, Bundle):
+        return "struct"
+    if isinstance(value, PackedView):
+        return value.kind
+    if isinstance(value, (PackedArray, tuple)):
+        return "array"
+    return "bits"
+
+
 def _sample_node(value: DataNode) -> ValueNode:
-    if isinstance(value, (Bundle, PackedView)):
+    if isinstance(value, (Bundle, PackedView, PortView)):
         return value.sample()
     if isinstance(value, (tuple, PackedArray)):
         return tuple(_sample_node(item) for item in value)
@@ -507,7 +1184,7 @@ def _sample_node(value: DataNode) -> ValueNode:
 
 
 def _drive_node(target: DataNode, value: Any, path: str) -> None:
-    if isinstance(target, (Bundle, PackedView)):
+    if isinstance(target, (Bundle, PackedView, PortView)):
         target.drive(value)
         return
     if isinstance(target, (tuple, PackedArray)):
@@ -681,7 +1358,9 @@ class BundleValue(Mapping[str, ValueNode]):
 
 
 def _iter_leaves(node: DataNode, path: str) -> Iterator[tuple[str, Any]]:
-    if isinstance(node, Bundle):
+    if isinstance(node, PortView):
+        yield from _iter_leaves(node.node, path)
+    elif isinstance(node, Bundle):
         for name, value in node.items():
             yield from _iter_leaves(value, f"{path}.{name}")
     elif isinstance(node, PackedView):
@@ -689,7 +1368,7 @@ def _iter_leaves(node: DataNode, path: str) -> Iterator[tuple[str, Any]]:
             for name, value in node.fields.items():
                 yield from _iter_leaves(value, f"{path}.{name}")
         else:
-            for index, value in enumerate(node):
+            for index, value in zip(node.indices, node):
                 yield from _iter_leaves(value, f"{path}[{index}]")
     elif isinstance(node, (tuple, PackedArray)):
         for index, value in enumerate(node):
@@ -732,7 +1411,9 @@ def _resolve_source(root: Any, source: Any) -> Any:
     return value
 
 
-_TREE_METADATA = frozenset({"_", "Pin", "High", "Low"})
+_TREE_METADATA = frozenset(
+    {"_", "Pin", "High", "Low", "Unpacked", "Layout"}
+)
 
 
 def _bind_tree_node(
@@ -753,18 +1434,7 @@ def _bind_tree_node(
             raise ValueError(f"{path} cannot be both a leaf and aggregate")
         if not source_parts:
             raise ValueError(f"{path} leaf has no source path")
-        signal = as_xdata(getattr(root, "_".join(source_parts)))
-        if "High" in node:
-            high = int(node["High"])
-            low = int(node.get("Low", 0))
-            expected = 1 if high < 0 else high - low + 1
-            actual = signal_width(signal)
-            if actual != expected:
-                raise ValueError(
-                    f"{path} width mismatch: metadata={expected}, "
-                    f"actual={actual}"
-                )
-        return signal
+        return _bind_tree_leaf(root, node, source_parts, path)
     if not children:
         raise ValueError(f"{path} aggregate has no fields")
 
@@ -801,6 +1471,320 @@ def _bind_tree_node(
     return Bundle(fields, path=path)
 
 
+def _bind_tree_leaf(
+    root: Any,
+    node: Mapping[str, Any],
+    source_parts: tuple[str, ...],
+    path: str,
+) -> DataNode:
+    source_name = "_".join(source_parts)
+    try:
+        signal = getattr(root, source_name)
+    except AttributeError as error:
+        raise ValueError(
+            f"{path} signal-tree leaf {source_name!r} is not available on root"
+        ) from error
+    layout = _parse_port_layout(node.get("Layout"), path)
+    unpacked = _parse_unpacked(node.get("Unpacked"), path)
+    high = int(node["High"]) if "High" in node else None
+    low = int(node.get("Low", 0)) if high is not None else None
+    return _bind_port(signal, layout, unpacked, high, low, path)
+
+
+def _parse_port_layout(raw: Any, path: str) -> PortLayout | None:
+    if raw is None:
+        return None
+    try:
+        return PortLayout.from_json(raw)
+    except (TypeError, ValueError) as error:
+        if "unsupported aggregate metadata" in str(error):
+            raise ValueError(f"{path}: {error}") from error
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: {error}"
+        ) from error
+
+
+def _parse_unpacked(
+    raw: Any, path: str
+) -> tuple[tuple[int, int], ...]:
+    if raw is None or raw == []:
+        return ()
+    if not _is_sequence(raw):
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: Unpacked must be a "
+            "sequence of [left, right] pairs"
+        )
+    bounds: list[tuple[int, int]] = []
+    for entry in raw:
+        if not _is_sequence(entry) or len(entry) != 2:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: Unpacked entry "
+                f"{entry!r} must be [left, right]"
+            )
+        try:
+            left, right = int(entry[0]), int(entry[1])
+        except (TypeError, ValueError) as error:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: Unpacked bounds "
+                f"must be integers: {entry!r}"
+            ) from error
+        bounds.append((left, right))
+    return tuple(bounds)
+
+
+def _bind_port(
+    signal: Any,
+    layout: PortLayout | None,
+    unpacked: tuple[tuple[int, int], ...],
+    high: int | None,
+    low: int | None,
+    path: str,
+) -> DataNode:
+    if layout is None and not unpacked:
+        _validate_tree_width(signal, high, low, path)
+        return as_xdata(signal)
+    if layout is not None and layout.kind == "bits" and not unpacked:
+        _validate_tree_width(signal, high, low, path)
+        return PortView(
+            as_xdata(signal),
+            layout=layout,
+            unpacked=unpacked,
+            path=path,
+        )
+
+    layout = _layout_with_unpacked(layout, unpacked, high, low)
+    if layout is not None and layout.packed and not unpacked:
+        packed_signal = _packed_port_data(signal, path)
+        actual = signal_width(packed_signal)
+        if actual != layout.width:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: packed layout width "
+                f"{layout.width} does not match signal width {actual}"
+            )
+        packed_layout = _to_packed_layout(layout, path)
+        if isinstance(packed_layout, _PackedBits):
+            # A packed vector/matrix is one packed value. There is nothing to
+            # slice, so keep the real signal identity instead of wrapping it.
+            return PortView(
+                packed_signal,
+                layout=layout,
+                unpacked=unpacked,
+                path=path,
+            )
+        if not callable(getattr(packed_signal, "SubDataRef", None)):
+            packed_signal = _SignalSlices(packed_signal)
+        view = PackedView(packed_signal, packed_layout, name=path)
+        return PortView(
+            view,
+            layout=layout,
+            unpacked=unpacked,
+            path=path,
+        )
+    if (
+        _is_xview(signal)
+        or _is_picker_array(signal)
+        or _is_picker_struct(signal)
+    ):
+        return PortView(
+            _normalize_node(signal, path),
+            layout=layout,
+            unpacked=unpacked,
+            path=path,
+        )
+    if isinstance(signal, Mapping):
+        return PortView(
+            _normalize_node(signal, path),
+            layout=layout,
+            unpacked=unpacked,
+            path=path,
+        )
+    if (
+        layout is not None
+        and layout.kind == "array"
+        and _is_sequence(signal)
+    ):
+        return PortView(
+            _normalize_node(signal, path),
+            layout=layout,
+            unpacked=unpacked,
+            path=path,
+        )
+    if unpacked:
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: unpacked dims "
+            f"{unpacked} require an XArray/XStruct/sequence container, "
+            f"got {type(signal).__name__}"
+        )
+    raise ValueError(
+        f"{path} unsupported aggregate metadata: unpacked "
+        f"{layout.kind if layout is not None else 'bits'} layout "
+        "requires an XStruct/XArray container"
+    )
+
+
+def _validate_tree_width(
+    signal: Any,
+    high: int | None,
+    low: int | None,
+    path: str,
+) -> None:
+    if high is None:
+        return
+    assert low is not None
+    expected = 1 if high < 0 else high - low + 1
+    actual = signal_width(signal)
+    if actual != expected:
+        raise ValueError(
+            f"{path} width mismatch: metadata={expected}, actual={actual}"
+        )
+
+
+def _layout_with_unpacked(
+    layout: PortLayout | None,
+    unpacked: tuple[tuple[int, int], ...],
+    high: int | None,
+    low: int | None,
+) -> PortLayout | None:
+    if not unpacked:
+        return layout
+    if layout is not None and layout.kind == "array":
+        return layout
+    element_width = 1 if high is None or high < 0 else high - low + 1
+    base = layout
+    if base is None:
+        base = PortLayout(kind="bits", packed=True, width=element_width)
+    for left, right in reversed(unpacked):
+        base = PortLayout(
+            kind="array",
+            packed=False,
+            width=0,
+            left=left,
+            right=right,
+            element=base,
+        )
+    return base
+
+
+def _packed_port_data(signal: Any, path: str) -> Any:
+    packed_data = getattr(signal, "PackedData", None)
+    packed_error: BaseException | None = None
+    if callable(packed_data):
+        try:
+            data = packed_data()
+        except (RuntimeError, TypeError, ValueError) as error:
+            packed_error = error
+        else:
+            if data is not None:
+                return as_xdata(data)
+    if not any(
+        hasattr(signal, name)
+        for name in ("U", "W", "Set", "value", "xdata")
+    ):
+        detail = (
+            f" (PackedData failed: {packed_error})"
+            if packed_error is not None
+            else ""
+        )
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: packed layout "
+            f"requires an XData signal, got {type(signal).__name__}{detail}"
+        )
+    return as_xdata(signal)
+
+
+def _packed_has_struct(layout: PortLayout) -> bool:
+    if layout.kind == "struct":
+        return True
+    if layout.kind == "array" and layout.element is not None:
+        return _packed_has_struct(layout.element)
+    return False
+
+
+def _to_packed_layout(
+    layout: PortLayout,
+    path: str,
+    *,
+    offset: int | None = None,
+) -> PackedLayout:
+    """Project Picker's packed Layout onto :class:`PackedLayout`.
+
+    Picker describes every packed vector dimension as an ``array`` node whose
+    ``width`` is already the expanded width of the dimension, down to a
+    ``bits`` node with ``width == 0`` for a one-bit scalar. A packed vector
+    or a packed array of vectors is therefore *one* packed leaf: recursing
+    into it would turn ``logic [0:4] tag`` into five one-bit leaves and
+    ``[1:0][-2:1] matrix`` into a 2x4 grid of one-bit leaves, corrupting both
+    integer driving and bit order.
+
+    A packed array whose element (recursively) contains a struct keeps
+    per-element views so fields remain reachable. Those arrays are
+    MSB-first: Picker's ``ViewNode::Child()`` places the left RTL index at
+    ``(size - position - 1) * element_bits``.
+    """
+    if not layout.packed:
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: unpacked "
+            f"{layout.kind} layout cannot become a packed view"
+        )
+    if layout.kind == "bits":
+        return PackedLayout.bits(layout.width, offset=offset)
+    if layout.kind == "array":
+        assert layout.element is not None
+        if not _packed_has_struct(layout.element):
+            return PackedLayout.bits(layout.width, offset=offset)
+        element = _to_packed_layout(layout.element, f"{path}[]")
+        return PackedLayout.array(
+            layout.count,
+            element,
+            lsb_first=False,
+            offset=offset,
+            left=layout.left,
+            right=layout.right,
+        )
+    fields: dict[str, PackedLayout] = {}
+    for field in layout.fields:
+        field_name = _packed_field_name(field.name, path)
+        if field_name in fields:
+            raise ValueError(
+                f"{path} unsupported aggregate metadata: duplicate packed "
+                f"field name {field.name!r}"
+            )
+        fields[field_name] = _to_packed_layout(
+            field.type,
+            f"{path}.{field_name}",
+            offset=field.offset,
+        )
+    try:
+        return PackedLayout.struct(
+            fields,
+            width=layout.width,
+            offset=offset,
+        )
+    except ValueError as error:
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: {error}"
+        ) from error
+
+
+def _packed_field_name(name: str, path: str) -> str:
+    field_name = f"{name}_" if iskeyword(name) else name
+    if field_name in PackedLayout._reserved_fields or field_name in {
+        "bounds",
+        "indices",
+        "node",
+        "path",
+        "shape",
+        "unpacked",
+    }:
+        field_name += "_"
+    if not field_name.isidentifier() or field_name.startswith("_"):
+        raise ValueError(
+            f"{path} unsupported aggregate metadata: packed field name "
+            f"{name!r} is not a valid Python identifier"
+        )
+    return field_name
+
+
 def iter_data_leaves(
     node: DataNode, path: str = "data"
 ) -> Iterator[tuple[str, Any]]:
@@ -824,7 +1808,7 @@ def compile_sampler(node: DataNode):
     if isinstance(node, Bundle):
         fields = tuple((name, compile_sampler(value)) for name, value in node.items())
         return lambda: BundleValue(tuple((name, sample()) for name, sample in fields))
-    if isinstance(node, (PackedView, PackedArray)):
+    if isinstance(node, (PackedView, PackedArray, PortView)):
         return lambda: _sample_node(node)
     if isinstance(node, tuple):
         samplers = tuple(compile_sampler(value) for value in node)

@@ -1,9 +1,9 @@
 {
   "xcomm": {
     "repository": "XS-MLVP/xcomm",
-    "ref": "72a5e3063c9bd81de9d50eeac1fc2ca074924520",
-    "package_version": "1.2.0",
-    "native_abi": 3,
+    "ref": "4dd563fcd2cf2885861f15253f37b525449a2b0d",
+    "package_version": "1.5.0",
+    "native_abi": 5,
     "coverage_protocol": 5,
     "combinational_protocol": 1
   }

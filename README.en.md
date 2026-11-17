@@ -35,7 +35,7 @@ source .venv/bin/activate
 python3 -m pip install -e '.[test]'
 ```
 
-This test uses the included 8-bit accumulator model and needs no RTL simulator. It supplies 3,
+This test uses the included Python 8-bit accumulator model. It supplies 3,
 waits one clock cycle, and checks the accumulated result and idle behavior:
 
 ```python

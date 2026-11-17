@@ -29,7 +29,7 @@ source .venv/bin/activate
 python3 -m pip install -e '.[test]'
 ```
 
-下面用仓库自带的 8 位累加器模型演示一个测试，无需安装 RTL 仿真器。
+下面用仓库自带的 Python 8 位累加器模型演示一个测试。
 测试送入数字 3，等待一个时钟周期，再检查累加结果与空闲时的行为：
 
 ```python
@@ -91,4 +91,4 @@ toffee run examples/getting_started --workers 4
 ## Toffee Legacy
 
 旧版 Toffee 保留在 [`master` 分支](https://github.com/XS-MLVP/toffee/tree/master)。
-当前版本是一次 **breaking change**，与 Toffee Legacy 的 API 不兼容。
+当前版本采用 Toffee 新主线 API；Legacy 项目按迁移指南升级。

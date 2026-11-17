@@ -8,11 +8,10 @@ verification components work with native XClock.
 Toffee depends on `uc-xcomm`, which provides `xspcomm`. The backend requires APIs including
 `XClock.StepHalf`, `GetHalfTick`, `GetPhase`, `XData`, and `XTriggerEngine`.
 Use the commit, package, ABI, and protocol versions from the
-[dependency manifest](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json), not the package name alone.
+[dependency manifest](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json).
 
 Combinational events require `XTriggerEngine.CombinationalVersion() == 1`.
 CI uses the native commit in the dependency manifest and checks the combinational protocol.
-An older wheel with the same package name does not provide this capability.
 Array DUTs additionally require the `XArray` factories and native ABI 6; see
 [fixed unpacked arrays](../guides/data.md#fixed-unpacked-arrays).
 Recursive `XStruct` / `XArray` sources and argument-free explicit views use a
@@ -43,8 +42,8 @@ native clock: tick=2, phase=RISING_STABLE
 | Path points at an old build | Select the intended binding |
 | Missing half-step APIs or XTriggerEngine | Update or rebuild xcomm with those APIs |
 
-Repository tests attempt to discover a sibling Picker build. Ordinary scripts and example-only runs
-do not use `tests/conftest.py`, so xspcomm must be directly importable here.
+Repository tests use `tests/conftest.py` to discover a sibling Picker build.
+Ordinary scripts and example-only runs import xspcomm from the selected Python environment.
 
 ## Check overflow on a native clock
 
@@ -82,8 +81,8 @@ python3 -m pytest -q examples/getting_started/native_lab.py
 ```
 
 Expect `1 passed`. The environment changes to `TutorialDut(backend="native")`, using native XClock and XData.
-The accumulator behavior is still implemented in Python: this verifies backend integration, not an RTL accumulator.
-This optional file is run explicitly; the basic tutorial does not require native bindings to execute its teaching model.
+The accumulator behavior is implemented in Python to verify backend integration.
+Run this optional file explicitly after installing native bindings.
 
 ## Replace the teaching DUT with real RTL
 
@@ -102,7 +101,7 @@ DUT generation, ports, and initialization are project-specific. Implement these 
 | `dut.close()` | Actual resource cleanup |
 
 Keep the input/wait/check structure, but define protocol, reset, and flush rules explicitly.
-Do not copy the tutorial's one-cycle enable rule to unrelated interfaces.
+Use the target hardware's acceptance rules to define its drive timing.
 
 ## Choose your next task
 
@@ -124,6 +123,5 @@ python3 -m pip install -e '.[docs]'
 mkdocs build --strict
 ```
 
-`--require-xspcomm` fails when native bindings are unavailable, preventing skipped native tests from
-being mistaken for passing coverage. It is a repository test option, not required by the earlier tutorial commands.
+`--require-xspcomm` strictly checks native bindings and reports environment or API errors for repository tests.
 Return to the [tutorial](index.md) or [feature map](../reference/feature-map.md).

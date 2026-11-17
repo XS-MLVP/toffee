@@ -57,17 +57,16 @@ snapshot = payload.sample()
 assert snapshot.matrix[3][-1].as_int() == 42
 ```
 
-Indices are the view's actual coordinates; negative indices are not positions
-from the end. Iteration follows declaration order, last dimension fastest.
+Indices use the view's declared coordinates, including negative RTL bounds.
+Iteration follows declaration order, last dimension fastest.
 `SignalArray(source)` also explicitly adapts public views exposing
-`bounds/shape/indices` and indexing, including xcomm `XArray`. It neither depends
-on Picker's private Python classes nor copies or rebinds leaves. Constructing an
-adapter does not read or expand all elements; whole-array sampling and driver
-ownership enumerate the selected leaves when needed.
+`bounds/shape/indices` and indexing, including xcomm `XArray`. The adapter uses
+these public protocols and retains the source leaves. Elements stay lazy until
+whole-array sampling or driver ownership enumerates the selected leaves.
 
 Sampled arrays are immutable `ArrayValue` snapshots retaining bounds and
-four-state `LogicValue` leaves. `compile_sampler()` caches structure and getters,
-not sampled values. `ArrayValue.as_tuple()` explicitly discards bounds while
+four-state `LogicValue` leaves. `compile_sampler()` caches structure and getters
+and reads fresh values on each call. `ArrayValue.as_tuple()` discards bounds while
 retaining four-state leaves; `as_dict()` returns nested mappings from actual integer
 indices to plain integers, rejecting unknown bits. `BundleValue.as_dict()` uses
 the same representation for arrays.
@@ -86,9 +85,9 @@ payload.drive({"matrix": [[10, 11, 12], [20, 21, 22]]})
 
 Drive an `ArrayValue` with identical bounds, mappings keyed by actual indices,
 or nested lists/tuples in **declaration order**. The whole array's shape, indices,
-and unknown values are checked before writing; simulator IO failures do not imply
-transaction rollback. Structure is read-only: do not replace elements; the leaves
-remain live signals. Slices, dynamic indexing, and dynamic arrays are unsupported.
+and unknown values are checked before writing. Simulator IO failures follow the
+backend's write semantics. Structure is read-only and its leaves remain live signals.
+Element selection uses constant integer indices on fixed-size arrays.
 Scoreboard checks snapshot bounds and reports differences using actual indices
 such as `matrix[3][-1]`.
 
@@ -104,12 +103,10 @@ memory[0][0].AsImmWrite()
 memory[0][0].Set(42)
 ```
 
-Adapters do not compute element addresses, DPI indices, or backend-specific
-handles; they use the leaves exposed by the source view. They do not change
-write modes, advance time, or register additional `XPort` entries. Generated
-ports keep their existing `XPort`/`XClock` edge commits; callers choose immediate
-writes or explicit commits for dynamically queried internal leaves. A flattened
-list remains a positional sequence; RTL bounds are not guessed.
+Adapters use the leaves exposed by the source view, retaining their backend,
+write mode and registration. Generated ports keep their existing `XPort`/`XClock`
+edge commits; callers choose immediate writes or explicit commits for dynamically
+queried internal leaves. Flattened lists use positional sequence coordinates.
 
 Native array views use xcomm's `XArray` factories (native ABI 6) and matching
 Picker-generated bindings. The former separate native-array protocol is removed;
@@ -154,9 +151,8 @@ header.drive({"tag": 17, "valid": 1})
 ```
 
 Explicit views reuse the Data's associated RTL type. Packed views share their
-parent storage; unpacked fields keep independent
-leaves. Toffee does not compute offsets, copy aggregate storage, add clock
-callbacks or XPort entries, or change write modes. Reuse the same source view
+parent storage; unpacked fields keep independent leaves. The source SDK owns
+layout, storage, write modes, clock callbacks and XPort registration. Reuse the same source view
 when driver ownership must recognize a shared leaf.
 
 `ReadyValid`, drivers, monitors, compiled sampling, native leaf conditions and
@@ -169,20 +165,17 @@ VPI sources returned by `dut.GetInternalSignal(name, use_vpi=True)` use the same
 adapters. Explicitly request a packed value's `StructView()` / `ArrayView()` to
 drive or sample structured transactions. Initialize the model before driving VPI inputs; Verilator's first
 evaluation can overwrite values written before initialization.
-Dynamically queried VPI inputs are not committed by the generated
-XPort: explicitly select immediate writes or arrange commits before simulation.
-Do not infer internal packed-struct layouts that Picker did not export.
+Dynamically queried VPI inputs use caller-selected immediate writes or explicit
+commits before simulation. Typed internal views use layouts exported by Picker.
 
 The [aggregate RTL example](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/aggregates/README.md)
 checks DPI, mem_direct and VPI on Verilator 5.052. Picker requires 5.048+ for
-aggregate ports and 5.052+ for the verified VPI unpacked-struct path. These results
-do not establish aggregate runtime support on UVS, VCS or GSIM.
+aggregate ports and 5.052+ for the verified VPI unpacked-struct path.
 
 ## PackedArray and PackedLayout
 
 `PackedLayout.struct` remains a manually declared Toffee-side view over an
 existing packed `XData` vector, independent of Picker's RTL `Layout` metadata.
-It does not infer RTL types or add support for unsupported ports such as unions.
 For supported RTL structs and packed arrays, prefer the generated `XStruct` /
 `XArray` views above rather than duplicating their layout by hand.
 
@@ -214,7 +207,7 @@ entries[0].drive({
 })
 ```
 
-Views access underlying signals directly. They neither copy simulator storage nor choose sampling time.
+Views access underlying signals directly at the caller's chosen sampling time.
 
 ## Bind names or Picker metadata
 
@@ -233,19 +226,24 @@ assert address_only.addr is dut.req_addr
 
 `Bundle.bind_tree(dut, signal_tree, source_prefix="io")` accepts explicitly supplied Picker metadata,
 preserves signal identity, and checks widths. Keywords such as `in` become `in_`; consecutive numeric indices become sequences.
-Names do not imply a protocol. Components can enumerate `fields` or `leaves()`.
-`Bundle.drive()` requires a complete shape without extra fields; omitted fields are not implicitly held or zeroed.
+The caller selects the protocol. Components can enumerate `fields` or `leaves()`.
+`Bundle.drive()` validates the exact complete field set before writing.
 Port nodes with `Unpacked: [[left, right], ...]` bind to `SignalArray`, checking
 dimension bounds and each element's width. Use
 `Field(("matrix", 3, -1), width=65)` to select one leaf explicitly.
-Port `Layout` metadata additionally binds recursive structs and arrays and checks
-their fields, bounds and widths. Packed roots use xcomm's `StructView` or
-`ArrayView` factory, not a guessed simulator layout. Metadata must be an
-unambiguous tree: if a node is both a port leaf and a prefix of other port names,
-bind the selected ports explicitly instead of accepting that ambiguous node.
+Port `Layout` metadata checks recursive struct/array fields, bounds and widths.
+It accepts an object or JSON string and checks nesting depth and declaration consistency
+against the existing leaves. Packed roots retain their original complete Data. Request
+`StructView()` / `ArrayView()` for structural access.
+When a port also prefixes other port names (`data` / `data_0`, `req` / `req_valid`),
+retain that port and promote conflicting descendants to sibling fields with their
+underscore-joined names. Duplicate resulting names produce a binding error.
+Noncolliding consecutive numeric groups remain sequences. `ReadyValid.bind_tree`
+also accepts an existing explicit `PackedView` or a complete packed Data payload
+with `Layout` metadata.
 
 For a matching Picker build that delivers one `.xscfg` configuration database,
-read the port metadata explicitly; no separate `signals.json` is required:
+read the port metadata directly from that database:
 
 ```python
 import json
@@ -256,8 +254,7 @@ pins = Bundle.bind_tree(dut, json.loads(dut.xcfg.Metadata("ports")))
 
 `bind_tree` resolves generated attributes. If Picker renamed a port to protect a
 wrapper member or method, bind that port explicitly using `dut["original_name"]`
-or its generated attribute rather than assuming the original attribute is a pin.
-This adapter does not reconstruct missing layouts or native addresses.
+or its generated attribute. Binding uses the SDK's existing layouts and native leaves.
 
 ## Bit ordering, padding, and four-state values
 
@@ -273,14 +270,13 @@ packet = PackedView(dut.packet, layout)
 packet.payload[1].Set(0xA5)
 ```
 
-Do not mix automatic and explicit offsets within one struct. Overlap is rejected unless intentional aliasing
+Choose either automatic or explicit offsets within one struct. Intentional aliasing
 uses `allow_overlap=True`. Driving writes leaves and preserves padding.
 `split_packed()` constructs an equal-width PackedArray. These views require native XData sub-signal support.
 
 `LogicValue(value, x_mask, width)` retains aval/bval. Check `is_known` before strict integer conversion.
-`as_int(strict=False)` is for diagnostics that explicitly tolerate unknown bits, not a hardware truth value.
+`as_int(strict=False)` is for diagnostics that explicitly tolerate unknown bits.
 `BundleValue.as_dict()` returns a structure of snapshot leaves unaffected by later DUT changes.
-Driver ownership checks underlying identity; another view cannot bypass conflicts.
-It identifies the same `XData`, not physical aliases across distinct `XData` objects;
-reuse one source view for the same element rather than guessing identity from addresses.
+Driver ownership checks the underlying `XData` identity across views.
+Reuse one source view for the same element to retain that identity.
 See [Drivers](drivers.md) and [Monitors](monitors.md).

@@ -1,7 +1,7 @@
 # Optional protocol views
 
-Generic Drivers, Monitors, and Agents do not require ready/valid. Use these helpers only for interfaces
-that implement that protocol; other interfaces define acceptance in their own components.
+Generic Drivers, Monitors, and Agents use project-defined acceptance rules.
+Use these helpers for interfaces that implement the ready/valid protocol.
 
 ## ReadyValid
 
@@ -29,7 +29,7 @@ ReadyValid.fire is a compiled Trigger sampled at DriveStable and supports persis
 ## Capture and drive
 
 ReadyValidMonitor captures an immutable payload at a fire candidate and delivers Transfer after confirmation
-at the corresponding rising edge. Its decoder receives a snapshot, not live pins.
+at the corresponding rising edge. Its decoder uses the saved snapshot.
 This differs from SamplingMonitor's direct capture at its supplied Trigger.
 See [Monitor](monitors.md) for lifecycle, delivery policy, and errors.
 Use drive_ready_valid inside a project SyncDriver or AsyncDriver subclass:
@@ -47,14 +47,14 @@ The subclass still declares its driven signals. The helper drives payload/valid 
 waits for ready at DriveStable after same-phase writes settle, and deasserts valid after acceptance.
 The drive callback must synchronously return None. `bits=` commits Picker Rise-mode payload before sampling,
 including when ready depends on that payload. The helper also commits/deasserts Rise-mode valid.
-There is no built-in ReadyValidDriver and no implicit ready/valid timing in generic Drivers.
+Projects explicitly select this helper to apply ready/valid timing.
 
 Optional `admit=lambda: bool(...)` runs in the actual drive slot before encoding.
-False performs no encoding or payload/valid write and retries next slot.
-True is followed immediately by drive without an intervening await.
+False retains the current signals and retries next slot.
+True is followed immediately by the synchronous drive operation.
 The callback must synchronously return bool; errors propagate to the send task.
-Admission controls starting a request, not ready: once started, payload stays held until protocol acceptance.
+Admission controls starting a request; ready controls acceptance. Once started, payload stays held until acceptance.
 The caller owns wait budgets and cancellation.
 
-Decoupled aliases ReadyValid. flipped() creates an opposite-role view without copying or reconnecting signals.
+Decoupled aliases ReadyValid. flipped() creates an opposite-role view over the existing signals.
 A role/direction mismatch fails during binding or acquisition of drive ownership.

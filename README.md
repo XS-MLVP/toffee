@@ -13,6 +13,7 @@ Toffee 是一个 Python 硬件验证框架。用 `async` / `await` 描述输入�
 用 pytest 运行测试，再通过参考模型、结果检查和覆盖率构建完整的验证环境。
 
 - **时钟与事件**：等待时钟边沿、信号条件和跨周期事件；支持将条件编译到原生后端求值。
+- **信号与数组**：用 Bundle 组织结构化信号，支持带真实下标的定长 unpacked 数组和不可变四态快照；原生数组与显式 packed 视图使用匹配的 Picker 3 / xcomm 工具链（原生 ABI 6）。
 - **驱动与检查**：用 Driver、Monitor 和 Agent 组织可复用组件，通过 Scoreboard 检查顺序或乱序响应。
 - **覆盖与回归**：定义功能覆盖、交叉覆盖和时序覆盖，在多进程回归后汇总功能与原生覆盖率。
 
@@ -28,7 +29,7 @@ source .venv/bin/activate
 python3 -m pip install -e '.[test]'
 ```
 
-下面用仓库自带的 8 位累加器模型演示一个测试，无需安装 RTL 仿真器。
+下面用仓库自带的 Python 8 位累加器模型演示一个测试。
 测试送入数字 3，等待一个时钟周期，再检查累加结果与空闲时的行为：
 
 ```python
@@ -90,4 +91,4 @@ toffee run examples/getting_started --workers 4
 ## Toffee Legacy
 
 旧版 Toffee 保留在 [`master` 分支](https://github.com/XS-MLVP/toffee/tree/master)。
-当前版本是一次 **breaking change**，与 Toffee Legacy 的 API 不兼容。
+当前版本采用 Toffee 新主线 API；Legacy 项目按迁移指南升级。

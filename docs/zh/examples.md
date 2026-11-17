@@ -111,6 +111,7 @@ Verilator 和原生绑定，不加入普通教程的默认测试收集。
 
 | 目标 | 入口 | 关注的框架功能 |
 | --- | --- | --- |
+| 验证定长 unpacked 数组端口和内部原生数组 | [数组 RTL 构建与使用](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md) | SignalArray/ArrayValue、真实下标 metadata、常量下标触发、Driver/Monitor、DPI 与 mem_direct 路径 |
 | 将输入变为多条下游命令，检查路由/地址/数据/错误 | [e203 构建与使用](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/e203/README.md) | Bundle 快照、接受后更新模型、Scoreboard 上下文、coverage、pytest 执行结果、LCOV/HTML、失败产物 |
 | 验证 refill、读写 mask、replacement、MMIO 和 probe/release | [Cache 构建与使用](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/cache/README.md) | 项目 SyncDriver、Monitor、CoherenceAgent 多拍组装、Scoreboard、参考内存、coverage 与后台清理 |
 | 验证 submit、流水、乱序、取消及截止周期 | [流水场景](guides/pipeline-examples.md)、[Agent/模型](guides/agents-and-reference-models.md) | AsyncDriver、SingleCycle 类、Agent、FIFO/key/固定延迟、finish，支持 memory/原生两种后端 |

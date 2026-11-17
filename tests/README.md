@@ -7,8 +7,8 @@ python3 -m pytest -q --require-xspcomm
 mkdocs build --strict
 ```
 
-`--require-xspcomm` 会在原生绑定缺失或接口不匹配时失败。
-普通 `pytest` 允许没有原生环境的用户运行纯 Python 测试；不能据此宣布完整回归通过。
+`--require-xspcomm` 严格检查原生绑定及匹配接口。
+普通 `pytest` 可运行纯 Python 测试；完整回归使用上面的原生检查选项。
 多页 HTML 报告的测试还需要系统安装 `genhtml`。
 
 ## 测试放在哪里
@@ -32,10 +32,10 @@ mkdocs build --strict
 以及 `integration/conftest.py` 中的 DUT 替身。
 
 测试应检查用户能观察到的结果：数据、接收时刻、异常、资源释放或报告内容。
-不要只断言某个私有函数被调用，也不要为了覆盖配置分支而复制整套场景。
+测试围绕公开行为组织，尽量复用场景和 fixture。
 
 修复问题时，先添加能复现问题的测试，再修改实现。
-改动采样和生命周期后，检查取消、异常退出及第二次运行，不能只测一次正常结束。
+改动采样和生命周期后，同时检查正常退出、取消、异常退出及第二次运行。
 
 教程中的代码片段有自动检查。修改教程或示例时，要保持两者一致，
 并确认故意失败的练习仍报出文档说明的异常。
@@ -49,9 +49,19 @@ python3 -m pytest -q --require-xspcomm \
   --cov-report=html:output/python-coverage/html
 ```
 
-这测量的是框架的 Python 代码，不是外部 DUT 的 RTL。
-行覆盖率和分支覆盖率分别查看；不要把 pytest 显示的综合百分比当成行覆盖率。
-补用例时先判断遗漏了什么行为，不要直接调用私有函数或扩大排除规则来凑满数字。
+这测量框架的 Python 代码。行覆盖率和分支覆盖率分别查看。
+补用例时先定位遗漏的公开行为，再通过对应接口复现。
 
 真实 RTL 的构建和测试见 `examples/integration/` 中的项目说明。
-原生时钟替身测试通过，不代表那些 RTL 已经重新运行。
+真实 RTL 验收显式运行各项目对应的构建与测试。
+
+数组的纯 Python 契约在 `interfaces/test_signal_arrays.py`，真实 xcomm 叶子、原生触发、
+覆盖率及 Driver/Monitor 在 `integration/test_unpacked_arrays.py`。运行数组集成测试时增加
+`--require-xarrays`；它严格检查带 `XArray` 工厂的 xcomm（原生 ABI 6）。真实 RTL 的显式运行方式见
+[数组示例](../examples/integration/arrays/README.md)。
+
+递归 struct/array 的纯 Python 契约在 `interfaces/test_aggregate_views.py`，真实 xcomm 的
+身份、四态、原生触发/coverage 及 Driver/Monitor 在 `integration/test_native_aggregate_views.py`。
+增加 `--require-xviews` 可要求依赖清单中的原生 ABI 6、`XView` / `XStruct` / `XArray`
+以及 Data 类型关联与显式视图 API。真实 RTL 的 DPI、mem_direct、VPI 三条路径见
+[聚合示例](../examples/integration/aggregates/README.md)。

@@ -110,6 +110,7 @@ tutorial collection.
 
 | Goal | Entry point | Framework features |
 | --- | --- | --- |
+| Verify fixed unpacked array ports and internal native arrays | [Array RTL build and use](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/arrays/README.md) | SignalArray/ArrayValue, actual-index metadata, constant-index triggers, Driver/Monitor, DPI and mem_direct paths |
 | Expand inputs into downstream commands; check routing, addresses, data, and errors | [e203 build and use](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/e203/README.md) | Bundle snapshots, acceptance-time model updates, Scoreboard context, coverage, pytest results, LCOV/HTML, failure artifacts |
 | Verify refill, masks, replacement, MMIO, and probe/release | [Cache build and use](https://github.com/XS-MLVP/toffee/blob/main/examples/integration/cache/README.md) | Project SyncDriver, Monitor, multi-beat CoherenceAgent, Scoreboard, reference memory, coverage, background cleanup |
 | Verify submit, pipelines, reordering, cancellation, and deadlines | [Pipeline scenarios](guides/pipeline-examples.md), [Agents/models](guides/agents-and-reference-models.md) | AsyncDriver, single-cycle templates, Agent, FIFO/key/fixed latency, finish, memory/native Backends |

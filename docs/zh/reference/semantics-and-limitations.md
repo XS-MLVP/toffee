@@ -64,6 +64,9 @@
 - 常量必须能由目标类型表示，算术结果按位宽截断；
 - `ValueChange` 比较四态值的 aval/bval；
 - 数据运算按两态位向量定义，不提供完整的 SystemVerilog 四态传播。
+- `SignalArray` 是结构只读的有界聚合，叶子来自已有信号；保留 `XData` 对象身份，不复制或重绑叶子，也不计算元素地址、DPI 下标或后端专用句柄。
+- `ArrayValue` 是保留边界和 `LogicValue` 叶子的不可变四态快照。`SignalArray` 与 `ArrayValue` 的下标由来源边界决定；普通 tuple/list 仍是位置序列。
+- 数组适配不修改叶子、写模式或后端，也不额外注册 `XPort`；整组采样/驱动仍是逐元素操作，不是原子或批量 native 传输。
 
 具体操作、溢出和除法规则见[表达式与资源](../guides/expressions-and-resources.md)。
 
@@ -77,3 +80,4 @@
 - Backend、XClock 和 DUT signal 不支持跨线程并发访问；
 - `Bundle` 和具体通道视图需要显式绑定；不存在通用 `Interface` 基类；
 - coverage JSON 使用 Toffee schema，不是 UCIS。
+- 数组表达式只支持常量整数下标；不支持切片、动态索引、动态数组、隐式 packed 位选择、整数组表达式或声明式覆盖字段的数组选择 DSL。

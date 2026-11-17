@@ -10,6 +10,8 @@ from enum import Enum
 from typing import Any, Generic, Hashable, Literal, Protocol, Self, TypeVar
 
 from .events import LogicValue, XEvent, XPhase
+from .arrays import ArrayValue
+from .data import BundleValue
 from ._reactor_context import current_reactor
 from ._cleanup_errors import raise_cleanup_errors
 from ._scoreboard_matching import Association, cycle_deadline
@@ -875,7 +877,18 @@ def structural_differences(
     def visit(wanted: Any, got: Any, path: str) -> None:
         if len(differences) >= limit:
             return
-        if is_dataclass(wanted) and not isinstance(wanted, type):
+        if isinstance(wanted, ArrayValue) or isinstance(got, ArrayValue):
+            if not isinstance(wanted, ArrayValue) or not isinstance(got, ArrayValue):
+                differences.append(Difference(path or "value", wanted, got))
+            elif wanted.bounds != got.bounds:
+                differences.append(Difference(f"{path}.bounds" if path else "bounds", wanted.bounds, got.bounds))
+            else:
+                for index in wanted.indices:
+                    if len(differences) >= limit:
+                        break
+                    visit(wanted[index], got[index], f"{path}[{index}]")
+            return
+        if (is_dataclass(wanted) and not isinstance(wanted, (type, BundleValue))):
             if not is_dataclass(got) or type(wanted) is not type(got):
                 differences.append(Difference(path, wanted, got))
                 return

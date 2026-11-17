@@ -1,6 +1,6 @@
 # 0. 准备一个能运行例子的环境
 
-这一页完成后，你应该能在终端导入 Toffee。暂时不需要安装硬件仿真器。
+这一页完成后，你应该能在终端导入 Toffee，并运行 Python 教学模型。
 下面使用 Linux/macOS 的 shell；Python 需要 **3.11 或更新版本**。
 
 ## 找到仓库根目录
@@ -13,14 +13,16 @@ git clone --branch main https://github.com/XS-MLVP/toffee.git
 cd toffee
 ```
 
-以下所有命令都在这个目录运行。不要进入 `src/` 或 `examples/` 再执行。
+以下所有命令都在这个仓库根目录运行。
 
 分发包名是 `uc-toffee`，Python 导入名是 `toffee`。可以用
-`python3 -m pip install "uc-toffee[runner]"` 安装；它会自动安装 `uc-xcomm>=1.2,<2`，
-由后者提供 `xspcomm` 原生绑定。旧 `pytoffee` 对应 Legacy，不是这条新主线。
+`python3 -m pip install "uc-toffee[runner]"` 安装；它会自动安装 `uc-xcomm>=2.0,<3`，
+由后者提供 `xspcomm` 原生绑定。旧 `pytoffee` 对应 Legacy。
 
 下面从源码安装，以便运行仓库中的教程。
-开发未发布版本时，按[贡献指南](https://github.com/XS-MLVP/toffee/blob/main/CONTRIBUTING.md)准备固定提交的原生依赖。
+需要从源码准备原生接口时，按
+[贡献指南](https://github.com/XS-MLVP/toffee/blob/main/CONTRIBUTING.md)构建依赖清单固定的
+xcomm 提交。
 
 ## 安装到独立的 Python 环境
 
@@ -39,7 +41,7 @@ python3 -c 'import toffee; print(toffee.__file__)'
 以后打开新终端，进入仓库后重新执行 `source .venv/bin/activate` 即可。
 
 测试依赖里的 pytest 负责找到并运行测试，pytest-asyncio 负责运行后面需要等待时钟的
-`async def` 测试。你不必自己创建 event loop 或 TaskGroup。
+`async def` 测试，并负责 event loop 的生命周期。
 
 ## 安装时卡住了
 
@@ -47,10 +49,10 @@ python3 -c 'import toffee; print(toffee.__file__)'
 | --- | --- |
 | Python 版本低于 3.11 | 安装较新版本，用它重新创建 `.venv` |
 | `No module named venv` 或缺少 `ensurepip` | 安装系统对应的 Python venv 组件后重试 |
-| pip 下载失败 | 检查网络或已有的包镜像配置；这还没有运行任何仿真 |
+| pip 下载失败 | 检查网络或已有的包镜像配置 |
 | `No module named toffee` | 确认激活了环境，并用同一个 `python3` 执行安装和运行命令 |
 | 后续提示 `No module named examples` / `file not found` | 回到仓库根目录，使用文档中的 `python3 -m pytest ...` |
 
 先继续 [1. 第一次 PASS 和 FAIL](first-test.md)。
-需要使用原生 XClock 时再看 [接入 native](native-and-next.md)。匹配的预编译包无需本地编译；
+需要使用原生 XClock 时再看 [接入 native](native-and-next.md)。匹配的预编译包可直接安装；
 其他环境安装 `uc-xcomm` 源码包时，需要系统提供 C++20 编译器、CMake 和 Python 开发头文件。

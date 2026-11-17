@@ -7,11 +7,14 @@
 
 Toffee 通过常规依赖 `uc-xcomm` 安装 `xspcomm` 绑定。原生后端需要 `XClock.StepHalf`、`GetHalfTick`、`GetPhase`、
 `XData` 和 `XTriggerEngine` 等接口。开发使用的提交、包版本、ABI 和协议版本以
-[依赖清单](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json)为准，
-不要只按包名判断版本是否匹配。安装到当前 Python 环境后，先运行：
+[依赖清单](https://github.com/XS-MLVP/toffee/blob/main/.github/native-dependencies.json)为准。
+安装到当前 Python 环境后，运行下面的检查脚本。
 
 组合事件要求 `XTriggerEngine.CombinationalVersion() == 1`。CI 使用依赖清单中的原生提交，
-并检查组合协议版本。仅安装同名旧 wheel 不会获得这一能力。
+并检查组合协议版本。数组 DUT 还需要 `XArray` 工厂
+API 和原生 ABI 6，见[定长 unpacked 数组](../guides/data.md#unpacked-arrays)。
+递归 `XStruct` / `XArray` 及无参显式视图使用配套 Picker 3 / xcomm（原生 ABI 6），可在仓库测试中
+用 `--require-xviews` 检查这些实际接口。
 
 ```bash
 python3 examples/getting_started/check_native.py
@@ -38,8 +41,8 @@ native clock: tick=2, phase=RISING_STABLE
 | 加载路径是旧构建 | 修正环境，选中需要的 绑定 |
 | 缺少 half-step API / XTriggerEngine | 更新或重建包含这些接口的 xcomm |
 
-仓库完整回归会尝试发现同级 Picker 构建；普通脚本和仅运行 `examples/` 不使用
-`tests/conftest.py` 中的发现逻辑，因此这里仍需让当前 Python 能直接导入 xspcomm。
+仓库完整回归通过 `tests/conftest.py` 尝试发现同级 Picker 构建。
+普通脚本和仅运行 `examples/` 时，由当前 Python 环境直接导入 xspcomm。
 
 ## 相同的 Agent，在原生时钟上验证溢出
 
@@ -78,13 +81,11 @@ python3 -m pytest -q examples/getting_started/native_lab.py
 
 预期 `1 passed`。这里唯一与主线不同的环境选择是 `TutorialDut(backend="native")`；
 它用原生 XClock 和 XData，但累加行为仍由 Python 替身实现。
-所以它验证的是测试链路能在原生后端运行，**不是某个 RTL 累加器已通过验证**。
-这个文件也是显式运行的选读练习，普通入门测试不要求安装原生绑定。
+它验证测试链路在原生后端的运行。这个文件是安装原生绑定后显式运行的选读练习。
 
 ## 接入真实 RTL，要替换哪些地方
 
-不同项目的 DUT 生成、端口和初始化方法不同，这里不放一个不存在的 `create_dut()`
-作为可运行示例。实际迁移时按下面的对应关系实现项目环境：
+DUT 生成、端口和初始化由项目定义。迁移时按下面的对应关系实现项目环境：
 
 | 教学代码 | 项目环境负责提供 |
 | --- | --- |
@@ -99,7 +100,7 @@ python3 -m pytest -q examples/getting_started/native_lab.py
 | `dut.close()` | 项目资源的实际清理方法 |
 
 测试里的“输入 → 等待/结束检查 → 判定”结构可以保留；协议、reset、flush 规则须由项目明确。
-不要把示例中拉高 enable 一拍的规则直接套给其他硬件。
+驱动时序以目标硬件的接受规则为准。
 
 ## 按你的下一项任务继续
 
@@ -121,7 +122,6 @@ python3 -m pip install -e '.[docs]'
 mkdocs build --strict
 ```
 
-`--require-xspcomm` 会在原生绑定 不可用时直接报错，避免把未运行的原生回归
-当成通过。它是仓库 `tests/` 的检查选项，不需要加在前面的入门命令里。
+`--require-xspcomm` 为仓库 `tests/` 严格检查原生绑定，并报告环境或接口错误。
 
 [返回教程路线](index.md) · [查看全部功能指南](../reference/feature-map.md)。

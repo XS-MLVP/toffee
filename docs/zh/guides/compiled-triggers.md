@@ -27,6 +27,21 @@ event = await handshake(dut)
 装饰器只声明规格，调用 `handshake(dut)` 才生成绑定 DUT 的 Trigger。`sample` 可以写
 真实 phase trigger，也可以像上例一样使用 DUT 属性路径字符串。
 
+### 数组的常量下标
+
+```python
+@xtrigger(sample=RisingEdge("clk"))
+def selected_word(dut):
+    return dut.matrix[3][-1] == 42
+```
+
+整数下标在绑定时解析到原来的 `XData`；原生后端随后直接执行叶子表达式，不在每拍
+调用 Python 数组选择器。负数使用数组视图的真实下标。路径的属性与整数下标可进行
+IR 序列化和恢复，纯属性路径保持原有语法。`Value(dut.matrix[3][-1], 42)` 也可直接使用叶子。
+不支持动态下标 `dut.matrix[dut.index]`、切片、隐式 packed 位选择或整数组比较。字符串
+来源仍使用属性路径语法；显式 Field 选择使用 `Field(("matrix", 3, -1))`，不通过方括号
+字符串解析器。
+
 ## `@pytrigger`
 
 `@pytrigger` 用于调用 Python 条件函数：

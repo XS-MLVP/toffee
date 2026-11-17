@@ -17,7 +17,7 @@
 
 | 任务 | 指南 |
 | --- | --- |
-| 把 DUT 信号绑定到结构化对象 | [信号与 Bundle](data.md) |
+| 绑定信号、结构化 Bundle 与定长 unpacked 数组 | [信号、Bundle 与数组](data.md) |
 | 实现单周期、多周期或可重叠的输入 | [编写 Driver](drivers.md) |
 | 收集输出，避免漏掉单拍结果 | [编写 Monitor](monitors.md) |
 | 组合组件并接入有状态参考模型 | [Agent 与参考模型](agents-and-reference-models.md) |

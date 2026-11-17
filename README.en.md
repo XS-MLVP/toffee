@@ -15,6 +15,9 @@ checking, and coverage.
 
 - **Clocks and events:** wait for clock edges, signal conditions, and multi-cycle events, with
   supported conditions compiled for native evaluation.
+- **Signals and arrays:** structure signals with Bundle, including fixed unpacked arrays with
+  actual index bounds and immutable four-state snapshots; native array views require a matching
+  Picker 3 / xcomm toolchain with native ABI 6 for arrays and explicit packed views.
 - **Driving and checking:** organize reusable Drivers, Monitors, and Agents; check ordered or
   reordered responses with Scoreboard.
 - **Coverage and regressions:** define functional, cross, and temporal coverage, then aggregate
@@ -32,7 +35,7 @@ source .venv/bin/activate
 python3 -m pip install -e '.[test]'
 ```
 
-This test uses the included 8-bit accumulator model and needs no RTL simulator. It supplies 3,
+This test uses the included Python 8-bit accumulator model. It supplies 3,
 waits one clock cycle, and checks the accumulated result and idle behavior:
 
 ```python

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 import sys
@@ -35,6 +36,9 @@ def _bootstrap_local_xspcomm() -> None:
 
 
 _bootstrap_local_xspcomm()
+NATIVE_ABI = json.loads(
+    (Path(__file__).resolve().parents[1] / ".github/native-dependencies.json").read_text()
+)["xcomm"]["native_abi"]
 
 
 def _native_api_error() -> str | None:
@@ -60,16 +64,39 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store_true",
         help="fail collection unless the native xspcomm trigger API is available",
     )
+    parser.addoption(
+        "--require-xarrays",
+        action="store_true",
+        help=f"require ABI-{NATIVE_ABI} xcomm with XArray factories instead of skipping array integration tests",
+    )
+    parser.addoption(
+        "--require-xviews",
+        action="store_true",
+        help=f"require ABI-{NATIVE_ABI} xcomm with associated types and explicit XStruct/XArray views",
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
-    if not config.getoption("--require-xspcomm"):
+    if not any(config.getoption(name) for name in ("--require-xspcomm", "--require-xarrays", "--require-xviews")):
         return
     error = _native_api_error()
     if error is not None:
+        requested = next(name for name in ("--require-xviews", "--require-xarrays", "--require-xspcomm")
+                         if config.getoption(name))
         raise pytest.UsageError(
-            f"--require-xspcomm requested, but {error}. "
+            f"{requested} requested, but {error}. "
             "Install xcomm with BUILD_XSPCOMM_SWIG=python and "
             "XSPCOMM_BUILD_WHEEL=1, or set XCOMM_PYTHON to an existing "
             "xcomm build/python directory."
         )
+    if config.getoption("--require-xarrays"):
+        xspcomm = importlib.import_module("xspcomm")
+        if not hasattr(getattr(xspcomm, "XArray", None), "FromNative") or xspcomm.abi_version() != NATIVE_ABI:
+            raise pytest.UsageError(f"--require-xarrays requires xcomm XArray factories and matching native ABI-{NATIVE_ABI} Python bindings")
+    if config.getoption("--require-xviews"):
+        xspcomm = importlib.import_module("xspcomm")
+        if (xspcomm.abi_version() != NATIVE_ABI
+                or not all(hasattr(xspcomm, name) for name in ("XView", "XStruct", "XArray"))
+                or not all(callable(getattr(xspcomm.XData, name, None))
+                           for name in ("HasLayout", "SetLayout", "StructView", "ArrayView"))):
+            raise pytest.UsageError(f"--require-xviews requires xcomm associated types, explicit views and matching native ABI-{NATIVE_ABI} Python bindings")

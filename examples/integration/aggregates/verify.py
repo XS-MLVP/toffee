@@ -16,15 +16,15 @@ from toffee import (
 
 @xtrigger(sample=RisingEdge("clk"))
 def selected_result(dut, expected):
-    return dut.record_out.entries[-1].header.tag == expected
+    return dut.header.tag == expected
 
 
 def transaction(number):
     return {
         "record": {"enabled": number & 1, "entries": {
-            -1: {"header": {"tag": 17 + number, "valid": 1},
+            -1: {"header": ((17 + number) << 1) | 1,
                  "payload": {3: (1 << 64) | 7, 2: number * 11}},
-            0: {"header": {"tag": 3, "valid": 0},
+            0: {"header": 3 << 1,
                 "payload": {3: (1 << 64) | number, 2: number + 9}},
         }},
         "header": {"tag": number + 5, "valid": 1},
@@ -43,6 +43,11 @@ async def verify(metadata, access):
         dut.Step(1)
         clock = dut.GetXClock()
         port_count = dut.xport.PortCount()
+        assert xsp.abi_version() == 6
+        assert isinstance(dut.packed_in, xsp.XData) and dut.packed_in.HasLayout()
+        assert isinstance(dut.matrix_in, xsp.XData) and dut.matrix_in.HasLayout()
+        assert not hasattr(dut, "packed_in_view")
+        assert not hasattr(dut, "matrix_in_view")
         tree = json.loads(Path(metadata).read_text() if metadata else dut.xcfg.Metadata("ports"))
         pins = Bundle.bind_tree(dut, tree)
         # Picker's signal tree groups common name prefixes; `in` is exposed as
@@ -59,17 +64,19 @@ async def verify(metadata, access):
             sources = {name: dut.GetInternalSignal(name, use_vpi=True) for name in (
                 "record_in", "record_out", "packed_in", "packed_out", "matrix_in", "matrix_out",
             )}
-            inputs = Bundle(record=sources["record_in"], header=sources["packed_in"], matrix=sources["matrix_in"])
-            outputs = Bundle(record=sources["record_out"], header=sources["packed_out"], matrix=sources["matrix_out"])
+            inputs = Bundle(record=sources["record_in"], header=sources["packed_in"].StructView(),
+                            matrix=sources["matrix_in"].ArrayView())
+            outputs = Bundle(record=sources["record_out"], header=sources["packed_out"].StructView(),
+                             matrix=sources["matrix_out"].ArrayView())
             # Queried VPI leaves are not registered with the generated XPort.
             # Choose immediate writes explicitly; adaptation itself never changes modes.
             for _, leaf in inputs.leaves():
                 leaf.AsImmWrite()
-            trigger_root = SimpleNamespace(record_out=sources["record_out"], clk=clock)
         else:
             inputs = Bundle(record=pins.record.in_, header=pins.packed.in_, matrix=pins.matrix.in_)
             outputs = Bundle(record=pins.record.out, header=pins.packed.out, matrix=pins.matrix.out)
-            trigger_root = SimpleNamespace(record_out=dut.record_out, clk=clock)
+        trigger_root = SimpleNamespace(
+            header=Bundle(outputs.record.entries[-1].header.StructView()), clk=clock)
         sampler = outputs.compile_sampler()
         interface = ReadyValid(clock, dut.valid, dut.ready, inputs, role=Role.PRODUCER)
 

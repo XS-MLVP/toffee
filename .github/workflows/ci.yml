@@ -60,7 +60,7 @@ jobs:
       - name: Install build and report tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build lcov verilator zlib1g-dev
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build lcov verilator zlib1g-dev liblz4-dev
           python -m pip install 'build>=1,<2'
       - name: Build pinned native backend
         # This wheel is reused by another runner during isolated installation.

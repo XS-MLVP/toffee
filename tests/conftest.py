@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 import os
 from pathlib import Path
 import sys
@@ -35,6 +36,9 @@ def _bootstrap_local_xspcomm() -> None:
 
 
 _bootstrap_local_xspcomm()
+NATIVE_ABI = json.loads(
+    (Path(__file__).resolve().parents[1] / ".github/native-dependencies.json").read_text()
+)["xcomm"]["native_abi"]
 
 
 def _native_api_error() -> str | None:
@@ -63,12 +67,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     parser.addoption(
         "--require-xarrays",
         action="store_true",
-        help="require ABI-4 xcomm with XArray factories instead of skipping array integration tests",
+        help=f"require ABI-{NATIVE_ABI} xcomm with XArray factories instead of skipping array integration tests",
     )
     parser.addoption(
         "--require-xviews",
         action="store_true",
-        help="require ABI-4 xcomm with recursive XStruct/XArray views",
+        help=f"require ABI-{NATIVE_ABI} xcomm with associated types and explicit XStruct/XArray views",
     )
 
 
@@ -87,9 +91,12 @@ def pytest_configure(config: pytest.Config) -> None:
         )
     if config.getoption("--require-xarrays"):
         xspcomm = importlib.import_module("xspcomm")
-        if not hasattr(getattr(xspcomm, "XArray", None), "FromNative") or xspcomm.abi_version() != 4:
-            raise pytest.UsageError("--require-xarrays requires xcomm XArray factories and matching native ABI-4 Python bindings")
+        if not hasattr(getattr(xspcomm, "XArray", None), "FromNative") or xspcomm.abi_version() != NATIVE_ABI:
+            raise pytest.UsageError(f"--require-xarrays requires xcomm XArray factories and matching native ABI-{NATIVE_ABI} Python bindings")
     if config.getoption("--require-xviews"):
         xspcomm = importlib.import_module("xspcomm")
-        if xspcomm.abi_version() != 4 or not all(hasattr(xspcomm, name) for name in ("XView", "XStruct", "XArray")):
-            raise pytest.UsageError("--require-xviews requires xcomm recursive views and matching native ABI-4 Python bindings")
+        if (xspcomm.abi_version() != NATIVE_ABI
+                or not all(hasattr(xspcomm, name) for name in ("XView", "XStruct", "XArray"))
+                or not all(callable(getattr(xspcomm.XData, name, None))
+                           for name in ("HasLayout", "SetLayout", "StructView", "ArrayView"))):
+            raise pytest.UsageError(f"--require-xviews requires xcomm associated types, explicit views and matching native ABI-{NATIVE_ABI} Python bindings")

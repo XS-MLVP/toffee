@@ -111,7 +111,7 @@ ports keep their existing `XPort`/`XClock` edge commits; callers choose immediat
 writes or explicit commits for dynamically queried internal leaves. A flattened
 list remains a positional sequence; RTL bounds are not guessed.
 
-Native array views use xcomm's `XArray` factories (native ABI 4) and matching
+Native array views use xcomm's `XArray` factories (native ABI 6) and matching
 Picker-generated bindings. The former separate native-array protocol is removed;
 regenerate DUTs and migrate to recursive indexing after toolchain upgrades.
 
@@ -121,7 +121,7 @@ The DPI and mem_direct array paths have been verified on Verilator **5.026,
 
 ## RTL structs and recursive arrays
 
-With a matching aggregate-enabled Picker/xcomm build (**native ABI 4**), pass
+With a matching Picker 3 / xcomm build (**native ABI 6**), pass
 `XStruct` and `XArray` directly to existing Toffee components:
 
 ```python
@@ -129,8 +129,8 @@ from toffee import Bundle
 
 payload = Bundle(
     record=dut.record_in,
-    header=dut.packed_in_view,
-    matrix=dut.matrix_view,
+    header=dut.packed_in.StructView(),
+    matrix=dut.matrix.ArrayView(),
 )
 snapshot = payload.sample()
 word = snapshot.record.entries[-1].payload[3].as_int()
@@ -144,9 +144,17 @@ directions, and negative indices come from the source. Native fields colliding
 with Bundle methods remain accessible through `bundle["sample"]`, for example;
 ordinary user-authored Bundle mappings still reject reserved names.
 
-Packed scalar fields retain the source's whole `XData` value. To explicitly
-traverse a packed array field, pass `xstruct.Array("field")` to `SignalArray`.
-Packed views share their parent storage; unpacked fields keep independent
+Packed struct/array fields and packed elements in unpacked arrays default to
+whole `XData` values. Pass the whole value to Bundle directly, or explicitly
+request its `StructView()` / `ArrayView()` for structural access:
+
+```python
+header = Bundle(payload.record.entries[-1].header.StructView())
+header.drive({"tag": 17, "valid": 1})
+```
+
+Explicit views reuse the Data's associated RTL type. Packed views share their
+parent storage; unpacked fields keep independent
 leaves. Toffee does not compute offsets, copy aggregate storage, add clock
 callbacks or XPort entries, or change write modes. Reuse the same source view
 when driver ownership must recognize a shared leaf.
@@ -158,7 +166,8 @@ Four-state sampling is supported; driving a `LogicValue` containing X/Z still
 raises rather than silently discarding unknown bits.
 
 VPI sources returned by `dut.GetInternalSignal(name, use_vpi=True)` use the same
-adapters. Initialize the model before driving VPI inputs; Verilator's first
+adapters. Explicitly request a packed value's `StructView()` / `ArrayView()` to
+drive or sample structured transactions. Initialize the model before driving VPI inputs; Verilator's first
 evaluation can overwrite values written before initialization.
 Dynamically queried VPI inputs are not committed by the generated
 XPort: explicitly select immediate writes or arrange commits before simulation.

@@ -103,7 +103,7 @@ memory[0][0].Set(42)
 `XPort`/`XClock` 管理；动态查询的内部叶子由调用方选择立即写或显式提交。扁平列表仍是
 位置序列，不猜测 RTL 边界。
 
-原生数组视图使用 xcomm 的 `XArray` 工厂（原生 ABI 4）和匹配的 Picker 生成绑定；
+原生数组视图使用 xcomm 的 `XArray` 工厂（原生 ABI 6）和匹配的 Picker 生成绑定；
 原先单独的原生数组协议已移除，升级工具链后重新生成 DUT 并迁移为递归索引。
 
 DPI 和 mem_direct 数组路径已在 Verilator **5.026、5.048、5.052** 上验证。可运行的真实
@@ -112,7 +112,7 @@ RTL 场景见
 
 ## RTL struct 与递归数组
 
-使用带聚合支持的配套 Picker/xcomm（**原生 ABI 4**）时，可把 `XStruct` 和 `XArray`
+使用配套 Picker 3 / xcomm（**原生 ABI 6**）时，可把 `XStruct` 和 `XArray`
 直接交给现有 Toffee 组件：
 
 ```python
@@ -120,8 +120,8 @@ from toffee import Bundle
 
 payload = Bundle(
     record=dut.record_in,
-    header=dut.packed_in_view,
-    matrix=dut.matrix_view,
+    header=dut.packed_in.StructView(),
+    matrix=dut.matrix.ArrayView(),
 )
 snapshot = payload.sample()
 word = snapshot.record.entries[-1].payload[3].as_int()
@@ -133,8 +133,15 @@ payload.drive(snapshot)
 各维方向及负下标均来自来源视图。原生字段与 Bundle 方法重名时用 `bundle["sample"]` 这样的
 索引访问；普通用户编写的 Bundle mapping 仍拒绝保留名。
 
-packed 标量字段保留来源视图暴露的完整 `XData` 值；需要逐维访问 packed 数组字段时，显式把
-`xstruct.Array("field")` 交给 `SignalArray`。packed 视图共享父存储，unpacked 字段保留各自
+packed struct/array 字段和 unpacked 数组中的 packed 元素默认保留完整 `XData` 值。
+整值可直接交给 Bundle；结构化访问使用该 Data 的 `StructView()` / `ArrayView()`：
+
+```python
+header = Bundle(payload.record.entries[-1].header.StructView())
+header.drive({"tag": 17, "valid": 1})
+```
+
+显式视图复用 Data 关联的 RTL 类型。packed 视图共享父存储，unpacked 字段保留各自
 独立叶子。Toffee 不计算偏移、不复制聚合存储、不增加时钟回调或 XPort 条目，也不改变写模式。
 需要 Driver 识别共同叶子时，复用同一来源视图。
 
@@ -142,7 +149,8 @@ packed 标量字段保留来源视图暴露的完整 `XData` 值；需要逐维�
 整棵结构的 drive 会在首次写入前检查字段、数组边界、X/Z 驱动值、输出方向和只读后端。
 四态采样保留未知位；驱动含 X/Z 的 `LogicValue` 仍会报错，不会静默丢弃未知位。
 
-`dut.GetInternalSignal(name, use_vpi=True)` 返回的 VPI 来源也使用同一适配器。
+`dut.GetInternalSignal(name, use_vpi=True)` 返回的 VPI 来源也使用同一适配器，packed
+值通过 `StructView()` / `ArrayView()` 显式转换后可用结构化事务驱动和采样。
 驱动 VPI 输入前先完成模型初始化，避免 Verilator 首次求值覆盖提前写入的值。
 动态查询的 VPI 输入不由生成的 XPort 提交，需显式选择立即写或安排提交后再推进仿真。
 不要为 Picker 未导出布局的内部 packed struct 猜测字段偏移。

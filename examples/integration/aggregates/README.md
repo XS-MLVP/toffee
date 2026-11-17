@@ -4,10 +4,9 @@
 65 位数组字段的 unpacked struct。Toffee 使用生成的实时叶子，不复制模拟器存储、不创建逐元素
 时钟回调，也不新增 XPort 注册。
 
-需要带聚合支持的匹配 Picker/xcomm 和 Python 绑定（**原生 ABI 4**），以及 Verilator 5.048+。
+需要匹配的 Picker 3 / xcomm 和 Python 绑定（**原生 ABI 6**），以及 Verilator 5.048+。
 VPI 的 unpacked struct 场景要求 5.052+；本例三条路径在 5.052 上验证。使用仓库
-`.github/native-dependencies.json` 固定的 xcomm，并配套使用支持 `.xscfg` 的 Picker；
-仅有 ABI 4 而缺少递归视图或配置库 API 的旧构建不能代替该工具链。
+`.github/native-dependencies.json` 固定的 xcomm，并配套使用同一 SDK 重新生成 DUT。
 
 在 Toffee 仓库根目录执行：
 
@@ -26,6 +25,7 @@ TOFFEE_AGGREGATE_RTL=1 python3 -m pytest -q \
 
 - 用唯一配置库的 `dut.xcfg.Metadata("ports")` 中的 `Layout` 绑定递归结构，保留字段、真实边界、声明顺序和位宽；不依赖单独的 `signals.json`。
 - 原生 `XStruct` 接入 Bundle，`XArray` 接入 SignalArray，struct 数组的快照保留嵌套字段。
+- packed 值默认按完整 Data 驱动与采样；字段访问使用 Data 的 `StructView()` / `ArrayView()`。
 - Driver / ReadyValidMonitor 传递不可变快照，Scoreboard 检查实际 RTL 输出。
 - 保留默认端口边沿提交；VPI 查询输入由场景显式选择立即写，不在适配器中修改写模式。
 - VPI 写入前先执行模型初始化，避免 Verilator 首次求值覆盖提前写入的值。

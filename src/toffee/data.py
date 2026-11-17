@@ -800,7 +800,7 @@ def _bind_layout(signal: Any, layout: Mapping[str, Any], path: str) -> DataNode:
         method = "StructView" if kind == "struct" else "ArrayView"
         factory = getattr(signal, method, None)
         if not callable(factory):
-            raise TypeError(f"{path} Layout requires xcomm recursive views (native ABI 4 with XStruct/XArray)")
+            raise TypeError(f"{path} Layout requires xcomm XStruct/XArray view factories (uc-xcomm>=2.0)")
         signal = factory(json.dumps(layout))
     bound = _normalize_node(signal, path)
 

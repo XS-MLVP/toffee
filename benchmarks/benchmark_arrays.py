@@ -30,7 +30,7 @@ def main():
     if min(args.elements, args.iterations, args.repeats) <= 0:
         parser.error("elements, iterations and repeats must be positive")
     if not hasattr(getattr(xspcomm, "XArray", None), "FromNative"):
-        parser.error("requires xcomm XArray factories and matching ABI-4 Python bindings")
+        parser.error("requires xcomm XArray factories (uc-xcomm>=2.0)")
     memory = (ctypes.c_uint32 * (args.elements * 3))()
     source = xspcomm.XArray.FromNative(65, [args.elements + 1], [2], ctypes.addressof(memory), [12])
     view = SignalArray(source)

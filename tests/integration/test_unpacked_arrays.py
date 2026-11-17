@@ -21,7 +21,7 @@ class Vec(ctypes.Structure):
 def native():
     xs = pytest.importorskip("xspcomm")
     if not hasattr(getattr(xs, "XArray", None), "FromNative"):
-        pytest.skip("requires xcomm XArray factories and matching native ABI-4 Python bindings")
+        pytest.skip("requires xcomm XArray factories (uc-xcomm>=2.0)")
     return xs
 
 

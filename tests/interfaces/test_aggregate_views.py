@@ -197,7 +197,7 @@ def test_layout_is_port_metadata_and_requires_recursive_factory_for_packed_signa
               "fields": [{"name": "word", "offset": 0,
                           "type": {"kind": "bits", "packed": True, "width": 4}}]}
     tree = {"packet": {"_": True, "High": 3, "Low": 0, "Layout": layout}}
-    with pytest.raises(TypeError, match="native ABI 4 with XStruct/XArray"):
+    with pytest.raises(TypeError, match="XStruct/XArray view factories"):
         Bundle.bind_tree(SimpleNamespace(packet=Signal(width=4)), tree)
     with pytest.raises(ValueError, match="metadata requires"):
         Bundle.bind_tree(SimpleNamespace(), {"Layout": layout})
@@ -248,3 +248,24 @@ def test_static_paths_select_struct_fields_instead_of_adapter_methods(adapt):
         return pins.packet.sample == 7
 
     assert selected(root).program.evaluate(root)
+
+
+def test_associated_signal_types_are_interpreted_only_by_explicit_views():
+    class TypedSignal(Signal):
+        def HasLayout(self):
+            return True
+
+        def StructView(self):
+            raise AssertionError("the caller chooses structural interpretation")
+
+        ArrayView = StructView
+
+    signal = TypedSignal(0xa5, width=8)
+    assert normalize_data(signal) is signal
+    bound = Bundle(packet=signal)
+    assert bound.packet is signal
+    assert signal.reads == 0
+    bound.drive({"packet": 0x72})
+    assert bound.sample().packet == LogicValue(0x72, 0, 8)
+    with pytest.raises(ValueError, match="scalar drive value"):
+        bound.drive({"packet": {"tag": 7, "payload": 2}})

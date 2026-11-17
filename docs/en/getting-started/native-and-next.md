@@ -13,10 +13,10 @@ Use the commit, package, ABI, and protocol versions from the
 Combinational events require `XTriggerEngine.CombinationalVersion() == 1`.
 CI uses the native commit in the dependency manifest and checks the combinational protocol.
 An older wheel with the same package name does not provide this capability.
-Array DUTs additionally require the `XArray` factories and native ABI 4; see
+Array DUTs additionally require the `XArray` factories and native ABI 6; see
 [fixed unpacked arrays](../guides/data.md#fixed-unpacked-arrays).
-Recursive `XStruct` / `XArray` sources require the matching aggregate-enabled
-Picker/xcomm build with native ABI 4 and these new APIs; verify it with `--require-xviews` in repository tests.
+Recursive `XStruct` / `XArray` sources and argument-free explicit views use a
+matching Picker 3 / xcomm build with native ABI 6; verify it with `--require-xviews` in repository tests.
 
 ```bash
 python3 examples/getting_started/check_native.py

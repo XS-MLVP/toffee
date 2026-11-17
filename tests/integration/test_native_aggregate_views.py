@@ -17,7 +17,7 @@ from toffee.data import compile_sampler, normalize_data, sample_data
 def xs():
     native = pytest.importorskip("xspcomm")
     if not all(hasattr(native, name) for name in ("XView", "XStruct", "XArray")):
-        pytest.skip("requires xcomm recursive views (native ABI 4 with XStruct/XArray)")
+        pytest.skip("requires xcomm recursive views (uc-xcomm>=2.0)")
     return native
 
 
@@ -52,8 +52,8 @@ def packet(xs):
 
 def transaction():
     return {"entries": {
-        -1: {"header": {"tag": 17, "valid": 1}, "payload": {3: (1 << 64) | 7, 2: 8}},
-        0: {"header": {"tag": 3, "valid": 0}, "payload": {3: 9, 2: 10}},
+        -1: {"header": (17 << 1) | 1, "payload": {3: (1 << 64) | 7, 2: 8}},
+        0: {"header": 3 << 1, "payload": {3: 9, 2: 10}},
     }}
 
 
@@ -61,12 +61,16 @@ def test_real_recursive_sources_retain_leaf_identity_and_layout(packet):
     raw = packet.source
     bound = Bundle(raw)
     bound.drive(transaction())
-    assert bound.entries[-1].header.tag.CSelf() == raw["entries"][-1]["header"]["tag"].CSelf()
+    assert bound.entries[-1].header.CSelf() == packet.leaves["packet.entries[-1].header"].CSelf()
+    header = Bundle(bound.entries[-1].header.StructView())
+    assert header.tag.CSelf() == raw["entries"][-1]["header"].StructView().Data("tag").CSelf()
+    assert header.sample().as_dict() == {"tag": 17, "valid": 1}
     assert bound.entries[-1].payload[3].CSelf() == packet.leaves["packet.entries[-1].payload[3]"].CSelf()
     assert bound.sample().as_dict() == transaction()
     tree = {"packet": {"_": True, "High": -1, "Low": 0, "Layout": packet.layout}}
     rebound = Bundle.bind_tree(SimpleNamespace(packet=raw), tree)
-    assert rebound.packet.entries[-1].header.tag.CSelf() == bound.entries[-1].header.tag.CSelf()
+    assert rebound.packet.entries[-1].header.CSelf() == bound.entries[-1].header.CSelf()
+    assert rebound.packet.entries[-1].header.StructView().Data("tag").CSelf() == header.tag.CSelf()
     assert rebound.sample().packet == sample_data(raw)
     sampler = compile_sampler(raw)
     before = sampler()
@@ -89,11 +93,12 @@ def test_packed_struct_and_multidimensional_array_use_the_original_parent(xs):
     layout = {"kind": "array", "packed": True, "width": 24, "left": 2, "right": 1, "element": row}
     bus = xs.XData(24, xs.XData.InOut)
     array = SignalArray(bus.ArrayView(json.dumps(layout)))
-    entry = {"tag": 17, "valid": 1}
+    entry = (17 << 1) | 1
     array.drive([[entry, entry], [entry, entry]])
     assert bus.U() == sum(35 << offset for offset in (0, 6, 12, 18))
     assert array.bounds == ((2, 1), (-1, 0))
-    assert array.sample()[2][-1].tag == LogicValue(17, 0, 5)
+    assert array.sample()[2][-1] == LogicValue(entry, 0, 6)
+    assert Bundle(array[2][-1].StructView()).sample().tag == LogicValue(17, 0, 5)
     tree = {"matrix": {"_": True, "High": 23, "Low": 0, "Layout": layout}}
     bound = Bundle.bind_tree(SimpleNamespace(matrix=bus), tree)
     assert bound.matrix.sample() == array.sample()
@@ -105,16 +110,17 @@ def test_packed_struct_and_multidimensional_array_use_the_original_parent(xs):
 def test_nested_leaf_static_trigger_reuses_native_expressions(xs, packet):
     bound = Bundle(packet.source)
     bound.drive(transaction())
+    header = Bundle(bound.entries[-1].header.StructView())
     clock = xs.XClock(lambda _: 0)
     backend = XCommClockBackend(clock)
 
     @xtrigger(sample=RisingEdge("clk"))
     def selected(dut):
-        return dut.packet.entries[-1].header.tag == 17
+        return dut.header.tag == 17
 
     try:
-        dut = SimpleNamespace(packet=packet.source, clk=clock)
-        direct = backend.arm(Value(bound.entries[-1].header.tag, 17, sample=RisingEdge(clock)))
+        dut = SimpleNamespace(header=header, clk=clock)
+        direct = backend.arm(Value(header.tag, 17, sample=RisingEdge(clock)))
         symbolic = backend.arm(selected(dut))
         assert len(backend.run_until(RunLimit(max_ticks=4)).hits) == 2
         backend.disarm(direct)
@@ -152,7 +158,7 @@ async def test_recursive_driver_ownership_uses_the_same_xdata(xs, packet):
     clock = xs.XClock(lambda _: 0)
     backend = XCommClockBackend(clock)
     first = SyncSingleCycleDriver(clock, packet.source, idle=transaction())
-    alias = SyncSingleCycleDriver(clock, packet.source["entries"][-1]["header"]["tag"], idle=0)
+    alias = SyncSingleCycleDriver(clock, packet.source["entries"][-1]["header"], idle=0)
     try:
         async with Execution(backend):
             await first.__aenter__()
@@ -185,6 +191,35 @@ async def test_nested_wide_leaf_has_native_coverage(xs, packet):
         group.assert_coverage()
     finally:
         backend.close()
+
+
+@pytest.mark.parametrize("kind", ("struct", "array"))
+def test_associated_packed_data_and_explicit_views_share_the_original_value(xs, kind):
+    if kind == "struct":
+        layout = {"kind": "struct", "packed": True, "width": 8, "fields": [
+            {"name": "tag", "offset": 4, "type": bits(4)},
+            {"name": "payload", "offset": 0, "type": bits(4)},
+        ]}
+        values = {"tag": 7, "payload": 2}
+    else:
+        layout = {"kind": "array", "packed": True, "width": 8,
+                  "left": 3, "right": 2, "element": bits(4)}
+        values = {3: 7, 2: 2}
+    signal = xs.XData(8, xs.XData.InOut)
+    signal.SetLayout(json.dumps(layout))
+    assert normalize_data(signal) is signal
+    whole = Bundle(packet=signal)
+    whole.drive({"packet": 0xa5})
+    view = signal.StructView() if kind == "struct" else signal.ArrayView()
+    interpreted = normalize_data(view)
+    interpreted.drive(values)
+    assert signal.U() == 0x72
+    assert whole.sample().packet == LogicValue(0x72, 0, 8)
+    assert compile_sampler(whole)() == whole.sample()
+    first = "tag" if kind == "struct" else 3
+    assert interpreted[first].CSelf() == view.Data(first).CSelf()
+    with pytest.raises(ValueError, match="scalar drive value"):
+        whole.drive({"packet": values})
 
 
 @pytest.mark.asyncio

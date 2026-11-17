@@ -1,4 +1,4 @@
-"""Class coverage on a freshly generated picker Adder DUT (native ABI 3)."""
+"""Class coverage on a freshly generated Picker 3 Adder DUT (native ABI 6)."""
 from __future__ import annotations
 
 import argparse
@@ -149,7 +149,7 @@ def main():
     args = parser.parse_args()
     sys.path.insert(0, str(args.dut_path.resolve()))
     generated = importlib.import_module(args.dut_module)
-    assert generated.xsp.abi_version() == 3
+    assert generated.xsp.abi_version() >= 6
     assert generated.xsp.XTriggerEngine.CoverageVersion() == 5
     dut = generated.DUTAdder()
     try:

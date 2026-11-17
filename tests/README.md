@@ -58,12 +58,13 @@ python3 -m pytest -q --require-xspcomm \
 
 数组的纯 Python 契约在 `interfaces/test_signal_arrays.py`，真实 xcomm 叶子、原生触发、
 覆盖率及 Driver/Monitor 在 `integration/test_unpacked_arrays.py`。运行数组集成测试时增加
-`--require-xarrays`；它要求在带 `XArray` 工厂的 xcomm（原生 ABI 4）下运行，避免被缺少
+`--require-xarrays`；它要求在带 `XArray` 工厂的 xcomm（原生 ABI 6）下运行，避免被缺少
 该 API 的绑定遮蔽后静默 skip。真实 RTL 的显式运行方式见
 [数组示例](../examples/integration/arrays/README.md)。
 
 递归 struct/array 的纯 Python 契约在 `interfaces/test_aggregate_views.py`，真实 xcomm 的
 身份、四态、原生触发/coverage 及 Driver/Monitor 在 `integration/test_native_aggregate_views.py`。
-增加 `--require-xviews` 可要求原生 ABI 4 及 `XView` / `XStruct` / `XArray` API，避免旧绑定
+增加 `--require-xviews` 可要求依赖清单中的原生 ABI 6、`XView` / `XStruct` / `XArray`
+以及 Data 类型关联与显式视图 API，避免旧绑定
 造成静默跳过。真实 RTL 的 DPI、mem_direct、VPI 三条路径见
 [聚合示例](../examples/integration/aggregates/README.md)。

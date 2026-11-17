@@ -4,7 +4,7 @@
 的内部原生数组视图。DPI 和 mem_direct 两条路径都由 xcomm 的内部共享数组后端
 提供，并使用真实 RTL，不使用 Python 行为替身。
 
-环境需要 xcomm 的 `XArray` 工厂（原生 ABI 4）、匹配的 Python 绑定和 Picker 模板；
+环境需要 xcomm 的 `XArray` 工厂（原生 ABI 6）、匹配的 Python 绑定和 Picker 3 模板；
 升级工具链后重新生成 DUT。
 
 在 Toffee 仓库根目录执行，替换工具和绑定路径：

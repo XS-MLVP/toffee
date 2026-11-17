@@ -7,6 +7,7 @@ import pytest
 
 from toffee import (
     Bin, Bundle, ClockCycles, CoverGroupDef, CoverPointDef, Execution, LogicValue,
+    PackedLayout, PackedView,
     ReadyValid, ReadyValidMonitor, RisingEdge, Role, RunLimit, SignalArray,
     SyncDriver, SyncSingleCycleDriver, Value, XCommClockBackend, drive_ready_valid, xtrigger,
 )
@@ -101,7 +102,9 @@ def test_packed_struct_and_multidimensional_array_use_the_original_parent(xs):
     assert Bundle(array[2][-1].StructView()).sample().tag == LogicValue(17, 0, 5)
     tree = {"matrix": {"_": True, "High": 23, "Low": 0, "Layout": layout}}
     bound = Bundle.bind_tree(SimpleNamespace(matrix=bus), tree)
-    assert bound.matrix.sample() == array.sample()
+    assert bound.matrix is bus
+    assert bound.sample().matrix == LogicValue(bus.U(), 0, 24)
+    assert SignalArray(bound.matrix.ArrayView(json.dumps(layout))).sample() == array.sample()
     assert compile_sampler(bound)() == bound.sample()
     typed = normalize_data(xs.XView.FromData(bus, json.dumps(layout)))
     assert typed.sample() == array.sample()
@@ -220,6 +223,37 @@ def test_associated_packed_data_and_explicit_views_share_the_original_value(xs, 
     assert interpreted[first].CSelf() == view.Data(first).CSelf()
     with pytest.raises(ValueError, match="scalar drive value"):
         whole.drive({"packet": values})
+
+
+def test_metadata_keeps_native_packed_data_and_explicit_rtl_indices(xs):
+    layout = {"kind": "array", "packed": True, "width": 8, "left": 1, "right": 0,
+              "element": {"kind": "array", "packed": True, "width": 4,
+                          "left": -2, "right": 1, "element": bits(0)}}
+    bus = xs.XData(8, xs.XData.InOut)
+    bus.SetLayout(json.dumps(layout))
+    tree = {"matrix": {"_": True, "High": 7, "Low": 0, "Layout": layout}}
+    bound = Bundle.bind_tree(SimpleNamespace(matrix=bus), tree)
+    assert bound.matrix is bus
+    bound.drive({"matrix": 0x96})
+    array = SignalArray(bound.matrix.ArrayView())
+    assert array.bounds == ((1, 0), (-2, 1))
+    assert array[1][-2].U() == 1
+    array[0][-2].Set(1)
+    assert bound.sample().matrix.as_int() == 0x9e
+    assert array[0][-2].CSelf() == bus.ArrayView()[0][-2].CSelf()
+
+
+def test_ready_valid_tree_accepts_an_existing_explicit_packed_view(xs):
+    bus = xs.XData(8, xs.XData.InOut)
+    explicit = PackedView(bus, PackedLayout.struct({"low": PackedLayout.bits(4),
+                                                   "high": PackedLayout.bits(4)}))
+    root = SimpleNamespace(valid=xs.XData(1, xs.XData.InOut),
+                           ready=xs.XData(1, xs.XData.InOut), bits=explicit)
+    interface = ReadyValid.bind_tree(root, {name: {"_": True} for name in ("valid", "ready", "bits")},
+                                    clock=object(), source_prefix="", role=Role.MONITOR)
+    assert interface.bits is explicit
+    interface.bits.drive({"low": 5, "high": 10})
+    assert bus.U() == 0xa5
 
 
 @pytest.mark.asyncio

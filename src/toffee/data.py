@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
-import json
 from keyword import iskeyword
 from types import MappingProxyType
 from typing import Any
@@ -10,6 +9,7 @@ from typing import Any
 from .events import LogicValue
 from .arrays import ArrayValue, SignalArray, _array_drive_items, _as_signal_array, _normalize_bounds
 from ._paths import resolve_path
+from ._picker_metadata import parse_layout
 from .signals import as_xdata, sample_signal, signal_width, write_signal
 from .signals import compile_signal_sampler
 
@@ -684,16 +684,20 @@ class Bundle(Mapping[str, DataNode]):
         source_prefix: str = "",
         path: str = "bundle",
     ) -> "Bundle":
-        """Bind Picker signal-tree metadata without inferring protocols."""
+        """Bind existing ports; metadata never implicitly expands packed Data.
+
+        A port can also prefix other names. Retain that leaf and promote its
+        descendants under their underscore-joined names instead of dropping it.
+        """
         node = _bind_tree_node(
             root,
             tree,
             (source_prefix,) if source_prefix else (),
             path,
         )
-        if not isinstance(node, Bundle):
+        if node.leaf is not None or node.items is not None:
             raise ValueError("Bundle.bind_tree root must describe an aggregate")
-        return node
+        return Bundle(_materialize_tree_fields(node.fields, path), path=path)
 
     def view_as(
         self,
@@ -793,26 +797,19 @@ _TREE_METADATA = frozenset({"_", "Pin", "High", "Low", "Unpacked", "Layout"})
 
 
 def _bind_layout(signal: Any, layout: Mapping[str, Any], path: str) -> DataNode:
-    if not isinstance(layout, Mapping) or layout.get("kind") not in ("bits", "struct", "array"):
-        raise ValueError(f"{path} Layout must describe bits, struct, or array")
-    kind = layout["kind"]
-    if kind != "bits" and layout.get("packed") and callable(getattr(signal, "W", None)):
-        method = "StructView" if kind == "struct" else "ArrayView"
-        factory = getattr(signal, method, None)
-        if not callable(factory):
-            raise TypeError(f"{path} Layout requires xcomm XStruct/XArray view factories (uc-xcomm>=2.0)")
-        signal = factory(json.dumps(layout))
     bound = _normalize_node(signal, path)
 
     def validate(node, description, node_path):
-        if description.get("packed") and not isinstance(node, (Bundle, SignalArray)):
-            expected = int(description["width"]) or 1
+        if description.get("packed", True) and not isinstance(node, (Bundle, SignalArray, PackedView)):
+            expected = int(description.get("width", 0)) or 1
             actual = signal_width(node)
             if actual != expected:
                 raise ValueError(f"{node_path} width mismatch: Layout={expected}, actual={actual}")
         elif description["kind"] == "struct":
             names = tuple(field["name"] for field in description["fields"])
-            if not isinstance(node, Bundle) or tuple(node) != names:
+            if (not isinstance(node, (Bundle, PackedView))
+                    or isinstance(node, PackedView) and node.kind != "struct"
+                    or tuple(node.fields) != names):
                 raise ValueError(f"{node_path} struct fields mismatch with Layout")
             for field in description["fields"]:
                 validate(node[field["name"]], field["type"], f"{node_path}.{field['name']}")
@@ -829,12 +826,23 @@ def _bind_layout(signal: Any, layout: Mapping[str, Any], path: str) -> DataNode:
     return bound
 
 
+@dataclass(frozen=True, slots=True)
+class _TreeBinding:
+    leaf: DataNode | None = None
+    fields: tuple[tuple[str, "_TreeBinding"], ...] = ()
+    items: tuple["_TreeBinding", ...] | None = None
+
+    @property
+    def has_children(self) -> bool:
+        return bool(self.fields) or self.items is not None
+
+
 def _bind_tree_node(
     root: Any,
     node: Mapping[str, Any],
     source_parts: tuple[str, ...],
     path: str,
-) -> DataNode:
+) -> _TreeBinding:
     if not isinstance(node, Mapping):
         raise TypeError(f"{path} signal-tree node must be a mapping")
     children = tuple(
@@ -842,55 +850,23 @@ def _bind_tree_node(
         for name, child in node.items()
         if name not in _TREE_METADATA
     )
+    leaf = None
     if node.get("_") is True:
-        if children:
-            raise ValueError(f"{path} cannot be both a leaf and aggregate")
         if not source_parts:
             raise ValueError(f"{path} leaf has no source path")
-        signal = as_xdata(getattr(root, "_".join(source_parts)))
-        if "Layout" in node:
-            layout = node["Layout"]
-            if isinstance(layout, Mapping) and layout.get("packed") and "High" in node:
-                high, low = int(node["High"]), int(node.get("Low", 0))
-                expected = 1 if high < 0 else high - low + 1
-                width = int(layout["width"]) or 1
-                if width != expected:
-                    raise ValueError(f"{path} width mismatch: metadata={expected}, Layout={width}")
-            bound = _bind_layout(signal, layout, path)
-            if "Unpacked" in node and (
-                not isinstance(bound, SignalArray) or bound.bounds != _normalize_bounds(node["Unpacked"])
-            ):
-                raise ValueError(f"{path} array bounds mismatch with Unpacked metadata")
-            return bound
-        array = None
-        if "Unpacked" in node:
-            bounds = _normalize_bounds(node["Unpacked"])
-            array = _as_signal_array(signal, name=path)
-            if array is None or array.bounds != bounds:
-                raise ValueError(f"{path} array bounds mismatch with Unpacked metadata")
-        if "High" in node:
-            high = int(node["High"])
-            low = int(node.get("Low", 0))
-            expected = 1 if high < 0 else high - low + 1
-            leaves = _iter_leaves(array, path) if array is not None else ((path, signal),)
-            for leaf_path, leaf in leaves:
-                actual = signal_width(leaf)
-                if actual != expected:
-                    raise ValueError(
-                        f"{leaf_path} width mismatch: metadata={expected}, "
-                        f"actual={actual}"
-                    )
-        return array if array is not None else signal
-    if "Unpacked" in node or "Layout" in node:
+        leaf = _bind_tree_leaf(root, node, source_parts, path)
+    elif "Unpacked" in node or "Layout" in node:
         raise ValueError(f"{path} Unpacked/Layout metadata requires an array port leaf or aggregate port leaf")
     if not children:
-        raise ValueError(f"{path} aggregate has no fields")
+        if leaf is None:
+            raise ValueError(f"{path} aggregate has no fields")
+        return _TreeBinding(leaf=leaf)
 
-    if all(str(name).isdigit() for name, _ in children):
+    if leaf is None and all(isinstance(name, str) and name.isdigit() for name, _ in children):
         indexed = sorted((int(name), child) for name, child in children)
         if [index for index, _ in indexed] != list(range(len(indexed))):
             raise ValueError(f"{path} sequence indices must be contiguous")
-        return tuple(
+        return _TreeBinding(items=tuple(
             _bind_tree_node(
                 root,
                 child,
@@ -898,25 +874,112 @@ def _bind_tree_node(
                 f"{path}[{index}]",
             )
             for index, child in indexed
-        )
+        ))
 
-    fields: dict[str, DataNode] = {}
+    fields = []
+    names = set()
     for raw_name, child in children:
-        field_name = f"{raw_name}_" if iskeyword(raw_name) else raw_name
-        if not field_name.isidentifier():
-            raise ValueError(
-                f"{path} signal-tree field is not a Python identifier: "
-                f"{raw_name!r}"
-            )
-        if field_name in fields:
+        if leaf is None:
+            field_name = _tree_field_name(raw_name, path)
+        else:
+            _validate_tree_suffix(raw_name, path)
+            field_name = raw_name
+        if field_name in names:
             raise ValueError(f"{path} duplicate field after name mapping")
-        fields[field_name] = _bind_tree_node(
-            root,
-            child,
-            source_parts + (raw_name,),
-            f"{path}.{field_name}",
-        )
-    return Bundle(fields, path=path)
+        names.add(field_name)
+        fields.append((raw_name, _bind_tree_node(
+            root, child, source_parts + (raw_name,), f"{path}.{field_name}",
+        )))
+    return _TreeBinding(leaf=leaf, fields=tuple(fields))
+
+
+def _bind_tree_leaf(root, node, source_parts, path):
+    source = "_".join(source_parts)
+    try:
+        signal = getattr(root, source)
+    except AttributeError as error:
+        raise ValueError(f"{path} signal-tree leaf {source!r} is not available on root") from error
+    bound = _normalize_node(signal, path)
+    if node.get("Unpacked"):
+        if (not isinstance(bound, SignalArray)
+                or bound.bounds != _normalize_bounds(node["Unpacked"])):
+            raise ValueError(f"{path} array bounds mismatch with Unpacked metadata")
+    if "Layout" in node:
+        layout = parse_layout(node["Layout"], path)
+        if layout.get("packed", True) and "High" in node:
+            high, low = int(node["High"]), int(node.get("Low", 0))
+            expected = 1 if high < 0 else high - low + 1
+            width = int(layout.get("width", 0)) or 1
+            if width != expected:
+                raise ValueError(f"{path} width mismatch: metadata={expected}, Layout={width}")
+        bound = _bind_layout(bound, layout, path)
+    else:
+        if "High" in node:
+            high, low = int(node["High"]), int(node.get("Low", 0))
+            expected = 1 if high < 0 else high - low + 1
+            for leaf_path, leaf in _iter_leaves(bound, path):
+                actual = signal_width(leaf)
+                if actual != expected:
+                    raise ValueError(f"{leaf_path} width mismatch: metadata={expected}, actual={actual}")
+    return bound
+
+
+def _tree_field_name(name, path):
+    if not isinstance(name, str):
+        raise ValueError(f"{path} signal-tree field name must be a string")
+    result = f"{name}_" if iskeyword(name) else name
+    if not result.isidentifier():
+        raise ValueError(f"{path} signal-tree field is not a Python identifier: {name!r}")
+    return result
+
+
+def _validate_tree_suffix(name, path):
+    if not isinstance(name, str) or not name or not f"field_{name}".isidentifier():
+        raise ValueError(f"{path} signal-tree suffix is not a Python identifier: {name!r}")
+
+
+def _tree_items_need_names(binding):
+    return binding.items is not None and any(
+        child.leaf is not None and child.has_children or _tree_items_need_names(child)
+        for child in binding.items
+    )
+
+
+def _materialize_tree_fields(children, path):
+    fields = {}
+
+    def insert(name, binding):
+        if binding.leaf is None and _tree_items_need_names(binding):
+            for index, child in enumerate(binding.items):
+                insert(f"{name}_{index}", child)
+            return
+        if binding.leaf is not None:
+            value = binding.leaf
+        elif binding.items is not None:
+            value = tuple(_materialize_tree_node(child, f"{path}.{name}[{index}]")
+                          for index, child in enumerate(binding.items))
+        else:
+            value = Bundle(_materialize_tree_fields(binding.fields, f"{path}.{name}"),
+                           path=f"{path}.{name}")
+        if name in fields:
+            raise ValueError(f"{path} duplicate field after flattening signal tree: {name!r}")
+        fields[name] = value
+        if binding.leaf is not None:
+            for suffix, child in binding.fields:
+                insert(f"{name}_{suffix}", child)
+
+    for raw_name, binding in children:
+        insert(_tree_field_name(raw_name, path), binding)
+    return fields
+
+
+def _materialize_tree_node(binding, path):
+    if binding.leaf is not None:
+        return binding.leaf
+    if binding.items is not None:
+        return tuple(_materialize_tree_node(child, f"{path}[{index}]")
+                     for index, child in enumerate(binding.items))
+    return Bundle(_materialize_tree_fields(binding.fields, path), path=path)
 
 
 def iter_data_leaves(

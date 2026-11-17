@@ -5,7 +5,7 @@ from enum import Enum
 from collections.abc import Mapping
 from typing import Any, Generic, TypeVar
 
-from .data import Bundle, DataNode, iter_data_leaves, normalize_data
+from .data import Bundle, DataNode, PackedView, iter_data_leaves, normalize_data
 from .arrays import SignalArray
 from .events import XEvent
 from .ir import signal_expr
@@ -90,8 +90,10 @@ class ReadyValid:
                 f"{name} requires exactly valid/ready/bits; "
                 f"missing={missing}, extra={extra}"
             )
-        if not isinstance(bound.bits, (Bundle, SignalArray)):
-            raise ValueError(f"{name}.bits must be an aggregate signal-tree node")
+        bits_metadata = tree.get("bits")
+        typed_port = isinstance(bits_metadata, Mapping) and "Layout" in bits_metadata
+        if not isinstance(bound.bits, (Bundle, SignalArray, PackedView)) and not typed_port:
+            raise ValueError(f"{name}.bits must be an aggregate signal-tree node or an explicitly typed port")
         return cls(
             clock=clock,
             valid=bound.valid,

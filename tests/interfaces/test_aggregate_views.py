@@ -192,13 +192,17 @@ def test_explicit_typed_view_nodes_are_unwrapped_without_reading_values():
     assert raw["enabled"].reads == 0
 
 
-def test_layout_is_port_metadata_and_requires_recursive_factory_for_packed_signals():
+def test_packed_layout_metadata_does_not_implicitly_request_a_view():
     layout = {"kind": "struct", "packed": True, "width": 4,
               "fields": [{"name": "word", "offset": 0,
                           "type": {"kind": "bits", "packed": True, "width": 4}}]}
     tree = {"packet": {"_": True, "High": 3, "Low": 0, "Layout": layout}}
-    with pytest.raises(TypeError, match="XStruct/XArray view factories"):
-        Bundle.bind_tree(SimpleNamespace(packet=Signal(width=4)), tree)
+    signal = Signal(width=4)
+    bound = Bundle.bind_tree(SimpleNamespace(packet=signal), tree)
+    assert bound.packet is signal
+    bound.drive({"packet": 7})
+    assert bound.sample().packet.as_int() == 7
+    assert signal.reads == 1
     with pytest.raises(ValueError, match="metadata requires"):
         Bundle.bind_tree(SimpleNamespace(), {"Layout": layout})
 

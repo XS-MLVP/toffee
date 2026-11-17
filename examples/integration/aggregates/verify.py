@@ -54,8 +54,22 @@ async def verify(metadata, access):
         # `in_` by the existing Bundle.bind_tree keyword rule.
         assert pins.record.in_.entries.bounds == ((-1, 0),)
         assert pins.record.in_.entries[-1].payload.bounds == ((3, 2),)
-        assert pins.matrix.in_.bounds == ((1, 0), (-2, 1))
-        assert pins.packed.in_.tag.CSelf() != dut.packed_in.CSelf()
+        assert pins.matrix.in_.CSelf() == dut.matrix_in.CSelf()
+        assert pins.packed.in_.CSelf() == dut.packed_in.CSelf()
+        assert pins.matrix.in_.HasLayout() and pins.packed.in_.HasLayout()
+        for name in ("data", "data_0", "data_0_out", "data_out",
+                     "req", "req_out", "req_valid", "req_valid_out"):
+            assert pins[name].CSelf() == getattr(dut, name).CSelf()
+        collisions = Bundle(data=pins.data, data_0=pins.data_0,
+                            req=pins.req, req_valid=pins.req_valid)
+        collisions.drive({"data": 1, "data_0": 10, "req": 0, "req_valid": 1})
+        dut.Step(1)
+        assert (pins.data_out.U(), pins.data_0_out.U(), pins.req_out.U(),
+                pins.req_valid_out.U()) == (1, 10, 0, 1)
+        # Metadata binding retains complete packed Data, including integer drives.
+        Bundle(matrix=pins.matrix.in_, header=pins.packed.in_).drive({"matrix": 0x96, "header": 35})
+        dut.Step(1)
+        assert pins.matrix.out.U() == 0x96 and pins.packed.out.U() == 35
         assert pins.record.in_.entries[-1].payload[3].CSelf() == dut["record_in.entries[-1].payload[3]"].CSelf()
         expected_kind = xsp.XDataBackendKind_DPI if access != "mem_direct" else xsp.XDataBackendKind_MemDirect
         assert pins.record.in_.entries[-1].payload[3].GetBackendKind() == expected_kind
@@ -73,8 +87,10 @@ async def verify(metadata, access):
             for _, leaf in inputs.leaves():
                 leaf.AsImmWrite()
         else:
-            inputs = Bundle(record=pins.record.in_, header=pins.packed.in_, matrix=pins.matrix.in_)
-            outputs = Bundle(record=pins.record.out, header=pins.packed.out, matrix=pins.matrix.out)
+            inputs = Bundle(record=pins.record.in_, header=pins.packed.in_.StructView(),
+                            matrix=pins.matrix.in_.ArrayView())
+            outputs = Bundle(record=pins.record.out, header=pins.packed.out.StructView(),
+                             matrix=pins.matrix.out.ArrayView())
         trigger_root = SimpleNamespace(
             header=Bundle(outputs.record.entries[-1].header.StructView()), clk=clock)
         sampler = outputs.compile_sampler()

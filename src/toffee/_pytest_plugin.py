@@ -12,7 +12,8 @@ from typing import Any
 
 import pytest
 
-from ._runner_artifacts import fingerprint, read_checked, write
+from ._artifact_io import fingerprint, write
+from ._runner_artifacts import read_checked
 from ._coverage_capture import capture, live_groups, suspended
 from ._verilator_coverage import NativeCollector, export_lcov, merge
 from .coverage import CoverageDatabase

@@ -1,10 +1,4 @@
-"""Unified functional and simulator code-coverage HTML reports.
-
-The code-coverage boundary is LCOV rather than a simulator-specific database.
-Verilator can emit LCOV with ``verilator_coverage --write-info``; other
-simulators can use their corresponding LCOV exporter without changing the
-report renderer.
-"""
+"""Render Toffee functional coverage, RTL summaries, and LCOV source views."""
 
 from __future__ import annotations
 
@@ -20,6 +14,7 @@ import subprocess
 from typing import Any, Iterable, Mapping, Sequence
 
 from .coverage import CoverageDatabase
+from .coverage import rtl as rtl_data
 
 
 REPORT_SCHEMA_VERSION = 1
@@ -127,6 +122,7 @@ def build_unified_coverage_model(
     *,
     functional: Mapping[str, Any] | None,
     line_coverage: Sequence[Mapping[str, Any]],
+    rtl_coverage: Sequence[Mapping[str, Any]] = (),
     title: str = "Unified Coverage Report",
     generated_at: str | None = None,
 ) -> dict[str, Any]:
@@ -141,6 +137,7 @@ def build_unified_coverage_model(
         # holes and has no verification-methodology meaning.
         "functional": None if functional is None else dict(functional),
         "line_coverage": [dict(item) for item in line_coverage],
+        **({"rtl_coverage": [dict(item) for item in rtl_coverage]} if rtl_coverage else {}),
     }
 
 
@@ -157,14 +154,20 @@ def render_unified_coverage_html(
         if template is None
         else Path(template)
     )
+    destination = Path(output)
+    if destination.resolve() == template_path.resolve() or (
+        destination.exists() and template_path.exists() and destination.samefile(template_path)
+    ):
+        raise ValueError("report output cannot replace the HTML template")
     document = template_path.read_text(encoding="utf-8")
     title = str(model.get("title", "Unified Coverage Report"))
     payload = json.dumps(model, ensure_ascii=False, separators=(",", ":"))
     # Prevent user-controlled names from terminating the JSON script element.
     payload = payload.replace("<", "\\u003c").replace(">", "\\u003e")
-    document = document.replace("@@TITLE@@", _escape_html(title))
-    document = document.replace("@@REPORT_JSON@@", payload)
-    destination = Path(output)
+    replacements = {"TITLE": _escape_html(title), "REPORT_JSON": payload,
+                    "RTL_SUMMARY": _rtl_summary(model.get("rtl_coverage", ()))}
+    document = re.sub(r"@@(TITLE|REPORT_JSON|RTL_SUMMARY)@@",
+                      lambda match: replacements[match[1]], document)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(document, encoding="utf-8")
     return destination
@@ -174,6 +177,7 @@ def generate_unified_coverage_report(
     *,
     functional_paths: Sequence[str | Path] = (),
     line_coverage: Sequence[tuple[str, str | Path]] = (),
+    rtl_coverage: Sequence[Mapping[str, Any]] = (),
     output: str | Path,
     title: str = "Unified Coverage Report",
     template: str | Path | None = None,
@@ -182,11 +186,12 @@ def generate_unified_coverage_report(
 
     functional = load_functional_coverage(functional_paths)
     line_reports = [parse_lcov(path, name=name) for name, path in line_coverage]
-    if functional is None and not line_reports:
-        raise ValueError("at least one functional or line-coverage input is required")
+    if functional is None and not line_reports and not rtl_coverage:
+        raise ValueError("at least one functional or line-coverage input, or an RTL summary, is required")
     model = build_unified_coverage_model(
         functional=functional,
         line_coverage=line_reports,
+        rtl_coverage=rtl_coverage,
         title=title,
     )
     return render_unified_coverage_html(model, output, template=template)
@@ -409,6 +414,7 @@ def generate_unified_coverage_site(
     *,
     functional_paths: Sequence[str | Path] = (),
     line_coverage: Sequence[tuple[str, str | Path]] = (),
+    rtl_coverage: Sequence[Mapping[str, Any]] = (),
     output_dir: str | Path,
     title: str = "Unified Coverage Report",
     genhtml_command: str = "genhtml",
@@ -421,8 +427,8 @@ def generate_unified_coverage_site(
 
     functional = load_functional_coverage(functional_paths)
     line_reports = [parse_lcov(path, name=name) for name, path in line_coverage]
-    if functional is None and not line_reports:
-        raise ValueError("at least one functional or line-coverage input is required")
+    if functional is None and not line_reports and not rtl_coverage:
+        raise ValueError("at least one functional or line-coverage input, or an RTL summary, is required")
     root = Path(output_dir)
     _prepare_site(root)
     assets = root / "assets"
@@ -570,11 +576,13 @@ def generate_unified_coverage_site(
     )
 
     overview = (
-        '<p class="alert warn">Functional coverage and RTL line coverage are independent '
+        '<p class="alert warn">Functional coverage and RTL coverage are independent '
         'metrics; they are deliberately not averaged.</p>'
         '<div class="grid">'
         + "".join((*functional_cards, *line_cards))
-        + '</div><h2>How to investigate</h2><ol><li>Open Functional and select a '
+        + '</div>'
+        + _rtl_summary(rtl_coverage)
+        + '<h2>How to investigate</h2><ol><li>Open Functional and select a '
         'covergroup instance to inspect uncovered bins and thresholds.</li><li>Open RTL line, '
         'select a provider and source file, then navigate directly between uncovered lines.</li></ol>'
     )
@@ -592,18 +600,42 @@ def _escape_html(value: str) -> str:
     )
 
 
+def _rtl_summary(datasets: Sequence[Mapping[str, Any]]) -> str:
+    if not datasets:
+        return ""
+    sections = ['<section id="rtl-summary"><h2>RTL coverage summary</h2>'
+                '<p>Datasets are shown separately. Different tools may count different targets.</p>']
+    for data in datasets:
+        sections.append(f'<h3>{_escape_html(data["name"])} · {_escape_html(data["simulator"])}</h3>'
+                        f'<p>{_escape_html(data["scope"])}</p>'
+                        '<table><thead><tr><th>Metric</th><th>Unit</th><th>Covered / total</th>'
+                        '<th>Coverage</th><th>Basis</th></tr></thead><tbody>')
+        for kind, row in data["metrics"].items():
+            if row["status"] == "measured":
+                count = f'{row["covered"]} / {row["total"]}'
+                rate = f'{_percentage(row["covered"], row["total"]):.2f}%'
+            elif row["status"] == "no_targets":
+                count, rate = "0 / 0", "No targets reported"
+            else:
+                count, rate = "—", "Not available in this input"
+            cells = (kind, row["unit"], count, rate, row["basis"] or "—")
+            sections.append("<tr>" + "".join(f"<td>{_escape_html(cell)}</td>" for cell in cells) + "</tr>")
+        sections.append("</tbody></table>")
+    return "".join(sections) + "</section>"
+
+
 def _line_argument(value: str) -> tuple[str, Path]:
     if "=" not in value:
         raise argparse.ArgumentTypeError("expected NAME=PATH")
     name, path = value.split("=", 1)
-    if not name or not path:
+    if not name.strip() or not path.strip():
         raise argparse.ArgumentTypeError("expected non-empty NAME=PATH")
     return name, Path(path)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
-        description="Combine Toffee functional coverage and LCOV into HTML"
+        description="Summarize simulator coverage data and render Toffee coverage reports"
     )
     parser.add_argument(
         "--functional",
@@ -620,6 +652,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         metavar="NAME=PATH",
         help="LCOV tracefile labelled by simulator/run; repeat as needed",
     )
+    adapters = (
+        ("verilator-dat", rtl_data.from_verilator_dat, "Verilator coverage.dat (already merged if needed)"),
+        ("vcs-json", rtl_data.from_vcs_json, "Picker VCS coverage query JSON (schema version 1)"),
+        ("uvs-json", rtl_data.from_uvs_json, "uvcov dashboard data/coverage.json"),
+    )
+    for option, _, description in adapters:
+        parser.add_argument(f"--{option}", type=_line_argument, action="append", default=[],
+                            metavar="NAME=PATH", help=description)
+    parser.add_argument("--rtl-data", type=Path, action="append", default=[], metavar="PATH",
+                        help="read an existing Toffee RTL coverage directory or JSON file")
+    parser.add_argument("--rtl-output", type=Path, metavar="DIR",
+                        help="write one JSON per RTL metric group to a new directory")
     parser.add_argument(
         "--output",
         type=Path,
@@ -634,12 +678,51 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--template", type=Path)
     parser.add_argument("--genhtml", default="genhtml")
     args = parser.parse_args(argv)
-    if args.output is None and args.site is None:
-        parser.error("at least one of --output or --site is required")
+    if args.output is None and args.site is None and args.rtl_output is None:
+        parser.error("at least one of --output or --site or --rtl-output is required")
+    sources = [*args.functional, *args.rtl_data, *(path for _, path in args.line_coverage)]
+    if args.output is not None:
+        sources.append(args.template or Path(__file__).with_name("templates") / "unified_coverage.html")
+    sources.extend(file for path in args.rtl_data if path.is_dir()
+                   for file in rtl_data.metric_paths(path).values() if file.exists())
+    for option, _, _ in adapters:
+        sources.extend(path for _, path in getattr(args, option.replace("-", "_")))
+    for destination in (args.output, args.rtl_output):
+        if destination and any(destination.resolve() == path.resolve() for path in sources):
+            parser.error("a report output cannot replace an input file")
+    if args.site and any(path.resolve().is_relative_to(args.site.resolve()) for path in sources):
+        parser.error("report inputs must be outside the generated site directory")
+    if args.rtl_output is not None:
+        root = args.rtl_output.resolve()
+        if root.exists() or args.rtl_output.is_symlink():
+            parser.error("--rtl-output must be a new directory")
+        if args.site:
+            site = args.site.resolve()
+            if root.is_relative_to(site) or site.is_relative_to(root):
+                parser.error("--rtl-output and --site must be separate directories")
+        if args.output:
+            html = args.output.resolve()
+            if html == root or any(html.is_relative_to(file) for file in rtl_data.metric_paths(root).values()):
+                parser.error("--output must not replace an RTL coverage metric file or directory")
+    try:
+        rtl_reports = [dataset for path in args.rtl_data for dataset in rtl_data.read_report(path)]
+        for option, adapter, _ in adapters:
+            rtl_reports.extend(adapter(path, name=name)
+                               for name, path in getattr(args, option.replace("-", "_")))
+    except (OSError, ValueError) as error:
+        parser.error(str(error))
+    if args.rtl_output and not rtl_reports:
+        parser.error("--rtl-output requires --rtl-data or a simulator data input")
+    if args.rtl_output is not None:
+        try:
+            rtl_data.write_metric_reports(args.rtl_output, rtl_reports)
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
     if args.output is not None:
         generate_unified_coverage_report(
             functional_paths=args.functional,
             line_coverage=args.line_coverage,
+            rtl_coverage=rtl_reports,
             output=args.output,
             title=args.title,
             template=args.template,
@@ -648,6 +731,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         generate_unified_coverage_site(
             functional_paths=args.functional,
             line_coverage=args.line_coverage,
+            rtl_coverage=rtl_reports,
             output_dir=args.site,
             title=args.title,
             genhtml_command=args.genhtml,

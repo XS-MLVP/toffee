@@ -360,6 +360,50 @@ toffee-coverage-report \
 完整样例见
 [functional_coverage.py](https://github.com/XS-MLVP/toffee/blob/main/examples/coverage/functional_coverage.py)。
 
+### 汇总已有的 RTL 覆盖率数据
+
+`toffee-coverage-report` 也能离线输出 RTL 覆盖率摘要：**每种指标一个 JSON，
+不同仿真器使用相同的结构**。不需要重跑仿真，也不需要在报告机上安装仿真器。
+以下三个输入按需提供，可以只选一个：
+
+```bash
+toffee-coverage-report \
+  --verilator-dat Verilator=coverage.dat \
+  --vcs-json VCS=vcs-query.json \
+  --uvs-json UVS=uvcov-report/data/coverage.json \
+  --rtl-output rtl-coverage
+
+toffee-coverage-report \
+  --rtl-data rtl-coverage \
+  --functional functional-coverage.json \
+  --output coverage.html
+```
+
+- `--verilator-dat` 读取原始 DAT。只有行覆盖点及其源码范围计入源码行，分支、翻转、
+  FSM 不会抬高行覆盖率。分支、翻转、FSM 状态/跳转等指标直接按原始点分类，
+  Toffee 的命中规则是计数大于零，不一定等于 `verilator_coverage` 的显示阈值。
+- `--vcs-json` 读取 Picker 的 VCS 查询工具 `coverage/coverage` 输出的 schema v1 JSON；
+  例如使用 `--database DUT.vdb --kind line --kind branch --kind toggle --kind condition --kind fsm`。
+  VCS 的 `line` 按语句计，`fsm` 是当前查询工具的跳转统计。查询结果缺少完整源码行
+  和 FSM 状态计数，所以这两项不会从缺口清单推算。
+- `--uvs-json` 读取 `uvcov` 的 `data/coverage.json`（不是 `data/code_coverage.json`）。
+  首版保留报告原有的统计范围、语句数和 FSM 总项数，不推算源码行或拆分 FSM 总数。
+
+`--rtl-output` 指定一个尚不存在的目录。输出包括 `line.json`、`statement.json`、
+`block.json`、`branch.json`、`condition.json`、`expression.json`、`toggle.json` 和
+`fsm.json`。FSM 的状态、跳转和未拆分的原生统计在 `fsm.json` 内分开存放。
+
+每个文件都有 `format: "toffee-rtl-coverage-metric"`、`version`、`export_id`、`metric` 和
+`datasets`。同一次导出的文件共享 `export_id`，读取目录时不允许混用不同导出的文件。
+例如，一个 `toggle.json` 可以包含三家仿真器的结果；用 `simulator`
+区分来源，用 `dataset_id` 关联同一目录里各指标的数据，不能用它跨目录匹配。
+`metrics` 中的每项都带 `covered`、`total`、`unit`、`basis` 和 `status`。
+`unavailable` 表示输入未提供数据，`no_targets` 表示输入报告了 `0/0`，二者都不是 `0%`。
+
+`--rtl-data` 可以读取整个目录，也可以只读取一个指标文件，例如 `rtl-coverage/line.json`。
+本入口不合并多轮数据；需要累计结果时请先用原生工具合并。当前输出是**摘要**，
+不含逐覆盖点数据；已有 LCOV 仍可用 `--line-coverage` 加入报告，生成源码页面的方式不变。
+
 ## 从事务字段采样并设置门控
 
 `source` 支持点分路径，读取 mapping、dataclass/对象属性和 BundleValue。定义复用时

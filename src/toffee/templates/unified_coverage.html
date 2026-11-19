@@ -35,7 +35,8 @@
     This report intentionally does not average them into a synthetic score.</p>
   <div id="summary" class="grid"></div>
   <section id="functional"><h2>Functional coverage</h2><div id="functional-body"></div></section>
-  <section id="line"><h2>RTL line coverage</h2><div id="line-body"></div></section>
+  @@RTL_SUMMARY@@
+  <section id="line"><h2>RTL line coverage (LCOV)</h2><div id="line-body"></div></section>
 </main>
 <script id="coverage-data" type="application/json">@@REPORT_JSON@@</script>
 <script>
@@ -98,7 +99,8 @@ else for(const group of report.functional.groups){const d=node("details");d.open
   d.append(node("h3","Coverpoints"),coverageTable(group.points,"point",group.schema?.points,group.origins));
   if(group.crosses.length)d.append(node("h3","Crosses"),coverageTable(group.crosses,"cross",group.schema?.crosses,group.origins));fbody.append(d);}
 const lbody=byId("line-body");
-if(!report.line_coverage.length)lbody.append(node("p","No line coverage input.","note"));
+if(!report.line_coverage.length){if(report.rtl_coverage?.length)byId("line").hidden=true;
+  else lbody.append(node("p","No line coverage input.","note"));}
 else for(const provider of report.line_coverage){const d=node("details");d.open=true;
   d.append(node("summary",`${provider.name} — ${pct(provider.line_coverage)} (${provider.lines_hit}/${provider.lines_found})`));
   const table=node("table"),head=node("tr");["Source","Coverage","Hit / Found","Uncovered lines"].forEach(x=>head.append(node("th",x)));table.append(head);

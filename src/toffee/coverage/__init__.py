@@ -13,8 +13,8 @@ from typing import Any, Iterable, Sequence
 from uuid import uuid4
 import warnings
 
-from .events import LogicValue
-from .ir import Next, Sequence as TemporalSequence, SignalExpr, Wait, _SequenceState, _advance_sequence
+from ..events import LogicValue
+from ..ir import Next, Sequence as TemporalSequence, SignalExpr, Wait, _SequenceState, _advance_sequence
 
 
 SCHEMA_VERSION = 1
@@ -276,8 +276,8 @@ class PatternMatcher:
     terminals: tuple[str, ...] = ()
 
     def __post_init__(self):
-        from .ir import SequenceSpec, FsmSpec, XExpr, WaitStep, program_to_dict
-        from .triggers import normalize_condition_mode
+        from ..ir import SequenceSpec, FsmSpec, XExpr, WaitStep, program_to_dict
+        from ..triggers import normalize_condition_mode
         object.__setattr__(self, "mode", normalize_condition_mode(self.mode).value)
         if not isinstance(self.program, (XExpr, SequenceSpec, FsmSpec)):
             raise CoverageSchemaError("pattern requires existing Expr/Sequence/FSM IR")
@@ -304,14 +304,14 @@ class PatternMatcher:
         shape = self.to_dict()
         shape.pop("terminals")
         key = json.dumps(shape, sort_keys=True, separators=(",", ":"))
-        from .ir import PythonPredicateExpr
+        from ..ir import PythonPredicateExpr
         return (key, id(self.program._predicate)) if isinstance(self.program, PythonPredicateExpr) else key
 
     def matches(self, value):
         raise RuntimeError("pattern bins require Execution-owned sampling")
 
     def to_dict(self):
-        from .ir import program_to_dict
+        from ..ir import program_to_dict
         return dict(type="pattern", program=program_to_dict(self.program), mode=self.mode,
                     overlap=self.overlap, max_active=self.max_active, terminals=list(self.terminals))
 
@@ -322,7 +322,7 @@ Matcher = ValueMatcher | RangeMatcher | WildcardMatcher | DefaultMatcher | Trans
 def _matcher_from_dict(data: Mapping[str, Any]) -> Matcher:
     kind = data.get("type")
     if kind == "pattern":
-        from .ir import program_from_dict
+        from ..ir import program_from_dict
         return PatternMatcher(program_from_dict(data["program"]), data["mode"], data["overlap"], data["max_active"], tuple(data["terminals"]))
     if kind == "values":
         return ValueMatcher(tuple(data["values"]))
@@ -592,7 +592,7 @@ class CoverPointDef:
         object.__setattr__(self, "_named_bins", named)
         source = self.name if self.source is None else self.source
         object.__setattr__(self, "_source_parts", tuple(source.split(".")))
-        from ._coverage_exclusions import excluded_normal_bins
+        from .._coverage_exclusions import excluded_normal_bins
         pattern = any(isinstance(item.spec.matcher, PatternMatcher) for item in named)
         if pattern and not all(isinstance(item.spec.matcher, PatternMatcher) for item in named):
             raise CoverageSchemaError("cannot mix value and pattern bins in a point")
@@ -831,7 +831,7 @@ class CoverGroupDef:
         if type(capture) is not bool:
             raise TypeError('capture must be a boolean')
         if not capture:
-            from ._coverage_capture import suspended
+            from .._coverage_capture import suspended
             with suspended():
                 return CoverGroup(self, instance, illegal_policy=illegal_policy,
                                   run_id=run_id, run_metadata=run_metadata, contract=contract)
@@ -1103,7 +1103,7 @@ class CoverGroup:
                                         {"kind": "transaction", "name": contract})
         self._diagnostics: Any = None
         self._collection_complete = True
-        from ._coverage_capture import register
+        from .._coverage_capture import register
         register(self)
 
     def _new_origin(self) -> None:
@@ -1134,7 +1134,7 @@ class CoverGroup:
         Each execution starts new matching history. By default counters are also
         reset; accumulate=True retains completed observations across executions.
         """
-        from ._coverage_runtime import configure
+        from .._coverage_runtime import configure
         with self._lock:
             if self._collector is not None:
                 raise RuntimeError("cannot rebind active coverage")
@@ -1143,7 +1143,7 @@ class CoverGroup:
         return self
 
     def _start(self, execution: Any) -> None:
-        from ._coverage_runtime import _Collector
+        from .._coverage_runtime import _Collector
         with self._lock:
             if self._collector is not None:
                 raise RuntimeError("coverage already belongs to an Execution")
@@ -1623,7 +1623,7 @@ class CoverGroup:
                 raise CoverageMergeError("coverage report items do not match schema")
             ordered[kind] = tuple(expected[name] for name in names)
         definition = replace(definition, **ordered)
-        from ._coverage_capture import suspended
+        from .._coverage_capture import suspended
         with suspended():
             group = cls(
                 definition,

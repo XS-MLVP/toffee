@@ -7,7 +7,6 @@ from hashlib import sha256
 import json
 import os
 from pathlib import Path
-import re
 import shutil
 import subprocess
 import sys
@@ -15,26 +14,8 @@ import tempfile
 import weakref
 from typing import Any
 
-from ._runner_artifacts import fingerprint, sync_directory
-
-_POINT = re.compile(rb"C '(.*)' ([0-9]+)\n?\Z")
-
-
-def _point_counts(path: Path) -> dict[bytes, int]:
-    counts = {}
-    with path.open("rb") as stream:
-        if stream.readline() != b"# SystemC::Coverage-3\n":
-            raise ValueError(f"invalid native coverage header: {path}")
-        for line in stream:
-            match = _POINT.fullmatch(line)
-            if match is None or int(match[2]) > 2**63 - 1:
-                raise ValueError(f"invalid native coverage record: {path}")
-            if match[1] in counts:
-                raise ValueError(f"duplicate native coverage points: {path}")
-            counts[match[1]] = int(match[2])
-    if not counts:
-        raise ValueError(f"empty native coverage points: {path}")
-    return counts
+from ._artifact_io import fingerprint, sync_directory
+from .coverage.rtl._verilator import DAT_RECORD, point_counts, point_fields
 
 
 def _point_digest(counts: dict[bytes, int]) -> str:
@@ -42,7 +23,7 @@ def _point_digest(counts: dict[bytes, int]) -> str:
 
 
 def point_identity(path: Path) -> str:
-    return _point_digest(_point_counts(path))
+    return _point_digest(point_counts(path))
 
 
 @lru_cache(maxsize=128)
@@ -86,7 +67,7 @@ def merge(inputs: list[Path], output: Path, build: dict[str, Any], points: str) 
         raise ValueError("native DUT build inputs changed during execution")
     expected: dict[bytes, int] = {}
     for path in inputs:
-        counts = _point_counts(path)
+        counts = point_counts(path)
         if _point_digest(counts) != points:
             raise ValueError(f"native coverage point universe changed: {path}")
         for point, count in counts.items():
@@ -101,7 +82,7 @@ def merge(inputs: list[Path], output: Path, build: dict[str, Any], points: str) 
     try:
         subprocess.run([build["processor"], "--write", str(pending), *map(str, inputs)],
                        check=True, capture_output=True, text=True)
-        actual = _point_counts(pending)
+        actual = point_counts(pending)
         if _point_digest(actual) != points:
             raise ValueError("native merger changed the coverage point universe")
         if actual != expected:
@@ -127,9 +108,9 @@ def export_lcov(path: Path, output: Path, build: dict[str, Any]) -> bool:
         with path.open("rb") as source, filtered.open("wb") as target:
             target.write(source.readline())
             for line in source:
-                match = _POINT.fullmatch(line)
+                match = DAT_RECORD.fullmatch(line)
                 assert match is not None
-                fields = dict(part.split(b"\x02", 1) for part in match[1].split(b"\x01") if b"\x02" in part)
+                fields = point_fields(match[1])
                 if fields.get(b"page", b"").startswith((b"v_line", b"v_branch")):
                     target.write(line)
                     records += 1

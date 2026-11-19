@@ -20,7 +20,7 @@ from toffee import (
     generate_unified_coverage_site,
     parse_lcov,
 )
-from toffee.coverage_report import main
+from toffee.coverage_report import main, render_unified_coverage_html
 
 
 @pytest.mark.parametrize("text,message", [
@@ -54,6 +54,25 @@ def test_report_cli_requires_output(capsys):
     with pytest.raises(SystemExit) as caught:
         main([])
     assert caught.value.code == 2 and "--output or --site" in capsys.readouterr().err
+
+
+def test_cli_does_not_replace_its_template(tmp_path, capsys):
+    template = tmp_path / "template.html"
+    template.write_text("@@TITLE@@")
+    with pytest.raises(SystemExit) as caught:
+        main(["--template", str(template), "--output", str(template)])
+    assert caught.value.code == 2 and "cannot replace an input" in capsys.readouterr().err
+    assert template.read_text() == "@@TITLE@@"
+
+
+def test_renderer_does_not_replace_template_through_a_hard_link(tmp_path):
+    template = tmp_path / "template.html"
+    template.write_text("@@TITLE@@")
+    output = tmp_path / "output.html"
+    output.hardlink_to(template)
+    with pytest.raises(ValueError, match="cannot replace the HTML template"):
+        render_unified_coverage_html({}, output, template=template)
+    assert template.read_text() == "@@TITLE@@"
 
 
 @pytest.mark.skipif(shutil.which("genhtml") is None, reason="requires genhtml")
